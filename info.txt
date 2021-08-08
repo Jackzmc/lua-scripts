@@ -1,0 +1,30 @@
+Copy whole lib folder to %appdata%\Stand\Lua Scripts\ 
+and copy any of the .lua files below you want to the Lua Scripts folder:
+
+no_police_helicopters:
+	Deletes all police ai helicopters (not players, or empty)
+	
+train_control:
+	Allows spawning trains, setting speeds, turning on derailed, delete all, etc.
+	Warning: Negative speeds make train go in reverse, for other players this looks VERY buggy and desyncs a lot.
+	Warning: Also due to nature of GTA, the closest person to the locomotive usually gets control of the train, which will fight your control of the train and it's speed.
+
+vehicle_options:
+	Adds the following options under a players -> player name -> vehicle options:
+	* Teleport Vehicle to Me
+	* Teleport Vehicle to Me (Far Distance) - Smart version that tps players that are far away. Use if above option doesnt work.
+	* Repair Vehicle
+	* Burst Tires
+	* Movement >
+		* Boost <mph speed>
+		* Slingshot (boost + launch)
+		* Launch <mph speed>
+	* Flip Upright
+	* Kill Engine
+	* Toggle Godmode
+	* Set License Plate
+	* [activate on last Vehicle] - uses their last vehicle (if they leave vehicle you can still mess with it) 
+	
+vehicle_autodrive:
+	Not as polished as other scripts, allows you to set speed/driving style of ai,
+	and have it either drive to waypoint or wander.

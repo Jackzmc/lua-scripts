@@ -1,0 +1,10 @@
+# vehicle options (v1.4)
+
+V1.2
+-- Fixed bugs, added 'Set License Plate'
+V1.3
+-- Fix teleport far not returning self to vehicle
+-- (Untested) Support spectating other players. Should work with Teleport Vehicle
+V1.4
+-- Added door controls
+-- Rearranged menu options
