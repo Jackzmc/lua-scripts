@@ -48,7 +48,6 @@ chat.on_message(function(sender_player_id, sender_player_name, message, is_team_
             spawn_ped_on_player(model, sender_player_id)
             util.toast(string.format("%s spawned %s", PLAYER.GET_PLAYER_NAME(sender_player_id), name, model))
         else
-            util.toast("not found")
             chat.send_message(PLAYER.GET_PLAYER_NAME(sender_player_id) .. " that is not a valid model", is_team_chat, true, true)
         end
     end
