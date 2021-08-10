@@ -1,6 +1,8 @@
 -- Vehicle Autodrive - 1.0
 -- Created By Jackz
 
+-- TODO: Spawn ped to drive
+
 require("natives-1627063482")
 
 local drive_speed = 50.0
