@@ -1,10 +1,11 @@
--- Actions - 1.0
+-- Actions - 1.1
 -- Created By Jackz
 
 local v = "1.0"
 
 require("natives-1627063482")
 require("animations")
+
 
 local SCENARIOS = {
     HUMAN = {
@@ -162,17 +163,21 @@ local SCENARIOS = {
     }
 }
 
+-- TODO: Favorites system
+
 local scenarioCount = 0
 local animationGroupCount = 0
 local animationCount = 0
 
+local clearActionImmediately = true
 
-
--- TASK_START_SCENARIO_IN_PLACE(Ped ped, char* scenarioName, int unkDelay, BOOL playEnterAnim);
 menu.action(menu.my_root(), "Stop All", {"stopself"}, "Stops the current scenario or animation", function(v)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
 end)
+menu.toggle(menu.my_root(), "Clear Action Immediately", {"clearimmediately"}, "If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.", function(on)
+    lclearActionImmediately = on
+end, clearActionImmediately)
 
 local flags = 1
 local allowControl = true
@@ -207,19 +212,24 @@ end, function(args)
     table.sort(results, function(a, b) return a[2] < b[2] end)
     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
     for i = 1, 21 do
-        local group = results[i][1]
-        local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
-        for _, anim in ipairs(ANIMATIONS[group]) do
-            menu.action(m, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation", function(v)
-                STREAMING.REQUEST_ANIM_DICT(group)
-                while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
-                    util.yield(100)
-                end
-                local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false);
-            end)
+        if results[i] then
+            local group = results[i][1]
+            local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
+            for _, anim in ipairs(ANIMATIONS[group]) do
+                menu.action(m, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation", function(v)
+                    STREAMING.REQUEST_ANIM_DICT(group)
+                    while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
+                        util.yield(100)
+                    end
+                    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    if clearActionImmediately then
+                        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+                    end
+                    TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false);
+                end)
+            end
+            table.insert(resultMenus, m)
         end
-        table.insert(resultMenus, m)
     end
 end)
 for group, animations in pairs(ANIMATIONS) do
@@ -233,6 +243,9 @@ for group, animations in pairs(ANIMATIONS) do
                 util.yield(100)
             end
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            if clearActionImmediately then
+                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+            end
             TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false);
         end)
     end
@@ -245,6 +258,9 @@ for group, scenarios in pairs(SCENARIOS) do
         scenarioCount = scenarioCount + 1
         menu.action(submenu, scenario[2], {"scenario"}, "Plays the " .. scenario[2] .. " scenario", function(v)
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            if clearActionImmediately then
+                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+            end
             TASK.TASK_START_SCENARIO_IN_PLACE(ped, scenario[1], 0, true);
         end)
     end
