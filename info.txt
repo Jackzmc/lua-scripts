@@ -9,7 +9,7 @@ train_control:
 	Warning: Negative speeds make train go in reverse, for other players this looks VERY buggy and desyncs a lot.
 	Warning: Also due to nature of GTA, the closest person to the locomotive usually gets control of the train, which will fight your control of the train and it's speed.
 
-vehicle_options:
+vehicle_options (v1.5):
 	Adds the following options under a players -> player name -> vehicle options:
 	* Teleport Vehicle to Me
 	* Teleport Vehicle to Me (Far Distance) - Smart version that tps players that are far away. Use if above option doesnt work.
@@ -28,3 +28,9 @@ vehicle_options:
 vehicle_autodrive:
 	Not as polished as other scripts, allows you to set speed/driving style of ai,
 	and have it either drive to waypoint or wander.
+	
+actions (v1.0):
+	Allows you to play any scenario or animation on your character,
+	147 scenarios to choose from
+	15,353 animation groups with a total of 156,119 animations
+	Animations has a search for animation groups, later versions I'll pick out the usual animations other menus have.
