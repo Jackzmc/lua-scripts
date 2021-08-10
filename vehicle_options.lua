@@ -1,4 +1,4 @@
--- Vehicle Options - 1.4
+-- Vehicle Options - 1.5
 -- Created By Jackz
 
 -- V1.2
@@ -12,11 +12,15 @@
 -- Added door controls
 -- Rearranged menu options
 
+-- V1.5 
+-- Added painting car
+-- Added spawning any vehicle infront of a player
+-- Removed teleport far distance (normal teleport now works smarter)
+-- Made getting control of players that are too far auto spectate.
+
 require("natives-1627063482")
 
--- If set to true, acts on their last vehicle
-local tp_last_option = {}
-local is_tping = false
+local options = {}
 
 local DOOR_NAMES = {
     "Front Left",
@@ -30,53 +34,68 @@ local DOOR_NAMES = {
 }
 
 -- Gets the player's vehicle, attempts to request control. Returns 0 if unable to get control
--- TODO: Check if player already has control, return early
 function get_player_vehicle_in_control(pid)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()) -- Needed to turn off spectating while getting control
     local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
-    local vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, tp_last_option[pid])
+
+    local pos1 = ENTITY.GET_ENTITY_COORDS(target_ped)
+    local pos2 = ENTITY.GET_ENTITY_COORDS(my_ped)
+    local dist = SYSTEM.VDIST2(pos1.x, pos1.y, 0, pos2.x, pos2.y, 0)
+
     local was_spectating = NETWORK.NETWORK_IS_IN_SPECTATOR_MODE() -- Needed to toggle it back on if currently spectating
-    
+    --NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
+    if dist > 340000 then
+        util.toast("Player is too far, auto-spectating for 3s.")
+        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
+        util.yield(3000)
+    end
+    local vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, options[pid].teleport_last)
+
     if vehicle > 0 then
+        if NETWORK.NETWORK_HAS_CONTROL_OF_ENTITY(vehicle) then
+
+            return vehicle
+        end
         -- Loop until we get control
-        -- TODO: Check if spectating undo for a sec
-        local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(veh)
+        local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
         local has_control_ent = false
-        local has_control_net = false
-        local loops = 0
-        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false,my_ped)
+        local loops = 15
+        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
         NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
 
         -- Attempts 15 times, with 8ms per attempt
-        while not has_control_ent and not has_control_net do
+        while not has_control_ent do
             has_control_ent = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
-            has_control_net = NETWORK.NETWORK_REQUEST_CONTROL_OF_NETWORK_ID(netid)
-            loops = loops + 1
+            loops = loops - 1
             -- wait for control
             util.yield(15)
-            if loops >= 15 then
-                if was_spectating then
-                    NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, my_ped)
-                end
-                return 0
+            if loops <= 0 then
+                break
             end
         end
-
         if was_spectating then
-            NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, my_ped)
+            NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
+        else
+            NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
         end
-
-        return vehicle
-    else
-        return 0
     end
+    if was_spectating then
+        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
+    else
+        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
+    end
+    return vehicle
 end
 
 
 
 function setup_action_for(pid) 
     local submenu = menu.list(menu.player_root(pid), "Vehicle Options", {}, "List of vehicle options")
-
+    options[pid] = {
+        teleport_last = false,
+        paint_color_primary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
+        paint_color_secondary = { r = 1.0, g = 0.412, b = 0.706, a = 1 }
+    }
 
     menu.action(submenu, "Teleport Vehicle to Me", {"tpvehme"}, "Teleports their vehicle to your location", function(on_click)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -90,52 +109,6 @@ function setup_action_for(pid)
         end
     end)
 
-    menu.action(submenu, "Teleport Vehicle to Me (Far Distance)", {"tpvehmefar"}, "Teleports their vehicle to your location by teleporting to them", function(on_click)
-        -- Ignore spamming of action
-        if not is_tping then
-            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
-            local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, 1)
-            local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped, 1)
-            local isWasVisible = ENTITY.IS_ENTITY_VISIBLE(my_ped)
-            local myVehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
-            
-            -- Set self to invisible if not already
-            if isWasVisible then
-                ENTITY.SET_ENTITY_VISIBLE(my_ped, false)
-            end
-            ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
-            -- Teleport self to them and wait ~ 300ms
-            is_tping = true
-            util.toast("Teleporting to their location to acquire vehicle...")
-            ENTITY.SET_ENTITY_COORDS(my_ped, target_pos.x + 30.0, target_pos.y, target_pos.z - 100.0, 1, 1, 0, 0)
-            local loops = 0
-            local vehicle = 0
-            while vehicle == 0 and loops <= 20 do
-                util.yield(200)
-                vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, false)
-                loops = loops + 1
-            end
-            if vehicle then
-                vehicle = get_player_vehicle_in_control(pid, 1)
-                -- Then teleport both vehicle and self back to original point
-                ENTITY.SET_ENTITY_COORDS(vehicle, my_pos.x, my_pos.y, my_pos.z, 0, 0, 0, 0)
-            else
-                util.toast("Failed to find a vehicle after " .. loops .. " attempts")
-            end
-            is_tping = false
-            if isWasVisible then
-                ENTITY.SET_ENTITY_VISIBLE(my_ped, true)
-            end
-            ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
-            if myVehicle > 0 then
-                PED.SET_PED_INTO_VEHICLE(my_ped, myVehicle, -1)
-            end
-            ENTITY.SET_ENTITY_COORDS(my_ped, my_pos.x, my_pos.y, my_pos.z , 0, 0, 0, 0)
-            util.yield(100)
-            ENTITY.SET_ENTITY_VELOCITY(my_ped, 0, 0, 0)
-        end
-    end)
     ----------------------------------------------------------------
     -- Movement Section
     ----------------------------------------------------------------
@@ -192,6 +165,18 @@ function setup_action_for(pid)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
             ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, 0.0)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(movementMenu, "Explode", {"explode"}, "Stops the player's engine", function(on_click)
+        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
+
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+           VEHICLE.SET_VEHICLE_ALARM_TIME_LEFT(vehicle, 5000)
         else
             util.toast("Player is not in a car or out of range")
         end
@@ -274,18 +259,50 @@ function setup_action_for(pid)
         end
     end)
 
-    menu.toggle(submenu, "Engine On", {"setenginestate"}, "", function(on_click)
+    menu.action(submenu, "Paint", {"paint"}, "Paints the car with the selected colors below", function(on_click)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
-            if VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle) then
-                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, false, true, false)
-            else
-                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true, false)
-            end
+            local r = math.floor(options[pid].paint_color_primary.r * 255)
+            local g = math.floor(options[pid].paint_color_primary.g * 255)
+            local b = math.floor(options[pid].paint_color_primary.b * 255)
+            VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, r, g, b)
+            local r = math.floor(options[pid].paint_color_secondary.r * 255)
+            local g = math.floor(options[pid].paint_color_secondary.g * 255)
+            local b = math.floor(options[pid].paint_color_secondary.b * 255)
+            VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, r, g, b)
         else
             util.toast("Player is not in a car or out of range")
         end
-    end, true)
+    end)
+
+    menu.colour(submenu, "Paint Color (Primary)", {"paintcolorprimary"}, "The primary color to paint the car", options[pid].paint_color_primary, false, function(color)
+        options[pid].paint_color_primary = color
+    end)
+
+    menu.colour(submenu, "Paint Color (Secondary)", {"paintcolorsecondary"}, "The secondary color to paint the car", options[pid].paint_color_secondary, false, function(color)
+        options[pid].paint_color_secondary = color
+    end)
+
+    menu.action(submenu, "Spawn", {"spawnfor"}, "Spawns the vehicle name for the player", function(on)
+        local name = PLAYER.GET_PLAYER_NAME(pid)
+        menu.show_command_box("spawnfor" .. name .. " ")
+    end, function(args)
+        local model = util.joaat(args)
+        if STREAMING.IS_MODEL_VALID(model) and STREAMING.IS_MODEL_A_VEHICLE(model) then
+            STREAMING.REQUEST_MODEL(model)
+            while not STREAMING.HAS_MODEL_LOADED(model) do
+                util.yield()
+            end
+            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 5.0, 0.5)
+            local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+            local veh = util.create_vehicle(model, pos, heading)
+            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+        else
+            util.toast("Could not find that vehicle.")
+        end
+
+    end, false)
 
     menu.action(submenu, "Kill Engine", {"killengine"}, "Kills the player's vehicle engine", function(on_click)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -336,18 +353,16 @@ function setup_action_for(pid)
     end, false)
 
     menu.toggle(submenu, "Activate on Last Vehicle", {}, "Will activate on the player's last vehicle, if they arent in a vehicle", function(on)
-        tp_last_option[pid] = on
+        options[pid].teleport_last = on
     end, false)
 end
 
 local cur_players = players.list(true, true, true)
 for k,pid in pairs(cur_players) do
-    tp_last_option[pid] = false
     setup_action_for(pid)
 end
 
 players.on_join(function(pid)
-    tp_last_option[pid] = false
     setup_action_for(pid)
 end)
 
