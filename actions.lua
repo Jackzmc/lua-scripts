@@ -1,11 +1,15 @@
--- Actions - 1.1
+-- Actions - 1.4
 -- Created By Jackz
 
-local v = "1.0"
+local v = "1.4"
 
 require("natives-1627063482")
 require("animations")
 
+if ANIMATIONS_INDEX_VERSION ~= "3.0" then
+    util.toast("Actions cannot load: Library file 'animations.lua' is out of date. Please update the file!", 2)
+    util.stop_script()
+end
 
 local SCENARIOS = {
     HUMAN = {
@@ -163,24 +167,42 @@ local SCENARIOS = {
     }
 }
 
--- TODO: Favorites system
-
 local scenarioCount = 0
-local animationGroupCount = 0
 local animationCount = 0
 
 local clearActionImmediately = true
+local favorites = {}
+local favoritesActions = {}
+local recents = {}
+local flags = 1
+local allowControl = true
+local affectType = 0
+-----------------------
+-- SCENARIOS
+----------------------
 
-menu.action(menu.my_root(), "Stop All", {"stopself"}, "Stops the current scenario or animation", function(v)
+menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current scenario or animation", function(v)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    if affectType > 0 then
+        local peds = util.get_all_peds()
+        for _, npc in ipairs(peds) do
+            if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
+                NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
+                if clearActionImmediately then
+                    TASK.CLEAR_PED_TASKS_IMMEDIATELY(npc)
+                end
+            end
+        end
+    end
 end)
 menu.toggle(menu.my_root(), "Clear Action Immediately", {"clearimmediately"}, "If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.", function(on)
     lclearActionImmediately = on
 end, clearActionImmediately)
+local affectMenu = menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Self\n1 = NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
+    affectType = value
+end)
 
-local flags = 1
-local allowControl = true
 local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
 menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", function(on)
     if on then
@@ -189,65 +211,62 @@ menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should t
         flags = 1
     end
 end, allowControl)
+
+-----------------------
+-- ANIMATIONS
+----------------------
 local resultMenus = {}
-local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
-menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
-    menu.show_command_box("searchanim ")
-end, function(args)
-    -- Delete existing results
-    for _, m in ipairs(resultMenus) do
-        menu.delete(m)
+local favoritesMenu = menu.list(animationsMenu, "Favorites", {}, "List of all your favorited animations. Hold SHIFT to add or remove from favorites.")
+local recentsMenu = menu.list(animationsMenu, "Recents", {}, "List of all your recently played animations")
+-- local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
+-- menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
+--     menu.show_command_box("searchanim ")
+-- end, function(args)
+--     -- Delete existing results
+--     for _, m in ipairs(resultMenus) do
+--         menu.delete(m)
+--     end
+--     -- Find all possible groups
+--     local results = {}
+--     for _, result in ipairs(ANIMATIONS) do
+--         local res = string.find(result[1], args)
+--         if res then
+--             table.insert(results, {
+--                 result[1], result[2]
+--             })
+--         end
+--     end
+--     -- Sort by ascending start Index
+--     table.sort(results, function(a, b) return a[2] < b[2] end)
+--     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
+--     for i = 1, 21 do
+--         if results[i] then
+--             -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
+--            local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. group, function(v)
+--                 play_animation(results[i][1], results[i][2], false)
+--             end)
+--             table.insert(resultMenus, m)
+--         end
+--     end
+-- end)
+local menus = {
+    headers = {},
+    subheaders = {}
+}
+for _, header in ipairs(ANIMATIONS_HEADINGS) do
+    if not menus[header] then
+        menus.headers[header] = menu.list(animationsMenu, header)
     end
-    -- Find all possible groups
-    local results = {}
-    for group, _ in pairs(ANIMATIONS) do
-        local res = string.find(group, args)
-        if res then
-            table.insert(results, {
-                group, res
-            })
+    for _, subheader in pairs(ANIMATIONS_SUBHEADINGS[header]) do
+        if not menus.subheaders[header .. subheader] then
+            menus.subheaders[header .. subheader] = menu.list(menus.headers[header], subheader, {}, "")
         end
-    end
-    -- Sort by ascending start Index
-    table.sort(results, function(a, b) return a[2] < b[2] end)
-    -- Messy, but no way to call a list group, so recreate all animations in a sublist:
-    for i = 1, 21 do
-        if results[i] then
-            local group = results[i][1]
-            local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
-            for _, anim in ipairs(ANIMATIONS[group]) do
-                menu.action(m, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation", function(v)
-                    STREAMING.REQUEST_ANIM_DICT(group)
-                    while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
-                        util.yield(100)
-                    end
-                    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                    if clearActionImmediately then
-                        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
-                    end
-                    TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false);
-                end)
-            end
-            table.insert(resultMenus, m)
+        for _, section in ipairs(ANIMATIONS[header][subheader]) do
+            animationCount = animationCount + 1
+            menu.action(menus.subheaders[header .. subheader], section[2], {"animate" .. section[1] .. " " .. section[2]}, "Plays the " .. section[2] .. " animation from group " .. section[1], function(v)
+                play_animation(section[1], section[2], false)
+            end)
         end
-    end
-end)
-for group, animations in pairs(ANIMATIONS) do
-    animationGroupCount = animationGroupCount + 1
-    local submenu = menu.list(animationsMenu, group, {}, "All animations for " .. group)
-    for _, anim in ipairs(animations) do
-        animationCount = animationCount + 1
-        menu.action(submenu, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation", function(v)
-            STREAMING.REQUEST_ANIM_DICT(group)
-            while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
-                util.yield(100)
-            end
-            local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            if clearActionImmediately then
-                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
-            end
-            TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false);
-        end)
     end
 end
 
@@ -258,15 +277,159 @@ for group, scenarios in pairs(SCENARIOS) do
         scenarioCount = scenarioCount + 1
         menu.action(submenu, scenario[2], {"scenario"}, "Plays the " .. scenario[2] .. " scenario", function(v)
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            if clearActionImmediately then
-                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+            
+            -- Play scenario on all npcs if enabled:
+            if affectType > 0 then
+                local peds = util.get_all_peds()
+                for _, npc in ipairs(peds) do
+                    if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
+                        NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
+                        if clearActionImmediately then
+                            TASK.CLEAR_PED_TASKS_IMMEDIATELY(npc)
+                        end
+                        TASK.TASK_START_SCENARIO_IN_PLACE(npc, scenario[1], 0, true);
+                    end
+                end
             end
-            TASK.TASK_START_SCENARIO_IN_PLACE(ped, scenario[1], 0, true);
+            -- Play scenario on self if enabled:
+            if affectType == 0 or affectType == 2 then
+                if clearActionImmediately then
+                    TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+                end
+                TASK.TASK_START_SCENARIO_IN_PLACE(ped, scenario[1], 0, true);
+            end
         end)
     end
 end
 
-util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animation groups and %d animations", v, scenarioCount, animationGroupCount, animationCount))
+-----------------------
+-- Animation Functions
+----------------------
+-- Maybe smart deletion but eh
+function populate_favorites()
+    for _, action in ipairs(favoritesActions) do
+        menu.delete(action)
+    end
+    favoritesActions = {}
+    for _, favorite in ipairs(favorites) do
+        local name = favorite[2]
+        if favorite[3] then
+            name = favorite[3] .. " (" .. favorite[2] .. ")"
+        end
+        local a = menu.action(favoritesMenu, name, {}, "Plays " .. favorite[2] .. " from group " .. favorite[1], function(v)
+            play_animation(favorite[1], favorite[2], false)
+        end)
+        table.insert(favoritesActions, a)
+    end
+end
+
+function is_anim_in_recent(group, anim)
+    for _, recent in ipairs(recents) do
+        if recent[1] == group and recent[2] == anim then
+            return true
+        end
+    end
+    return false
+end
+
+function add_anim_to_recent(group, anim)
+    if #recents >= 20 then
+        menu.delete(recents[1][3])
+        table.remove(recents, 1)
+    end
+    local action = menu.action(recentsMenu, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation from group " .. group, function(v)
+        play_animation(group, anim, true)
+    end)
+    table.insert(recents, { group, anim, action })
+end
+
+function play_animation(group, anim, ignore)
+    if PAD.IS_CONTROL_PRESSED(2, 209) then
+        for i, favorite in ipairs(favorites) do
+            if favorite[1] == group and favorite[2] == anim then
+                table.remove(favorites, i)
+                populate_favorites()
+                save_favorites()
+                util.toast("Removed " .. group .. "\n" .. anim .. " from favorites")
+                return
+            end
+        end
+        table.insert(favorites, { group, anim })
+        populate_favorites()
+        save_favorites()
+        util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
+    else
+        STREAMING.REQUEST_ANIM_DICT(group)
+        while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
+            util.yield(100)
+        end
+        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        
+
+        if not is_anim_in_recent(group, anim) and not ignore then
+            add_anim_to_recent(group, anim)
+        end
+
+        -- Play animation on all npcs if enabled:
+        if affectType > 0 then
+            local peds = util.get_all_peds()
+            for _, npc in ipairs(peds) do
+                if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
+                    if clearActionImmediately then
+                        TASK.CLEAR_PED_TASKS_IMMEDIATELY(npc)
+                    end
+                    NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
+                    TASK.TASK_PLAY_ANIM(npc, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false)
+                end
+            end
+        end
+        -- Play animation on self if enabled:
+        if affectType == 0 or affectType == 2 then
+            if clearActionImmediately then
+                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+            end
+            TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false)
+        end
+    end
+end
+
+------------------------------
+-- Loading & Saving Favorites
+--------------------------------
+local path = filesystem.stand_dir() .. "/Favorite Animations.txt"
+if filesystem.exists(path) then
+    local headerRead = false
+    for line in io.lines(path) do 
+        if headerRead then
+            chunks = {}
+            for substring in string.gmatch(line, "%S+") do
+                table.insert(chunks, substring)
+            end
+            if #chunks == 2 or #chunks == 3 then
+                table.insert(favorites, chunks)
+            end
+        else
+            headerRead = true
+        end
+    end
+    populate_favorites()
+end
+function save_favorites()
+    local file = io.open(path, "w")
+    io.output(file)
+    io.write("category\t\tanimation name\t\talias (no spaces)\n")
+    for _, favorite in ipairs(favorites) do
+        if favorite[3] then
+            io.write(string.format("%s %s %s\n", favorite[1], favorite[2], favorite[3]))
+        else
+            io.write(string.format("%s %s\n", favorite[1], favorite[2]))
+        end
+    end
+    io.close(file)
+end
+-----------------------
+util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)
+util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animations, and %d favories", v, scenarioCount, animationCount, #favorites), 2)
 
 while true do
 	util.yield()
