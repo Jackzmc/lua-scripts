@@ -1,5 +1,11 @@
-Copy whole lib folder to %appdata%\Stand\Lua Scripts\ 
-and copy any of the .lua files below you want to the Lua Scripts folder:
+! INSTRUCTIONS !
+
+Copy the lib folder and whatever lua file (see below) you want to %appdata%\Stand\Lua Scripts\ 
+If windows asks to overwrite, accept it
+
+------------
+Script List:
+------------
 
 no_police_helicopters:
 	Deletes all police ai helicopters (not players, or empty)
@@ -9,27 +15,50 @@ train_control:
 	Warning: Negative speeds make train go in reverse, for other players this looks VERY buggy and desyncs a lot.
 	Warning: Also due to nature of GTA, the closest person to the locomotive usually gets control of the train, which will fight your control of the train and it's speed.
 
-vehicle_options (v1.5):
-	Adds the following options under a players -> player name -> vehicle options:
-	* Teleport Vehicle to Me
-	* Teleport Vehicle to Me (Far Distance) - Smart version that tps players that are far away. Use if above option doesnt work.
-	* Repair Vehicle
-	* Burst Tires
-	* Movement >
-		* Boost <mph speed>
-		* Slingshot (boost + launch)
-		* Launch <mph speed>
-	* Flip Upright
-	* Kill Engine
-	* Toggle Godmode
-	* Set License Plate
-	* [activate on last Vehicle] - uses their last vehicle (if they leave vehicle you can still mess with it) 
+vehicle_options:
+	Adds the following options under  players -> [player name] -> vehicle options:
+    * Teleport Vehicle to Me
+    * Movement >
+        * Boost <mph speed>
+        * Slingshot (boost + launch)
+        * Launch <mph speed>
+        * Stop
+    * Doors > (open / close their doors)
+        * Lock Status
+        * Individual Door Toggles
+        * Landing Gear State
+    * Customization >
+        Xenon Headlights Paint Type
+        Neon Lights >
+            Apply Neon Color
+            Neon Color
+        Paint
+        Paint Color (Primary)
+        Paint Color (Secondary)
+        Vehicle Mods
+        Upgrade
+        Performance Upgrade
+    * Clone Vehicle
+    * Save Vehicle
+    * Flip Upright
+    * Spawn (spawns whatever model car in front of them)
+    * Burst Tires
+    * Kill Engine
+    * Repair Vehicle
+    * Toggle Godmode
+    * Set License Plate
+    * Activate on Last Vehicle - uses their last vehicle (if they leave vehicle you can still mess with it)
+    
+    Adds the following to Stand -> Lua Scripts -> vehicle_options:
+    * Save Vehicle
+    * Spawn Saved Vehicle
+    * Apply Saved to Current Vehicle (Applies effect to current instead of creating new vehicle)
 	
 vehicle_autodrive:
 	Not as polished as other scripts, allows you to set speed/driving style of ai,
 	and have it either drive to waypoint or wander.
 	
-actions (v1.0):
+actions:
 	Allows you to play any scenario or animation on your character,
 	147 scenarios to choose from
 	15,353 animation groups with a total of 156,119 animations
