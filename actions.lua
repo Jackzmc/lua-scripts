@@ -1,7 +1,12 @@
--- Actions - 1.4
+-- Actions
 -- Created By Jackz
-
-local v = "1.4"
+local SCRIPT = "actions"
+local VERSION = "1.4"
+luahttp = require("luahttp")
+local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
+if result == "OUTDATED" then
+    util.toast("A new version of " .. SCRIPT .. " is available")
+end
 
 require("natives-1627063482")
 require("animations")
@@ -218,37 +223,56 @@ end, allowControl)
 local resultMenus = {}
 local favoritesMenu = menu.list(animationsMenu, "Favorites", {}, "List of all your favorited animations. Hold SHIFT to add or remove from favorites.")
 local recentsMenu = menu.list(animationsMenu, "Recents", {}, "List of all your recently played animations")
--- local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
--- menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
---     menu.show_command_box("searchanim ")
--- end, function(args)
---     -- Delete existing results
---     for _, m in ipairs(resultMenus) do
---         menu.delete(m)
---     end
---     -- Find all possible groups
---     local results = {}
---     for _, result in ipairs(ANIMATIONS) do
---         local res = string.find(result[1], args)
---         if res then
---             table.insert(results, {
---                 result[1], result[2]
---             })
---         end
---     end
---     -- Sort by ascending start Index
---     table.sort(results, function(a, b) return a[2] < b[2] end)
---     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
---     for i = 1, 21 do
---         if results[i] then
---             -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
---            local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. group, function(v)
---                 play_animation(results[i][1], results[i][2], false)
---             end)
---             table.insert(resultMenus, m)
---         end
---     end
--- end)
+local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
+menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
+    menu.show_command_box("searchanim ")
+end, function(args)
+    -- Delete existing results
+    for _, m in ipairs(resultMenus) do
+        menu.delete(m)
+    end
+    -- Find all possible groups
+    local results = {}
+    -- loop ANIMATIONS by heading then subheading then insert based on result
+    for _, result in ipairs(ANIMATIONS) do
+        local res = string.find(result[1], args)
+        if res then
+            table.insert(results, {
+                result[1], result[2]
+            })
+        end
+    end
+    for _, header in ipairs(ANIMATIONS_HEADINGS) do
+        if not menus[header] then
+            menus.headers[header] = menu.list(animationsMenu, header)
+        end
+        for _, subheader in pairs(ANIMATIONS_SUBHEADINGS[header]) do
+            if not menus.subheaders[header .. subheader] then
+                menus.subheaders[header .. subheader] = menu.list(menus.headers[header], subheader, {}, "")
+            end
+            for _, section in ipairs(ANIMATIONS[header][subheader]) do
+                local res = string.find(section[1], args)
+                if res then
+                    table.insert(results, {
+                        section[1], section[2]
+                    })
+                end
+            end
+        end
+    end
+    -- Sort by ascending start Index
+    table.sort(results, function(a, b) return a[2] < b[2] end)
+    -- Messy, but no way to call a list group, so recreate all animations in a sublist:
+    for i = 1, 21 do
+        if results[i] then
+            -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
+           local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. group, function(v)
+                play_animation(results[i][1], results[i][2], false)
+            end)
+            table.insert(resultMenus, m)
+        end
+    end
+end)
 local menus = {
     headers = {},
     subheaders = {}
@@ -429,7 +453,7 @@ function save_favorites()
 end
 -----------------------
 util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)
-util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animations, and %d favories", v, scenarioCount, animationCount, #favorites), 2)
+util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animations, and %d favories", VERSION, scenarioCount, animationCount, #favorites), 2)
 
 while true do
 	util.yield()

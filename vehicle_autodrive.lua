@@ -1,5 +1,12 @@
--- Vehicle Autodrive - 1.0
+-- Vehicle Autodrive
 -- Created By Jackz
+local SCRIPT = "vehicle_autodrive"
+local VERSION = "1.0"
+luahttp = require("luahttp")
+local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
+if result == "OUTDATED" then
+    util.toast("A new version of " .. SCRIPT .. " is available")
+end
 
 -- TODO: Spawn ped to drive
 

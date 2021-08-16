@@ -1,5 +1,12 @@
--- Train Control - 1.0
+-- Train Control
 -- Created By Jackz
+local SCRIPT = "train_control"
+local VERSION = "1.0"
+luahttp = require("luahttp")
+local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
+if result == "OUTDATED" then
+    util.toast("A new version of " .. SCRIPT .. " is available")
+end
 
 require("natives-1627063482")
 
