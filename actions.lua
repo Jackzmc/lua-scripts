@@ -1,7 +1,7 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.4"
+local VERSION = "1.5"
 luahttp = require("luahttp")
 local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
 if result == "OUTDATED" then
@@ -231,6 +231,7 @@ end, function(args)
     for _, m in ipairs(resultMenus) do
         menu.delete(m)
     end
+    resultMenus = {}
     -- Find all possible groups
     local results = {}
     -- loop ANIMATIONS by heading then subheading then insert based on result
@@ -243,13 +244,7 @@ end, function(args)
         end
     end
     for _, header in ipairs(ANIMATIONS_HEADINGS) do
-        if not menus[header] then
-            menus.headers[header] = menu.list(animationsMenu, header)
-        end
         for _, subheader in pairs(ANIMATIONS_SUBHEADINGS[header]) do
-            if not menus.subheaders[header .. subheader] then
-                menus.subheaders[header .. subheader] = menu.list(menus.headers[header], subheader, {}, "")
-            end
             for _, section in ipairs(ANIMATIONS[header][subheader]) do
                 local res = string.find(section[1], args)
                 if res then
@@ -263,10 +258,10 @@ end, function(args)
     -- Sort by ascending start Index
     table.sort(results, function(a, b) return a[2] < b[2] end)
     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
-    for i = 1, 21 do
+    for i = 1, 31 do
         if results[i] then
             -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
-           local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. group, function(v)
+           local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. results[i][1], function(v)
                 play_animation(results[i][1], results[i][2], false)
             end)
             table.insert(resultMenus, m)

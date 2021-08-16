@@ -48,7 +48,7 @@ V1.8
 * (1.8.1) Added option to apply to pre-existing vehicle
 Saved vehicles are stored in `%appdata%\Stand\Vehicles`. Format is not compatible with any other menu, but its similar to Paragon's.
 
-# actions (v1.4)
+# actions (v1.5)
 
 v1.1
 
@@ -72,3 +72,7 @@ v1.4
 * Removed search - Due to new alphabetical system & lua stupidity had to be removed
 * Fixed favorites not being removed
 * Note: Requires new animations.lua library! 
+
+v1.5
+
+* Re-added category search
