@@ -1,9 +1,21 @@
--- Vehicle Options - 1.5.2
+-- Vehicle Options
 -- Created By Jackz
--- See changelog in changelog.txt
+-- See changelog in changelog.md
+local SCRIPT = "vehicle_options"
+local VERSION = "1.8.2"
+luahttp = require("luahttp")
+local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
+if result == "OUTDATED" then
+    util.toast("A new version of " .. SCRIPT .. " is available")
+end
+
+-- TODO: Clone Vehicle
+-- TODO: Save / Spawn Saved Per-Player
 
 require("natives-1627063482")
+json = require('json')
 
+-- Per-player options
 local options = {}
 
 local DOOR_NAMES = {
@@ -11,6 +23,64 @@ local DOOR_NAMES = {
     "Back Left", "Back Right",
     "Engine", "Trunk",
     "Back", "Back 2",
+}
+-- Subtract index by 1 to get modIndex (ty lua)
+local MOD_TYPES = {
+    [1] = "Spoilers",
+    [2] = "Front Bumper",
+    [3] = "Rear Bumper",
+    [4] = "Side Skirt",
+    [5] = "Exhaust",
+    [6] = "Frame",
+    [7] = "Grille",
+    [8] = "Hood",
+    [9] = "Fender",
+    [10] = "Right Fender",
+    [11] = "Roof",
+    [12] = "Engine",
+    [13] = "Brakes",
+    [14] = "Transmission",
+    [15] = "Horns",
+    [16] = "Suspension",
+    [17] = "Armor",
+    [19] = "Turbo Turning",
+    [21] = "Tire Smoke",
+    [22] = "Xenon Headlights",
+    [24] = "Wheels Design",
+    [25] = "Motorcycle Back Wheel Design",
+    [26] = "Plate Holders",
+    [28] = "Trim Design",
+    [29] = "Ornaments",
+    [31] = "Dial Design",
+    [34] = "Steering Wheel",
+    [35] = "Shifter Leavers",
+    [36] = "Plaques",
+    [39] = "Hydraulics",
+    [49] = "Livery"
+}
+local VEHICLE_TYPES = {
+    "Compacts",  
+	"Sedans",
+	"SUVs",
+	"Coupes",
+	"Muscle",
+	"Sports Classics",
+	"Sports",
+	"Super",
+	"Motorcycles",
+	"Off-road",
+	"Industrial",
+	"Utility",
+	"Vans",
+	"Cycles",
+	"Boats",
+	"Helicopters",
+	"Planes",
+	"Service",
+	"Emergency",
+	"Military",
+	"Commercial",
+	"Trains"
 }
 local NEON_INDICES = { "Left", "Right", "Front", "Back"}
 
@@ -27,7 +97,7 @@ function get_player_vehicle_in_control(pid)
     local was_spectating = NETWORK.NETWORK_IS_IN_SPECTATOR_MODE() -- Needed to toggle it back on if currently spectating
     -- If they out of range (value may need tweaking), auto spectate.
     local vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, options[pid].teleport_last)
-    if dist > 340000 and not was_spectating then
+    if target_ped ~= my_ped and dist > 340000 and not was_spectating then
         util.toast("Player is too far, auto-spectating for upto 3s.")
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
         -- To prevent a hard 3s loop, we keep waiting upto 3s or until vehicle is acquired
@@ -76,34 +146,13 @@ end
 
 
 function setup_action_for(pid) 
-    local submenu = menu.list(menu.player_root(pid), "Vehicle Options", {}, "List of vehicle options")
+    local submenu = menu.list(menu.player_root(pid), "Vehicle Options", {"vehicle"}, "List of vehicle options")
     options[pid] = {
         teleport_last = false,
         paint_color_primary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
         paint_color_secondary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
         neon_color = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
     }
-
-    menu.action(menu.my_root(), "get modkit", {}, "", function(a)
-        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle then
-            local numb = VEHICLE.GET_NUM_MOD_KITS(vehicle)
-            local modkit = VEHICLE.GET_VEHICLE_MOD_KIT(vehicle)
-            util.toast(numb .. " " .. modkit)
-        else
-            util.toast("Player is not in a car or out of range. Try spectating them")
-        end
-    end)
-    menu.click_slider(menu.my_root(), "set modkit", {"setmodkit"}, "", 0, 10, 1, 1, function(value)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, value)
-        else
-            util.toast("Player is not in a car or out of range")
-        end
-    end)
 
     menu.action(submenu, "Teleport Vehicle to Me", {"tpvehme"}, "Teleports their vehicle to your location", function(on_click)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -235,7 +284,10 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- LSC Section
     ----------------------------------------------------------------
-    local lsc = menu.list(submenu, "Customize", {}, "Customize the players vehicle options\nSet headlights\nSet Paint Color")
+    local lsc = menu.list(submenu, "Los Santos Customs", {"lcs"}, "Customize the players vehicle options\nSet headlights\nSet Paint Color")
+    menu.on_focus(lsc, function()
+
+    end)
     menu.slider(lsc, "Xenon Headlights Paint Type", {"xenoncolor"}, "The paint to use for xenon lights\nDefault = -1\nWhite = 0\nBlue = 1\nElectric Blue = 2\nMint Green = 3\nLime Green = 4\nYellow = 5\nGolden Shower = 6\nOrange = 7\nRed = 8\nPony Pink = 9\nHot Pink = 10\nPurple = 11\nBlacklight = 12", -1, 12, 0, 1, function(paint)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
@@ -313,10 +365,114 @@ function setup_action_for(pid)
     menu.colour(lsc, "Paint Color (Secondary)", {"paintcolorsecondary"}, "The secondary color to paint the car", options[pid].paint_color_secondary, false, function(color)
         options[pid].paint_color_secondary = color
     end)
+
+    local subMenus = {}
+    local modMenu = menu.list(lsc, "Vehicle Mods", {}, "")
+    menu.on_focus(modMenu, function()
+        for _, m in ipairs(subMenus) do
+            menu.delete(m)
+        end
+        subMenus = {}
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            -- TODO: Make default value be current value?
+            for i, mod in pairs(MOD_TYPES) do
+                local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, i - 1)
+                local m = menu.slider(modMenu, mod, {"set" .. mod}, string.format("Apply upto %d variations of %s", max, mod), 0, max, 0, 1, function(index)
+                    local vehicle = get_player_vehicle_in_control(pid)
+                    if vehicle > 0 then
+                       VEHICLE.SET_VEHICLE_MOD(vehicle, i - 1, index)
+                    else
+                        util.toast("Player is not in a car or out of range")
+                    end
+                end)
+                table.insert(subMenus, m)
+            end
+        end
+    end)
+
+    menu.click_slider(modMenu, "Wheel Type", {"wheeltype"}, "Sets the vehicle's wheel types\nSport = 0\nMuscle = 1\nLowrider = 2\nSUV = 3\nOffroad = 4\nTuner = 5\nBike Wheels = 6\nHigh End = 7\nClick to apply.", 0, 7, 0, 1, function(type)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+           VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, type)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.click_slider(modMenu, "Window Tint", {"windowtint"}, "Set the window tint.\n0 = None\n1 = Pure Black\n2 = Dark Smoke\n3 = Light Smoke\n4 = Stock\n5 = Limo\n6 = Green\nClick to apply.", 0, 6, 0, 1, function(value)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, value)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(lsc, "Upgrade", {"upgradevehicle"}, "Upgrades the vehicle to the highest upgrades", function(on_click)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            for x = 0, 16 do
+                local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
+                VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
+            end
+            VEHICLE.SET_VEHICLE_MOD(vehicle, x, 45)
+            VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, 5)
+            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(lsc, "Performance Upgrade", {"performanceupgradevehicle"}, "Upgrades the following vehicle parts:\nEngine\nTransmission\nBrakes\nArmour\nTurbo", function(on_click)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            for x = 11, 13 do
+                local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
+                VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
+            end
+            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
     ----------------------------------------------------------------
     -- END LSC
     ----------------------------------------------------------------
 
+    menu.action(submenu, "Clone Vehicle", {"clonevehicle"}, "Clones the player's vehicle", function(on_click)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            local saveData = get_vehicle_save_data(vehicle)
+            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 5.0, 0.5)
+            local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+            local vehicle = util.create_vehicle(saveData.Model, pos, heading)
+            apply_vehicle_save_data(vehicle, saveData)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(submenu, "Save Vehicle", {"saveplayervehicle"}, "Saves the player's vehicle to disk", function(on_click)
+        util.toast("Enter a name to save the vehicle as")
+        menu.show_command_box("savevehicle ")
+    end, function(args)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            local saveData = get_vehicle_save_data(vehicle)
+
+            filesystem.mkdirs(vehicleDir)
+            local file = io.open( vehicleDir .. args .. ".json", "w")
+            io.output(file)
+            io.write(json.encode(saveData))
+            io.close(file)
+            util.toast("Saved to %appdata%\\Stand\\Vehicles\\" .. args .. ".json")
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
     menu.action(submenu, "Flip Upright", {"flipveh"}, "Flips the player's vehicle upwards", function(on_click)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
@@ -327,7 +483,7 @@ function setup_action_for(pid)
         end
     end)
 
-    menu.action(submenu, "Spawn", {"spawnfor"}, "Spawns the vehicle name for the player", function(on)
+    menu.action(submenu, "Spawn Vehicle", {"spawnfor"}, "Spawns the vehicle name for the player", function(on)
         local name = PLAYER.GET_PLAYER_NAME(pid)
         menu.show_command_box("spawnfor" .. name .. " ")
     end, function(args)
@@ -411,6 +567,237 @@ function setup_action_for(pid)
         options[pid].teleport_last = on
     end, false)
 end
+local vehicleDir = filesystem.stand_dir() .. "/Vehicles/"
+function get_vehicle_save_data(vehicle) 
+    local model = ENTITY.GET_ENTITY_MODEL(vehicle)
+    local Primary = {
+        Custom = VEHICLE.GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM(vehicle),
+    }
+    local Secondary = {
+        Custom = VEHICLE.GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM(vehicle),
+    }
+    -- Declare pointers
+    local Color = {
+        r = memory.alloc(8),
+        g = memory.alloc(8),
+        b = memory.alloc(8),
+    }
+
+    if Primary.Custom then
+        VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
+        Primary["Custom Color"] = {
+            r = memory.read_int(Color.r),
+            b = memory.read_int(Color.g),
+            g = memory.read_int(Color.b)
+        }
+    else
+        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.b, Color.g)
+        Primary["Paint Type"] = memory.read_int(Color.r)
+        Primary["Color"] = memory.read_int(Color.g)
+        Primary["Pearlescent Color"] = memory.read_int(Color.b)
+    end
+    if Secondary.Custom then
+        VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
+        Secondary["Custom Color"] = {
+            r = memory.read_int(Color.r),
+            b = memory.read_int(Color.g),
+            g = memory.read_int(Color.b)
+        }
+    else
+        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.b, Color.g)
+        Secondary["Paint Type"] = memory.read_int(Color.r)
+        Secondary["Color"] = memory.read_int(Color.g)
+        Secondary["Pearlescent Color"] = memory.read_int(Color.b)
+    end
+    VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle, Color.r, Color.g, Color.b)
+    local Extras = {
+        r = memory.read_int(Color.r),
+        g = memory.read_int(Color.g),
+        b = memory.read_int(Color.b),
+    }
+
+    VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, Color.r, Color.g, Color.b)
+    local TireSmoke = {
+        r = memory.read_int(Color.r),
+        g = memory.read_int(Color.g),
+        b = memory.read_int(Color.b),
+    }
+
+    VEHICLE._GET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, Color.r, Color.g, Color.b)
+    local Neon = {
+        Color = {
+            r = memory.read_int(Color.r),
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b),
+        },
+        Left = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 0),
+        Right = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1),
+        Front = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2),
+        Back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3),
+    }
+    Color.r = memory.alloc(8)
+    Color.b = memory.alloc(8)
+    VEHICLE._GET_VEHICLE_DASHBOARD_COLOR(vehicle, Color.r)
+    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.b)
+    local DashboardColor = memory.read_int(Color.r)
+    local InteriorColor = memory.read_int(Color.b)
+    VEHICLE.GET_VEHICLE_COLOR(vehicle, Color.r, Color.g, Color.b)
+    local Vehicle = {
+        r = memory.read_int(Color.r),
+        g = memory.read_int(Color.g),
+        b = memory.read_int(Color.b),
+    }
+    VEHICLE.GET_VEHICLE_COLOURS(vehicle, Color.r, Color.g)
+    Vehicle["Primary"] = memory.read_int(Color.r)
+    Vehicle["Secondary"] = memory.read_int(Color.g)
+    memory.free(Color.r)
+    memory.free(Color.g)
+    memory.free(Color.b)
+
+    local mods = {}
+    for i, modName in pairs(MOD_TYPES) do
+        mods[modName] = VEHICLE.GET_VEHICLE_MOD(vehicle, i - 1)
+    end
+
+    local saveData = {
+        Format = "JSTAND 1.0",
+        Model = model,
+        Name = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model) ,
+        Type = VEHICLE_TYPES[VEHICLE.GET_VEHICLE_CLASS(vehicle)],
+        ["Tire Smoke"] = TireSmoke,
+        Livery = {
+            Style = VEHICLE.GET_VEHICLE_LIVERY(vehicle),
+            Count = VEHICLE.GET_VEHICLE_LIVERY_COUNT(vehicle)
+        },
+        ["License Plate"] = {
+            Text = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT(vehicle),
+            Type = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle)
+        },
+        ["Window Tint"] = VEHICLE.GET_VEHICLE_WINDOW_TINT(vehicle),
+        Colors = {
+            Primary = Primary,
+            Secondary = Secondary,
+            ["Color Combo"] = VEHICLE.GET_VEHICLE_COLOUR_COMBINATION(vehicle),
+            ["Paint Fade"] = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle),
+            Vehicle = Vehicle,
+            Extras = Extras
+        },
+        Lights = {
+            ["Xenon Color"] = VEHICLE._GET_VEHICLE_XENON_LIGHTS_COLOR(vehicle),
+            Neon = Neon
+        },
+        ["Dashboard Color"] = DashboardColor,
+        ["Interior Color"] = InteriorColor,
+        ["Dirt Level"] = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle),
+        ["Bulletproof Tires"] = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle),
+        Mods = mods
+    }
+
+    return saveData
+end
+function apply_vehicle_save_data(vehicle, saveData) 
+    VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
+    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"])
+    VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.r, saveData.Colors.Extras.g, saveData.Colors.Extras.b)
+    VEHICLE.SET_VEHICLE_COLOURS(vehicle, saveData.Colors.Vehicle.Primary, saveData.Colors.Vehicle.Secondary)
+    if saveData.Colors.Primary.Custom then
+        VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Primary["Custom Color"].r, saveData.Colors.Primary["Custom Color"].b, saveData.Colors.Primary["Custom Color"].g)
+    else
+        VEHICLE.SET_VEHICLE_MOD_COLOR_1(vehicle, saveData.Colors.Primary["Paint Type"], saveData.Colors.Primary.Color, saveData.Colors.Primary["Pearlescent Color"])
+    end
+    if saveData.Colors.Secondary.Custom then
+        VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Secondary["Custom Color"].r,  saveData.Colors.Secondary["Custom Color"].b, saveData.Colors.Secondary["Custom Color"].g)
+    else
+        VEHICLE.SET_VEHICLE_MOD_COLOR_2(vehicle, saveData.Colors.Secondary["Paint Type"], saveData.Colors.Secondary.Color, saveData.Colors.Secondary["Pearlescent Color"])
+    end
+    VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r, saveData["Tire Smoke"].g, saveData["Tire Smoke"].b)
+    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, saveData["Bulletproof Tires"])
+    VEHICLE._SET_VEHICLE_DASHBOARD_COLOR(vehicle, saveData["Dashboard Color"])
+    VEHICLE._SET_VEHICLE_INTERIOR_COLOR(vehicle, saveData["Interior Color"])
+    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, saveData["Dirt Level"])
+    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"])
+
+    for i, modName in pairs(MOD_TYPES) do
+        if saveData.Mods[modName] then
+            VEHICLE.SET_VEHICLE_MOD(vehicle, i - 1, saveData.Mods[modName])
+        end
+    end
+
+    VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, saveData.Lights.Neon.Color.r, saveData.Lights.Neon.Color.g, saveData.Lights.Neon.Color.b)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 0, saveData.Lights.Neon.Left)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1, saveData.Lights.Neon.Right)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2, saveData.Lights.Neon.Front)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3, saveData.Lights.Neon.Back)
+
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style)
+    VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, saveData["Window Tint"])
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text)
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type)
+
+end
+menu.action(menu.my_root(), "Save Current Vehicle", {"savevehicle"}, "Saves your current vehicle with all customizations", function(on_click)
+    util.toast("Enter a name to save the vehicle as")
+    menu.show_command_box("savevehicle ")
+end, function(args)
+    local vehicle = util.get_vehicle()
+    local saveData = get_vehicle_save_data(vehicle)
+
+    filesystem.mkdirs(vehicleDir)
+    local file = io.open( vehicleDir .. args .. ".json", "w")
+    io.output(file)
+    io.write(json.encode(saveData))
+    io.close(file)
+    util.toast("Saved to %appdata%\\Stand\\Vehicles\\" .. args .. ".json")
+end)
+local savedVehiclesList = menu.list(menu.my_root(), "Spawn Saved Vehicles", {}, "List of spawnable saved vehicles.\nStored in %appdata%\\Stand\\Vehicles")
+local savedVehicleMenus = {}
+local applySaved = false
+menu.toggle(menu.my_root(), "Apply Saved to Current Vehicle", {}, "Instead of spawning a new saved vehicle, it will instead apply it to your current vehicle.", function(on)
+    applySaved = on
+end, applySaved)
+menu.on_focus(savedVehiclesList, function()
+    for _, m in pairs(savedVehicleMenus) do
+        menu.delete(m)
+    end
+    savedVehicleMenus = {}
+    for _, file in ipairs(filesystem.list_files(vehicleDir)) do
+        local _, name, ext = string.match(file, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+            if ext == "json" then
+            local m = menu.action(savedVehiclesList, name, {"spawnvehicle" .. name}, "Spawns a saved custom vehicle", function(on_click)
+                local file = io.open(vehicleDir .. name, "r")
+                io.input(file)
+                local saveData = json.decode(io.read("*a"))
+                io.close(file)
+                if saveData['Model'] ~= nil then
+                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 5.0, 0.5)
+                    local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+                    local vehicle
+                    if applySaved then
+                        local v = util.get_vehicle()
+                        if v == 0 then
+                            util.toast("You must be in a vehicle to apply")
+                        else
+                            vehicle = v
+                        end
+                        util.toast("Applied " .. name .. " to your current vehicle")
+                    else
+                        util.create_vehicle(saveData.Model, pos, heading)
+                        util.toast("Spawned " .. name)
+                    end
+
+                    if vehicle > 0 then
+                        apply_vehicle_save_data(vehicle, saveData)
+                    end
+                else
+                    util.toast("JSON Vehicle is invalid, missing 'Model' parameter.")
+                end
+            end)
+            table.insert(savedVehicleMenus, m)
+        end
+    end
+end)
+
 
 local cur_players = players.list(true, true, true)
 for k,pid in pairs(cur_players) do
