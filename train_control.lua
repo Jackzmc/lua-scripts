@@ -1,14 +1,23 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.0"
-luahttp = require("luahttp")
-local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
-if result == "OUTDATED" then
-    util.toast("A new version of " .. SCRIPT .. " is available")
-end
+local VERSION = "1.0.1"
+-- Remove these lines if you want to disable update-checks: (6-11)
+util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+    chunks = {}
+    for substring in string.gmatch(result, "%S+") do
+        table.insert(chunks, substring)
+    end
+    if chunks[1] == "OUTDATED" then
+        util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
+    end
+end)
 
-require("natives-1627063482")
+local status = pcall(require, "natives-1627063482")
+if not status then
+    util.toast(SCRIPT .. " cannot load: Library files are missing. (natives-1627063482)", 10)
+    util.stop_script()
+end
 
 local models = {
     util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
@@ -147,7 +156,11 @@ menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains 
     end
 end, false)
 
--- Old crap
+util.on_stop(function(a)
+    for _, model in ipairs(models) do
+        STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
+    end
+end)
 
 
 local crazyTrains = false

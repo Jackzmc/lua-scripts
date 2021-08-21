@@ -1,21 +1,34 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.5"
-luahttp = require("luahttp")
-local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
-if result == "OUTDATED" then
-    util.toast("A new version of " .. SCRIPT .. " is available")
-end
-
-require("natives-1627063482")
-require("animations")
-
-if ANIMATIONS_INDEX_VERSION ~= "3.0" then
-    util.toast("Actions cannot load: Library file 'animations.lua' is out of date. Please update the file!", 2)
+local VERSION = "1.7.2"
+-- Remove these lines if you want to disable update-checks: (6-11)
+util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+    chunks = {}
+    for substring in string.gmatch(result, "%S+") do
+        table.insert(chunks, substring)
+    end
+    if chunks[1] == "OUTDATED" then
+        util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
+    end
+end)
+-- Start Library Requirements
+local status = pcall(require, "natives-1627063482")
+if not status then
+    util.toast(SCRIPT .. " cannot load: Library files are missing. (natives-1627063482)", 10)
     util.stop_script()
 end
-
+local status = pcall(require, "animations")
+if not status then
+    util.toast(SCRIPT .. " cannot load: Library files are missing. (animations)", 10)
+    util.stop_script()
+end
+-- Check if animations library is incorrect
+if ANIMATIONS_INDEX_VERSION ~= "3.0" then
+    util.toast(SCRIPT .. " cannot load: Library file 'animations.lua' is out of date. Please update the file!", 2)
+    util.stop_script()
+end
+-- START Scenario Data
 local SCENARIOS = {
     HUMAN = {
         { "WORLD_HUMAN_AA_COFFEE", "AA Coffee" },
@@ -171,7 +184,7 @@ local SCENARIOS = {
         { "PROP_BIRD_TELEGRAPH_POLE", "Bird on pole" },
     }
 }
-
+-- Messy Globals
 local scenarioCount = 0
 local animationCount = 0
 
@@ -204,7 +217,7 @@ end)
 menu.toggle(menu.my_root(), "Clear Action Immediately", {"clearimmediately"}, "If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.", function(on)
     lclearActionImmediately = on
 end, clearActionImmediately)
-local affectMenu = menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Self\n1 = NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
+local affectMenu = menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
     affectType = value
 end)
 
@@ -258,7 +271,7 @@ end, function(args)
     -- Sort by ascending start Index
     table.sort(results, function(a, b) return a[2] < b[2] end)
     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
-    for i = 1, 31 do
+    for i = 1, 101 do
         if results[i] then
             -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
            local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. results[i][1], function(v)
@@ -289,7 +302,7 @@ for _, header in ipairs(ANIMATIONS_HEADINGS) do
     end
 end
 
-local scenariosMenu = menu.list(menu.my_root(), "Scenarios", {}, "List of scenarios you can play")
+local scenariosMenu = menu.list(menu.my_root(), "Scenarios", {}, "List of scenarios you can play\nSome scenarios only work on certain genders, example AA Coffee only works on male peds.")
 for group, scenarios in pairs(SCENARIOS) do
     local submenu = menu.list(scenariosMenu, group, {}, "All " .. group .. " scenarios")
     for _, scenario in ipairs(scenarios) do
@@ -320,7 +333,223 @@ for group, scenarios in pairs(SCENARIOS) do
         end)
     end
 end
+-----------------------
+-- Speeches
+----------------------
+-- START Speech Data
+local SPEECH_PARAMS = {
+    { "Normal", "Speech_Params_Force" },
+    { "In Your Head", "Speech_Params_Force_Frontend", "Plays the voice as if nearby npcs are inside you" },
+    { "Beat", "SPEECH_PARAMS_BEAT" },
+    { "Megaphone", "Speech_Params_Force_Megaphone" },
+    { "Helicopter", "Speech_Params_Force_Heli" },
+    { "Shouted", "Speech_Params_Force_Shouted" },
+    { "Shouted (Critical)", "Speech_Params_Force_Shouted_Critical" },
+}
+local SPEECHES = {
+    { "Greeting", "GENERIC_HI" },
+    { "Farewell", "GENERIC_BYE" },
+    { "Bumped Into", "BUMP" },
+    { "Chat", "CHAT_RESP" },
+    { "Death Moan", "DYING_MOAN" },
+    { "Apology", "APOLOGY_NO_TROUBLE" },
+    { "Thanks", "GENERIC_THANKS" },
+    { "Fuck You", "GENERIC_FUCK_YOU" },
+    { "War Cry", "GENERIC_WAR_CRY" },
+    { "Fallback", "FALL_BACK" },
+    { "Cover Me", "COVER_ME" },
+    { "Swear", "GENERIC_CURSE_HIGH" },
+    { "Insult", "GENERIC_INSULT_HIGH" },
+    { "Shocked", "GENERIC_SHOCKED_HIGH" },
+    { "Frightened", "GENERIC_FRIGHTENED_HIGH" },
+    { "Kiflom", "KIFFLOM_GREET", "Works best with epsilon voice models" },
+}
+local VOICE_MODELS = {
+    FEMALE = {
+        "a_f_m_bevhills_01",
+        "a_f_y_vinewood_01",
+        "a_f_y_hipster_02",
+        "a_f_y_femaleagent",
+        "a_f_y_bevhills_01",
+        "a_f_m_tramp_01",
+        "a_f_m_soucentmc_01",
+        "a_f_m_fatwhite_01",
+        "a_f_y_tourist_01",
+        "a_f_y_gencaspat_01",
+        "a_f_y_smartcaspat_01",
+        "a_f_y_epsilon_01",
+        "a_f_o_salton_01",
+        "a_f_m_beach_01"
+    },
+    MALE = {
+        "a_m_m_beach_01",
+        "a_m_m_hasjew_01",
+        "a_m_m_hillbilly_01",
+        "a_m_m_golfer_01",
+        "a_m_m_genfat_01",
+        "a_m_m_salton_02",
+        "a_m_m_tourist_01",
+        "a_m_m_soucent_01",
+        "a_m_o_tramp_01",
+        "a_m_y_beachvesp_01",
+        "a_m_y_epsilon_01",
+        "a_m_y_epsilon_02",
+        "a_m_y_jetski_01",
+        "a_m_y_vinewood_03",
+        "a_m_m_acult_01",
+        "u_m_m_jesus_01",
+        "s_m_y_sheriff_01_white_full_01"
+    }
+}
+local selfSpeechPed = {
+    entity = 0,
+    lastUsed = util.current_unix_time_millis(),
+    model = util.joaat("a_f_m_bevhills_01")
+}
+-- Messy globals again
+local speechParam = "Speech_Params_Force"
+local activeSpeech = "GENERIC_HI"
+local duration = 1
+local speechDelay = 1000
+local repeatEnabled = false
+local ambientSpeechMenu = menu.list(menu.my_root(), "Ambient Speech", {}, "Allow you to play ambient speeches on yourself or other peds")
+local speechMenu = menu.list(ambientSpeechMenu, "Speech Lines", {"speechlines"}, "List of Speeches peds can say.\nSome lines may not work on some NPCs")
+for _, pair in ipairs(SPEECHES) do
+    local desc = pair[2]
+    if pair[3] then
+        desc = desc .. "\n" .. pair[3]
+    end
+    menu.action(speechMenu, pair[1], {"speak" .. string.lower(pair[1])}, desc, function(a)
+        -- Play single duration for peds
+        if affectType > 0 then
+            if duration > 0 then
+                for _, ped in ipairs(util.get_all_peds()) do
+                    if not PED.IS_PED_A_PLAYER(ped) then
+                        if duration > 1 then
+                            util.create_thread(function()
+                                NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(ped)
+                                for x = 1,duration do
+                                    AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, pair[2], speechParam)
+                                    util.yield(speechDelay)
+                                end
+                            end)
+                        else
+                            AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, pair[2], speechParam)
+                        end
+                    end
+                end
+            else
+                
+            end
+        end
+        -- Play single duration for self
+        if affectType == 0 or affectType == 2 then
+            if selfSpeechPed.entity == 0 then
+                create_self_speech_ped()
+            end
+            util.create_thread(function()
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                for x = 1,duration do
+                    AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(selfSpeechPed.entity, pair[2], speechParam)
+                    util.yield(speechDelay)
+                end
+            end)
+            selfSpeechPed.lastUsed = util.current_unix_time_millis()
+            --TODO: implement
+        end
+        -- Play repeated for self or peds
+        if duration == 0 then
+            activeSpeech = pair[2]
+            if not repeatEnabled then
+                repeatEnabled = true
+                if selfSpeechPed.entity == 0 and affectType ~= 1 then
+                    create_self_speech_ped()
+                end
+                util.create_tick_handler(function(a)
+                    if affectType > 0 then
+                        for _, ped in ipairs(util.get_all_peds()) do
+                            NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(ped)
+                            AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, activeSpeech, speechParam)
+                        end
+                    end
+                    if selfSpeechPed.entity > 0 and affectType == 0 or affectType == 2 then
+                        AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(selfSpeechPed.entity, activeSpeech, speechParam)
+                        selfSpeechPed.lastUsed = util.current_unix_time_millis()
+                    end
+                    util.yield(speechDelay)
+                    return repeatEnabled
+                end)
+            end
+        end
+    end)
+end
+local speechType = menu.list(ambientSpeechMenu, "Speech Method", {"speechmethods", "How is the line said"})
+for _, pair in ipairs(SPEECH_PARAMS) do
+    menu.action(speechType, pair[1], {}, pair[2], function(a)
+        speechParam = pair[2]
+    end)
+end
+local selfModelVoice = menu.list(ambientSpeechMenu, "Self Model Voice", {"selfvoice", "What model to use when playing a self-ambient speech\nOnly used if your current model is MP (Fe)male"})
+menu.divider(selfModelVoice, "Female Peds")
+for _, model in ipairs(VOICE_MODELS.FEMALE) do
+    menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
+        if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
+            util.delete_entity(selfSpeechPed.entity)
+            selfSpeechPed.entity = 0
+        end
+        selfSpeechPed.model = util.joaat(model)
+    end)
+end
+menu.divider(selfModelVoice, "Male Peds")
+for _, model in ipairs(VOICE_MODELS.MALE) do
+    menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
+        if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
+            util.delete_entity(selfSpeechPed.entity)
+            selfSpeechPed.entity = 0
+        end
+        selfSpeechPed.model = util.joaat(model)
+    end)
+end
 
+menu.slider(ambientSpeechMenu, "Duration", {"speechduration"}, "How many times should the speech be played?\n 0 to play forever, use 'Stop Active Speech' to end.", 0, 100, duration, 1, function(value)
+    duration = value
+end)
+menu.slider(ambientSpeechMenu, "Speech Interval", {"speechinterval"}, "How many milliseconds per repeat of line?", 100, 30000, speechDelay, 100, function(value)
+    speechDelay = value
+end)
+menu.action(ambientSpeechMenu, "Stop Active Speech", {"stopspeeches"}, "Stops any active ambient speeches", function(a)
+    for _, ped in ipairs(util.get_all_peds()) do
+        AUDIO.STOP_CURRENT_PLAYING_AMBIENT_SPEECH(ped)
+    end
+    -- reuse code cause why not its 11:57 pm I don't care now
+    if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
+        util.delete_entity(selfSpeechPed.entity)
+    end
+    selfSpeechPed.entity = 0
+    repeatEnabled = false
+end)
+
+function create_self_speech_ped()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local model = ENTITY.GET_ENTITY_MODEL(my_ped)
+    -- Freemode models cant do ambient speeches, so we need to change the model to something else:
+    if model == util.joaat("mp_f_freemode_01") or model == util.joaat("mp_m_freemode_01") then
+        model = selfSpeechPed.model
+    end
+    -- Load model in
+    STREAMING.REQUEST_MODEL(model)
+    while not STREAMING.HAS_MODEL_LOADED(model) do
+        util.yield()
+    end
+    -- Finally, spawn it & attach
+    local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
+    local ped = util.create_ped(1, model, pos, 0)
+    ENTITY._ATTACH_ENTITY_BONE_TO_ENTITY_BONE(ped, my_ped, 0, 0, 0, 0)
+    ENTITY.SET_ENTITY_VISIBLE(ped, false, 0)
+    NETWORK._NETWORK_SET_ENTITY_INVISIBLE_TO_NETWORK(ped, true)
+    selfSpeechPed.entity = ped
+    selfSpeechPed.lastUsed = util.current_unix_time_millis()
+end
 -----------------------
 -- Animation Functions
 ----------------------
@@ -450,6 +679,18 @@ end
 util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)
 util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animations, and %d favories", VERSION, scenarioCount, animationCount, #favorites), 2)
 
+util.on_stop(function(a)
+    if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
+        util.delete_entity(selfSpeechPed.entity)
+    end
+end)
+
 while true do
+    if selfSpeechPed.entity > 0 and util.current_unix_time_millis() - selfSpeechPed.lastUsed > 20 then
+        if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
+            util.delete_entity(selfSpeechPed.entity)
+        end
+        selfSpeechPed.entity = 0
+    end
 	util.yield()
 end

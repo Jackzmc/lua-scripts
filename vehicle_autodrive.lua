@@ -1,16 +1,25 @@
 -- Vehicle Autodrive
 -- Created By Jackz
 local SCRIPT = "vehicle_autodrive"
-local VERSION = "1.0"
-luahttp = require("luahttp")
-local result = luahttp.request("GET", "jackz.me", "/stand/updatecheck.php?script=" .. SCRIPT .. "&v=" .. VERSION)
-if result == "OUTDATED" then
-    util.toast("A new version of " .. SCRIPT .. " is available")
+local VERSION = "1.0.1"
+-- Remove these lines if you want to disable update-checks: (6-11)
+util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+    chunks = {}
+    for substring in string.gmatch(result, "%S+") do
+        table.insert(chunks, substring)
+    end
+    if chunks[1] == "OUTDATED" then
+        util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
+    end
+end)
+
+local status = pcall(require, "natives-1627063482")
+if not status then
+    util.toast(SCRIPT .. " cannot load: Library files are missing. (natives-1627063482)", 10)
+    util.stop_script()
 end
 
 -- TODO: Spawn ped to drive
-
-require("natives-1627063482")
 
 local drive_speed = 50.0
 local drive_style = 0

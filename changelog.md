@@ -1,4 +1,4 @@
-# vehicle options (v1.8)
+# vehicle options (v1.11)
 
 V1.2
 
@@ -46,9 +46,44 @@ V1.8
 * Clone any player's vehicle
 * Spawn any saved vehicles
 * (1.8.1) Added option to apply to pre-existing vehicle
+* (1.8.3) Allow restoring vehicle mods to stock (-1)
+* (1.8.3) Fixed spawning saved vehicle erroring
 Saved vehicles are stored in `%appdata%\Stand\Vehicles`. Format is not compatible with any other menu, but its similar to Paragon's.
 
-# actions (v1.5)
+V1.9
+
+* Fixed following mods from not saving correctly: Xenon Headlights, Turbo, and Tire Smoke.
+  * A new saved vehicle will need to be created, was not stored properly
+* Added saving engine state
+* Added some vehicle info to spawn saved vehicle list (vehicle manufacturer, name, and type, and format version)
+
+V1.10
+
+* Added Movement > Tow Options >
+  * Tow (Wander) - Spawns a random tow truck infront, that will drive randomly
+  * Tow (Waypoint) - Spawns a random tow truck, heading to your waypoint
+  * Detatch Tow
+* Added Flip Vehicle 180
+* Added Hijack Vehicle - Makes a random npc hijack their vehicle and stops the vehicle instantly.
+* Added under lua scripts:
+  * Tow All Nearby Vehicles
+  * Clear All Nearby Tows
+
+V1.11
+
+* Renamed Movement > Tow Options to Movement > Attachments
+* Added Cargobob (Cargobob to Mt. Chiliad, Ocean, Waypoint)
+* Added Trailer (Drive around, Take to Waypoint)
+* Added Free Vehicle (Teleports vehicle upwards to escape trailers or cages)
+
+V1.12
+
+* Added Clean Vehicle
+* Improved Hijacking Success
+* Added Delete Vehicle
+* Improved Cargo All Nearby Vehicles (Makes them have no collision at beginning)
+
+# actions (v1.7.1)
 
 v1.1
 
@@ -76,3 +111,11 @@ v1.4
 v1.5
 
 * Re-added category search
+
+v1.6
+
+* Added [Ambient Speech] menu for npcs and self:
+  * Plays certain phrases with certain methods (shouted, megaphone, etc)
+  * Able to play on self, choose a voice under Self Model Voice (spawns an invisible attached ped)
+  * (1.7.0) Allow you to set the interval that voice lines are repeated
+    * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)

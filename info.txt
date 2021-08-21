@@ -22,6 +22,18 @@ vehicle_options:
         * Boost <mph speed>
         * Slingshot (boost + launch)
         * Launch <mph speed>
+		* Attachments >
+          - TOW -
+		    * Tow (Wander) - Spawns a random tow truck infront, that will drive randomly
+		    * Tow To Waypoint) - Spawns a random tow truck, heading to your waypoint
+          - Cargobob - 
+            * Cargobob To Mt. Chiliad
+            * Cargobob To Ocean
+            * Cargobob To Waypoint
+          - Trailer -
+            * Drive Around
+            * Take To Waypoint
+            * Spawn Trailer With Gate Down 
         * Stop
     * Doors > (open / close their doors)
         * Lock Status
@@ -41,9 +53,12 @@ vehicle_options:
     * Clone Vehicle
     * Save Vehicle
     * Flip Upright
-    * Spawn (spawns whatever model car in front of them)
+    * Spawn - spawns whatever model car in front of them
+    * Flip Vehicle 180
+	* Hijack Vehicle - Makes a random npc hijack their vehicle and stops the vehicle instantly.
     * Burst Tires
     * Kill Engine
+    * Delete Vehicle
     * Repair Vehicle
     * Toggle Godmode
     * Set License Plate
@@ -53,6 +68,10 @@ vehicle_options:
     * Save Vehicle
     * Spawn Saved Vehicle
     * Apply Saved to Current Vehicle (Applies effect to current instead of creating new vehicle)
+	* Tow All Nearby Vehicles
+	* Clear All Nearby Tows
+    * Cargobob All Nearby Vehicles
+    * Clear All Nearby Cargobobs
 	
 vehicle_autodrive:
 	Not as polished as other scripts, allows you to set speed/driving style of ai,
@@ -63,3 +82,4 @@ actions:
 	147 scenarios to choose from
 	15,353 animation groups with a total of 156,119 animations
 	Animations has a search for animation groups, later versions I'll pick out the usual animations other menus have.
+	Since v1.6: Allow you to play ambient speeches on yourself or other nearby npcs
