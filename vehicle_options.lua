@@ -13,16 +13,30 @@ util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT
         util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
     end
 end)
-
-local status = pcall(require, "natives-1627063482")
-if not status then
-    util.toast(SCRIPT .. " cannot load: Library files are missing. (natives-1627063482)", 10)
-    util.stop_script()
+local WaitingLibsDownload = false
+function try_load_lib(lib)
+    local status = pcall(require, lib)
+    if not status then
+        WaitingLibsDownload = true
+        util.async_http_get("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
+            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib .. ".lua", "w")
+            io.output(file)
+            io.write(result)
+            io.close(file)
+            WaitingLibsDownload = false
+            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. ".lua'")
+            require(lib)
+        end, function(e)
+            util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+            util.stop_script()
+        end)
+    end
 end
-local status, json = pcall(require, "json")
-if not status then
-    util.toast(SCRIPT .. " cannot load: Library files are missing. (json)", 10)
-    util.stop_script()
+try_load_lib("natives-1627063482")
+try_load_lib("json")
+
+while WaitingLibsDownload do
+    util.yield()
 end
 
 --TODO: Idea: Cloud vehicles. Submenu:
@@ -175,7 +189,7 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
         util.yield()
     end
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
-    local cabPos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 8, 0.0)
+    local cabPos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 10, 0.0)
     local trailerPos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 0, 0.0)
     local heading = ENTITY.GET_ENTITY_HEADING(vehicle)
 
@@ -199,7 +213,8 @@ function spawn_cargobob_for_vehicle(vehicle)
     while not STREAMING.HAS_MODEL_LOADED(CARGOBOB_MODEL) do
         util.yield()
     end
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 0, 10.0)
+    local vehPos = ENTITY.GET_ENTITY_COORDS(vehicle)
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 0, 8.0)
     local z = memory.alloc(8)
     if(MISC.GET_GROUND_Z_FOR_3D_COORD(pos.x, pos.y, pos.z, z, false)) then
         pos.z = memory.read_float(z) + 10.0
@@ -215,7 +230,14 @@ function spawn_cargobob_for_vehicle(vehicle)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(cargobob, true)
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
     ENTITY.SET_ENTITY_VELOCITY(cargobob, 0, 0, 0)
-    VEHICLE.ATTACH_VEHICLE_TO_CARGOBOB(cargobob, vehicle, -2, 0, 0, 0)
+    ENTITY.FREEZE_ENTITY_POSITION(vehicle, true)
+    local tries = 0
+    while not VEHICLE.IS_VEHICLE_ATTACHED_TO_CARGOBOB(cargobob, vehicle) and tries < 20 do
+        VEHICLE.ATTACH_VEHICLE_TO_CARGOBOB(cargobob, vehicle, -2, 0, 0, 0)
+        tries = tries + 1
+        util.yield(50)
+    end
+    ENTITY.FREEZE_ENTITY_POSITION(vehicle, false)
     util.yield(1)
     return cargobob, driver
 end
@@ -269,39 +291,6 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     local movementMenu = menu.list(submenu, "Movement", {}, "List of vehicle movement options.\nBoost, Launch, Slingshot, Stop")
 
-    menu.click_slider(movementMenu, "Boost", {"boost"}, "Boost the player's vehicle forwards at a given speed (mph)", -200, 200, 200, 10, function(mph)
-        local speed = mph / 0.44704
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, speed)
-            local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
-            ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 2.0)
-            VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
-        else
-            util.toast("Player is not in a car or out of range")
-        end
-    end)
-
-    menu.action(movementMenu, "Slingshot", {"slingshot"}, "Boost the player's vehicle forward at a given speed (mph) & upwards", function(on_click)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
-            local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
-            ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 100.0)
-            VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
-        end
-    end)
-
-    menu.click_slider(movementMenu, "Launch", {"launch"}, "Boost the player's vehicle upwards", -200, 200, 200, 10, function(mph)
-        local speed = mph / 0.44704
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, speed)
-        else
-            util.toast("Player is not in a car or out of range")
-        end
-    end)
-
     local towMenu = menu.list(movementMenu, "Attachments", {"attachments"}, "Attach their vehicle to:\nCargobobs\nTow Trucks")
     -- TOW 
         menu.divider(towMenu, "Tow Trucks")
@@ -331,34 +320,7 @@ function setup_action_for(pid)
                 util.toast("You have no waypoint to drive to")
             end
         end)
-        BlipColors = {	
-            BLIPCOLOR_NONE = 0x0,	
-            BLIPCOLOR_RED = 0x1,	
-            BLIPCOLOR_GREEN = 0x2,	
-            BLIPCOLOR_BLUE = 0x3,	
-            BLIPCOLOR_PLAYER = 0x4,	
-            BLIPCOLOR_YELLOWMISSION = 0x5,	
-            BLIPCOLOR_FRIENDLYVEHICLE = 0x26,	
-            BLIPCOLOR_MICHAEL = 0x2A,	
-            BLIPCOLOR_FRANKLIN = 0x2B,	
-            BLIPCOLOR_TREAVOR = 0x2C,	
-            BLIPCOLOR_REDMISSION = 0x31,	
-            BLIPCOLOR_MISSIONVEHICLE = 0x36,	
-            BLIPCOLOR_YELLOWMISSION2 = 0x3C,	
-            BLIPCOLOR_MISSION = 0x42,	
-            BLIPCOLOR_WAYPOINT = 0x53
-        }
-
-        function get_player_objective(spriteId)
-            local blip = HUD.GET_FIRST_BLIP_INFO_ID(spriteId)
-            if HUD.DOES_BLIP_EXIST(blip) then
-                local color = HUD.GET_BLIP_COLOUR(blip)
-                if color == BLIPCOLOR_YELLOWMISSION2 or color == BLIPCOLOR_YELLOWMISSION or color == BLIPCOLOR_MISSION or color == BLIPCOLOR_GREEN then
-                    return blip
-                end
-            end
-        end
-
+        
         menu.action(towMenu, "Detach Tow", {"detachtow"}, "Will detach from any tow truck", function(on_click)
             local vehicle = get_player_vehicle_in_control(pid)
             if vehicle > 0 then
@@ -483,6 +445,40 @@ function setup_action_for(pid)
         end)
 
     -- END TOW
+
+    menu.click_slider(movementMenu, "Boost", {"boost"}, "Boost the player's vehicle forwards at a given speed (mph)", -200, 200, 200, 10, function(mph)
+        local speed = mph / 0.44704
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, speed)
+            local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
+            ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 2.0)
+            VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(movementMenu, "Slingshot", {"slingshot"}, "Boost the player's vehicle forward at a given speed (mph) & upwards", function(on_click)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
+            local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
+            ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 100.0)
+            VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
+        end
+    end)
+
+    menu.click_slider(movementMenu, "Launch", {"launch"}, "Boost the player's vehicle upwards", -200, 200, 200, 10, function(mph)
+        local speed = mph / 0.44704
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, speed)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
     menu.action(movementMenu, "Stop", {"stopvehicle"}, "Stops the player's engine", function(on_click)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
@@ -492,6 +488,7 @@ function setup_action_for(pid)
             util.toast("Player is not in a car or out of range")
         end
     end)
+
     ----------------------------------------------------------------
     -- END Movement Section
     ----------------------------------------------------------------
@@ -1161,7 +1158,7 @@ menu.on_focus(savedVehiclesList, function()
     end
 end)
 local spawned_tows = {}
-menu.action(menu.my_root(), "Tow All Nearby Vehicles", {}, "WARNING: This will make your FPS drop or even crash your game!\nLimited to 30 tow trucks to prevent crashes.", function(sdfa)
+menu.action(menu.my_root(), "Tow All Nearby Vehicles", {}, "WARNING: This can make your FPS drop or even crash your game!\nLimited to 30 tow trucks to prevent crashes.", function(sdfa)
     local pz = memory.alloc(8)
     STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_1)
     STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_2)
@@ -1218,7 +1215,7 @@ menu.action(menu.my_root(), "Clear All Nearby Tows", {}, "", function(sdfa)
         end
     end
 end)
-menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so they can watch :)", function(a)
+menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so they can watch :)\nMay have a small chance of crashing, don't spam it too quickly.", function(a)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -1238,6 +1235,7 @@ menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so the
                     ENTITY.SET_ENTITY_INVINCIBLE(cargobob, true)
                     table.insert(cargobobs, cargobob)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, 450.718 , 5566.614, 806.183, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
+                    util.yield(100)
                 end
             end
         end

@@ -13,15 +13,46 @@ util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT
     end
 end)
 -- Start Library Requirements
-local status = pcall(require, "natives-1627063482")
+local status, json = pcall(require, "json")
 if not status then
-    util.toast(SCRIPT .. " cannot load: Library files are missing. (natives-1627063482)", 10)
-    util.stop_script()
+    WaitingLibsDownload = true
+    util.async_http_get("jackz.me", "/stand/libs/json.lua", function(result)
+        local file = io.open(filesystem.scripts_dir() .. "/lib/json.lua", "w")
+        io.output(file)
+        io.write(result)
+        io.close(file)
+        WaitingLibsDownload = false
+        util.toast(SCRIPT .. ": Automatically downloaded missing lib 'json'")
+        json = require(file)
+    end, function(e)
+        util.toast(SCRIPT .. " cannot load: Library files are missing. (json)", 10)
+        util.stop_script()
+    end)
 end
-local status = pcall(require, "animations")
-if not status then
-    util.toast(SCRIPT .. " cannot load: Library files are missing. (animations)", 10)
-    util.stop_script()
+local WaitingLibsDownload = false
+function try_load_lib(lib)
+    local status = pcall(require, lib)
+    if not status then
+        WaitingLibsDownload = true
+        util.async_http_get("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
+            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib .. ".lua", "w")
+            io.output(file)
+            io.write(result)
+            io.close(file)
+            WaitingLibsDownload = false
+            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. ".lua'")
+            require(lib)
+        end, function(e)
+            util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+            util.stop_script()
+        end)
+    end
+end
+try_load_lib("natives-1627063482")
+try_load_lib("animations")
+
+while WaitingLibsDownload do
+    util.yield()
 end
 -- Check if animations library is incorrect
 if ANIMATIONS_INDEX_VERSION ~= "3.0" then
