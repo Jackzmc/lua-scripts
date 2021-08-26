@@ -1,15 +1,34 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.7.2"
--- Remove these lines if you want to disable update-checks: (6-11)
+local VERSION = "1.7.3"
+local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
+-- Check for updates & auto-update: 
+-- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
     chunks = {}
     for substring in string.gmatch(result, "%S+") do
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
-        util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
+        -- Remove this block (lines 15-31) to disable auto updates
+        util.async_http_get("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
+            local file = io.open(CHANGELOG_PATH, "w")
+            io.output(file)
+            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            io.close(file)
+        end)
+        util.async_http_get("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
+            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
+            io.output(file)
+            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            io.close(file)
+
+            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
+        end, function(e)
+            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+            util.stop_script()
+        end)
     end
 end)
 -- Start Library Requirements
@@ -54,10 +73,28 @@ try_load_lib("animations")
 while WaitingLibsDownload do
     util.yield()
 end
+-- Check if there is any changelogs (just auto-updated)
+if filesystem.exists(CHANGELOG_PATH) then
+    local file = io.open(CHANGELOG_PATH, "r")
+    io.input(file)
+    local text = io.read("*all")
+    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
+    io.close(file)
+    os.remove(CHANGELOG_PATH)
+end
 -- Check if animations library is incorrect
 if ANIMATIONS_INDEX_VERSION ~= "3.0" then
-    util.toast(SCRIPT .. " cannot load: Library file 'animations.lua' is out of date. Please update the file!", 2)
-    util.stop_script()
+    util.async_http_get("jackz.me", "/stand/lua/libs/animations.lua", function(result)
+        local file = io.open(filesystem.scripts_dir() .. "/lib/animations.lua", "w")
+        io.output(file)
+        io.write(result:gsub("\r", ""))
+        io.close(file)
+        require(filesystem.scripts_dir() .. "/lib/animations.lua")
+        util.log(SCRIPT .. ": Updated animations.lua library file successfully")
+    end, function(e)
+        util.toast(SCRIPT .. ": Failed to automatically update animations library file. Please download latest file manually.")
+        util.stop_script()
+    end)
 end
 -- START Scenario Data
 local SCENARIOS = {
@@ -465,6 +502,7 @@ for _, pair in ipairs(SPEECHES) do
                                 end
                             end)
                         else
+                            NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(ped)
                             AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, pair[2], speechParam)
                         end
                     end

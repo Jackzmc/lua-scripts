@@ -1,4 +1,4 @@
-# vehicle options (v1.11)
+# vehicle options (v1.14)
 
 V1.2
 
@@ -82,6 +82,36 @@ V1.12
 * Improved Hijacking Success
 * Added Delete Vehicle
 * Improved Cargo All Nearby Vehicles (Makes them have no collision at beginning)
+* Fix spawn saved vehicles being named "Spawn"
+* Switch Tow trucks to "Avoid Traffic" driving style
+
+V1.13
+
+* Added preview vehicle for spawning saved vehicles
+* (1.13.1) Added more checks for saved vehicles for invalid or missing entries
+* (1.13.1) Delete spawn preview on spawn
+
+V1.14
+
+* Added Clear All Nearby Vehicles
+* Added Hijack All Nearby Vehicles
+* Removed Activate on Last Vehicle (Automatic now)
+* Added 'Honk' and 'honkall' commands
+* Re-organized nearby actions to submenu ("Nearby Vehicles")
+* Added "Cargobob to Them"
+* Added "Towtruck to Them"
+
+V1.15.0
+
+* Replaced x To Them with "X to Player"
+* Added "Hijack & Drive To Player" option
+* Fixed tow to player actually not working
+* Remove cargobobs automatically when told to detach
+* Improved 'Upgrade'
+* (1.15.1) Fixed cargobob to player just following itself
+* (1.15.2) Fix tow to player hijacking vehicle instead
+* (1.15.3) Fix tow all nearby towing farthest instead
+* (1.15.4) Automatically flip vehicle upright for more efficient cargobobing
 
 # actions (v1.7.1)
 
@@ -115,7 +145,7 @@ v1.5
 v1.6
 
 * Added [Ambient Speech] menu for npcs and self:
-  * Plays certain phrases with certain methods (shouted, megaphone, etc)
-  * Able to play on self, choose a voice under Self Model Voice (spawns an invisible attached ped)
-  * (1.7.0) Allow you to set the interval that voice lines are repeated
-    * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)
+* Plays certain phrases with certain methods (shouted, megaphone, etc)
+* Able to play on self, choose a voice under Self Model Voice (spawns an invisible attached ped)
+* (1.7.0) Allow you to set the interval that voice lines are repeated
+  * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)

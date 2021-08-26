@@ -1,21 +1,39 @@
 -- Vehicle Options
 -- Created By Jackz
--- See changelog in changelog.md
 local SCRIPT = "vehicle_options"
-local VERSION = "1.12.0"
--- Remove these lines if you want to disable update-checks: (6-15)
+local VERSION = "1.15.3"
+local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
+-- Check for updates & auto-update: 
+-- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
     chunks = {}
     for substring in string.gmatch(result, "%S+") do
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
-        util.toast(SCRIPT .. " has a new version available.\n" .. VERSION .. " -> " .. chunks[2] .. "\nDownload the latest version from https://jackz.me/sz")
+        -- Remove this block (lines 15-31) to disable auto updates
+        util.async_http_get("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
+            local file = io.open(CHANGELOG_PATH, "w")
+            io.output(file)
+            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            io.close(file)
+        end)
+        util.async_http_get("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
+            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
+            io.output(file)
+            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            io.close(file)
+
+            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
+        end, function(e)
+            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+            util.stop_script()
+        end)
     end
 end)
 local WaitingLibsDownload = false
 function try_load_lib(lib)
-    local status = pcall(require, lib)
+    local status, f = pcall(require, lib)
     if not status then
         WaitingLibsDownload = true
         util.async_http_get("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
@@ -25,18 +43,29 @@ function try_load_lib(lib)
             io.close(file)
             WaitingLibsDownload = false
             util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. ".lua'")
-            require(lib)
+            return require(lib)
         end, function(e)
             util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
             util.stop_script()
         end)
+    else
+        return f
     end
 end
 try_load_lib("natives-1627063482")
-try_load_lib("json")
-
+local json = try_load_lib("json")
+-- If script is actively downloading new update, wait:
 while WaitingLibsDownload do
     util.yield()
+end
+-- Check if there is any changelogs (just auto-updated)
+if filesystem.exists(CHANGELOG_PATH) then
+    local file = io.open(CHANGELOG_PATH, "r")
+    io.input(file)
+    local text = io.read("*all")
+    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
+    io.close(file)
+    os.remove(CHANGELOG_PATH)
 end
 
 --TODO: Idea: Cloud vehicles. Submenu:
@@ -133,15 +162,15 @@ function get_player_vehicle_in_control(pid)
 
     local was_spectating = NETWORK.NETWORK_IS_IN_SPECTATOR_MODE() -- Needed to toggle it back on if currently spectating
     -- If they out of range (value may need tweaking), auto spectate.
-    local vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, options[pid].teleport_last)
-    if target_ped ~= my_ped and dist > 340000 and not was_spectating then
+    local vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, true)
+    if vehicle == 0 and target_ped ~= my_ped and dist > 340000 and not was_spectating then
         util.toast("Player is too far, auto-spectating for upto 3s.")
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
         -- To prevent a hard 3s loop, we keep waiting upto 3s or until vehicle is acquired
         local loop = 30 -- 3000 / 100
         while vehicle == 0 and loop > 0 do
             util.yield(100)
-            vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, options[pid].teleport_last)
+            vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, true)
             loop = loop - 1
         end
     end
@@ -199,9 +228,11 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
         VEHICLE.SET_VEHICLE_DOOR_OPEN(trailer, 5, 0, 0)
     end
     VEHICLE.ATTACH_VEHICLE_TO_TRAILER(cab, trailer, 5)
+    util.yield(2)
     local pos = ENTITY.GET_ENTITY_COORDS(vehicle)
     VEHICLE.ATTACH_VEHICLE_ON_TO_TRAILER(vehicle, trailer, 0, 0, -2.0, 0, 0, 0.0, 0, 0, 0, 0.0)
     ENTITY.DETACH_ENTITY(vehicle)
+    util.yield(1)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(cab, true)
     util.yield(1)
     return cab, driver
@@ -213,6 +244,8 @@ function spawn_cargobob_for_vehicle(vehicle)
     while not STREAMING.HAS_MODEL_LOADED(CARGOBOB_MODEL) do
         util.yield()
     end
+    local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
+    ENTITY.SET_ENTITY_ROTATION(vehicle, 0, 0, -rot.z)
     local vehPos = ENTITY.GET_ENTITY_COORDS(vehicle)
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 0, 8.0)
     local z = memory.alloc(8)
@@ -232,11 +265,23 @@ function spawn_cargobob_for_vehicle(vehicle)
     ENTITY.SET_ENTITY_VELOCITY(cargobob, 0, 0, 0)
     ENTITY.FREEZE_ENTITY_POSITION(vehicle, true)
     local tries = 0
-    while not VEHICLE.IS_VEHICLE_ATTACHED_TO_CARGOBOB(cargobob, vehicle) and tries < 20 do
+    while not VEHICLE.IS_VEHICLE_ATTACHED_TO_CARGOBOB(cargobob, vehicle) and tries <= 20 do
         VEHICLE.ATTACH_VEHICLE_TO_CARGOBOB(cargobob, vehicle, -2, 0, 0, 0)
+        ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
         tries = tries + 1
-        util.yield(50)
+        util.yield(100)
     end
+    util.create_thread(function(a)
+        util.yield(4000)
+        if not VEHICLE.IS_VEHICLE_ATTACHED_TO_CARGOBOB(cargobob, vehicle) then
+            if ENTITY.DOES_ENTITY_EXIST(cargobob) then
+                util.delete_entity(cargobob)
+            end
+            if ENTITY.DOES_ENTITY_EXIST(driver) then
+                util.delete_entity(driver)
+            end
+        end
+    end)
     ENTITY.FREEZE_ENTITY_POSITION(vehicle, false)
     util.yield(1)
     return cargobob, driver
@@ -287,11 +332,10 @@ function setup_action_for(pid)
     end)
 
     ----------------------------------------------------------------
-    -- Movement Section
+    -- Movement & Attachment Section
     ----------------------------------------------------------------
-    local movementMenu = menu.list(submenu, "Movement", {}, "List of vehicle movement options.\nBoost, Launch, Slingshot, Stop")
+    local towMenu = menu.list(submenu, "Attachments", {"attachments"}, "Attach their vehicle to:\nCargobobs\nTow Trucks")
 
-    local towMenu = menu.list(movementMenu, "Attachments", {"attachments"}, "Attach their vehicle to:\nCargobobs\nTow Trucks")
     -- TOW 
         menu.divider(towMenu, "Tow Trucks")
         menu.action(towMenu, "Tow (Wander)", {"towwander"}, "Will make a random tow truck tow the player's vehicle randomly around", function(on_click)
@@ -300,7 +344,7 @@ function setup_action_for(pid)
                 util.toast("Player is not in a car or out of range")
             else
                 local tow, driver = spawn_tow_for_vehicle(vehicle)
-                TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 786603)
+                TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 6)
             end
         end)
 
@@ -314,13 +358,48 @@ function setup_action_for(pid)
                     util.toast("Player is not in a car or out of range")
                 else
                     local tow, driver, model = spawn_tow_for_vehicle(vehicle)
-                    TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, tow, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 786603, 5.0, 1.0)
+                    TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, tow, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
                 end
             else
                 util.toast("You have no waypoint to drive to")
             end
         end)
-        
+        local towPlayerMenu = menu.list(towMenu, "Tow To Player", {"towtoplayer"})
+        local towPlayerMenus = {}
+        menu.on_focus(towPlayerMenu, function(a)
+            for _, m in ipairs(towPlayerMenus) do
+                menu.delete(m)
+            end
+            towPlayerMenus = {}
+            local cur_players = players.list(true, true, true)
+            local my_pid = players.user()
+            for k,pid2 in ipairs(cur_players) do
+                local name = PLAYER.GET_PLAYER_NAME(pid2) 
+                if pid == pid2 then
+                    name = name .. " (Them)"
+                elseif pid2 == my_pid then
+                    name = name .. " (Me)"
+                end
+                local m = menu.action(towPlayerMenu, name, {}, "Will make a random tow truck tow the player's vehicle to them", function(on_click)
+                    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid2)
+                    local vehicle = get_player_vehicle_in_control(pid)
+                    if vehicle == 0 then
+                        util.toast("Player is not in a car or out of range")
+                    else
+                        local tow, driver = spawn_tow_for_vehicle(vehicle)
+                        local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
+                        util.create_tick_handler(function(a)
+                            local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+                            TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, tow, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
+                            util.yield(5000)
+                            return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(driver) and TASK.GET_SCRIPT_TASK_STATUS(driver, 0x93A5526E) < 7
+                        end)
+                    end
+                end)
+                table.insert(towPlayerMenus, m)
+            end
+        end)
+
         menu.action(towMenu, "Detach Tow", {"detachtow"}, "Will detach from any tow truck", function(on_click)
             local vehicle = get_player_vehicle_in_control(pid)
             if vehicle > 0 then
@@ -362,6 +441,35 @@ function setup_action_for(pid)
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, dest.x, dest.y, dest.z, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
             end
         end)
+        local cargoPlayerMenu = menu.list(towMenu, "Cargobob To Player", {"cargobobtoplayer"})
+        local cargoPlayerMenus = {}
+        menu.on_focus(cargoPlayerMenu, function(a)
+            for _, m in ipairs(cargoPlayerMenus) do
+                menu.delete(m)
+            end
+            cargoPlayerMenus = {}
+            local cur_players = players.list(true, true, true)
+            local my_pid = players.user()
+            for k,pid_target in ipairs(cur_players) do
+                local name = PLAYER.GET_PLAYER_NAME(pid_target) 
+                if pid_target == pid then
+                    name = name .. " (Them)"
+                elseif pid_target == my_pid then
+                    name = name .. " (Me)"
+                end
+                local m = menu.action(cargoPlayerMenu, name, {}, "Will make a random cargobob take the player's vehicle to them", function(on_click)
+                    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid_target)
+                    local vehicle = get_player_vehicle_in_control(pid)
+                    if vehicle == 0 then
+                        util.toast("Player is not in a car or out of range")
+                    else
+                        local cargobob, driver = spawn_cargobob_for_vehicle(vehicle)
+                        TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
+                    end
+                end)
+                table.insert(cargoPlayerMenus, m)
+            end
+        end)
 
         menu.action(towMenu, "Cargobob To Waypoint", {"cargobobwaypoint"}, "Will make a random cargobob take the player's vehicle to your waypoint", function(on_click)
             local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -385,6 +493,18 @@ function setup_action_for(pid)
             local vehicle = get_player_vehicle_in_control(pid)
             if vehicle > 0 then
                 VEHICLE.DETACH_VEHICLE_FROM_ANY_CARGOBOB(vehicle)
+                local hasPlayer = false
+                for seat = 1, 6 do
+                    local ped = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, seat)
+                    if PED.IS_PED_A_PLAYER(ped) then
+                        hasPlayer = true
+                        break
+                    end
+                end
+                if not hasPlayer then
+                    local pointer = util.get_entity_address(vehicle)
+                    ENTITY.SET_VEHICLE_AS_NO_LONGER_NEEDED(pointer)
+                end
             else
                 util.toast("Player is not in a car or out of range")
             end
@@ -445,7 +565,7 @@ function setup_action_for(pid)
         end)
 
     -- END TOW
-
+    local movementMenu = menu.list(submenu, "Movement", {}, "List of vehicle movement options.\nBoost, Launch, Slingshot, Stop")
     menu.click_slider(movementMenu, "Boost", {"boost"}, "Boost the player's vehicle forwards at a given speed (mph)", -200, 200, 200, 10, function(mph)
         local speed = mph / 0.44704
         local vehicle = get_player_vehicle_in_control(pid)
@@ -699,13 +819,17 @@ function setup_action_for(pid)
     menu.action(lsc, "Upgrade", {"upgradevehicle"}, "Upgrades the vehicle to the highest upgrades", function(on_click)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
-            for x = 0, 16 do
+            VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
+            for x = 0, 49 do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
+                util.toast("max for x" .. x .. " is " .. max)
                 VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
             end
-            VEHICLE.SET_VEHICLE_MOD(vehicle, x, 45)
+            VEHICLE.SET_VEHICLE_MOD(vehicle, x, 45) -- re-set horn 
             VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, 5)
-            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
+            for x = 17, 22 do
+                VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, x, true)
+            end
         else
             util.toast("Player is not in a car or out of range")
         end
@@ -714,7 +838,8 @@ function setup_action_for(pid)
     menu.action(lsc, "Performance Upgrade", {"performanceupgradevehicle"}, "Upgrades the following vehicle parts:\nEngine\nTransmission\nBrakes\nArmour\nTurbo", function(on_click)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
-            for x = 11, 13 do
+            local mods = { 11, 12, 13, 16 }
+            for x in ipairs(mods) do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
                 VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
             end
@@ -801,7 +926,18 @@ function setup_action_for(pid)
         end
     end)
 
-    menu.click_slider(submenu, "Hijack Vehicle", {"hijack"}, "Makes a random NPC hijack their vehicle\n 0 = Doors Unlocked\n 1 = Doors Locked", 0, 1, 0, 1, function(hijackLevel)
+    menu.action(submenu, "Honk", {"honk"}, "Makes their car honk. Works best if no player in vehicle", function(a)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            VEHICLE.SET_VEHICLE_ALARM(vehicle, true)
+            VEHICLE.START_VEHICLE_ALARM(vehicle)
+            VEHICLE.START_VEHICLE_HORN(vehicle, 50000, 0)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.click_slider(submenu, "Hijack Vehicle (Wander)", {"hijack"}, "Makes a random NPC hijack their vehicle\n 0 = Doors Unlocked\n 1 = Doors Locked", 0, 1, 0, 1, function(hijackLevel)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
@@ -810,15 +946,72 @@ function setup_action_for(pid)
             TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
             PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
             VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-            TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+            PED.SET_PED_AS_ENEMY(ped, true)
             if hijackLevel == 1 then
                 util.yield(20)
                 VEHICLE.SET_VEHICLE_DOORS_LOCKED_FOR_ALL_PLAYERS(vehicle, true)
+            end
+            for _ = 1, 20 do
+                TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+                util.yield(50)
             end
         else
             util.toast("Player is not in a car or out of range")
         end
     end)
+    local hijackToMenu = menu.list(submenu, "Hijack & Drive to Player", {"hijacktoplayer"})
+    local hijackToMenus = {}
+        menu.on_focus(hijackToMenu, function(a)
+            for _, m in ipairs(hijackToMenus) do
+                menu.delete(m)
+            end
+            hijackToMenus = {}
+            local cur_players = players.list(true, true, true)
+            local my_pid = players.user()
+            for k,pid_target in ipairs(cur_players) do
+                local name = PLAYER.GET_PLAYER_NAME(pid_target) 
+                if pid_target == pid then
+                    name = name .. " (Them)"
+                elseif pid_target == my_pid then
+                    name = name .. " (Me)"
+                end
+                local m = menu.action(hijackToMenu, name, {}, "Will make a random ped drive the player's vehicle to them", function(on_click)
+                    local vehicle = get_player_vehicle_in_control(pid)
+                    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid_target)
+                    if vehicle > 0 then
+                        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 1.0, 0.1)
+                        ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
+                        VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 5000, false)
+                        local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+                        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                        PED.SET_PED_AS_ENEMY(ped, true)
+                        --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+                        TASK.TASK_ENTER_VEHICLE(ped, vehicle, 20000, -1, 2, 1, 0)
+                        local loops = 10
+                        while not PED.IS_PED_IN_VEHICLE(ped, vehicle, false) do
+                            util.yield(1000)
+                            loops = loops - 1
+                            if loops == 0 then
+                                util.toast("Hijacker failed to enter vehicle in time.")
+                                return false
+                            end
+                        end
+                        VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+                        local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
+                        util.create_tick_handler(function(a)
+                            local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+                            TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
+                            util.yield(5000)
+                            return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
+                        end)
+                    else
+                        util.toast("Player is not in a car or out of range")
+                    end
+                end)
+                table.insert(hijackToMenus, m)
+            end
+        end)
 
     menu.action(submenu, "Burst Tires", {"bursttires", "bursttyres"}, "Bursts the player's vehicle tires", function(on_click)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -843,6 +1036,16 @@ function setup_action_for(pid)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
             util.delete_entity(vehicle)
+        else
+            util.toast("Player is not in a car or out of range")
+        end
+    end)
+
+    menu.action(submenu, "Explode Vehicle", {"explodevehicle"}, "Kills the player's vehicle engine with style.", function(on_click)
+        local vehicle = get_player_vehicle_in_control(pid)
+        if vehicle > 0 then
+            local pos = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
+            FIRE.ADD_EXPLOSION(pos.x, pos.y, pos.z + 1.0, 26, 60, true, true, 0.0)
         else
             util.toast("Player is not in a car or out of range")
         end
@@ -898,9 +1101,6 @@ function setup_action_for(pid)
         end
     end, false)
 
-    menu.toggle(submenu, "Activate on Last Vehicle", {}, "Will activate on the player's last vehicle, if they arent in a vehicle", function(on)
-        options[pid].teleport_last = on
-    end, false)
 end
 local vehicleDir = filesystem.stand_dir() .. "/Vehicles/"
 function get_vehicle_save_data(vehicle) 
@@ -1037,34 +1237,38 @@ end
 function apply_vehicle_save_data(vehicle, saveData) 
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
-    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"])
-    VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.r, saveData.Colors.Extras.g, saveData.Colors.Extras.b)
-    VEHICLE.SET_VEHICLE_COLOURS(vehicle, saveData.Colors.Vehicle.Primary, saveData.Colors.Vehicle.Secondary)
-    if saveData.Colors.Primary.Custom then
+    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
+    if saveData.Colors.Extra then
+        VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.r, saveData.Colors.Extras.g, saveData.Colors.Extras.b)
+    end
+    VEHICLE.SET_VEHICLE_COLOURS(vehicle, saveData.Colors.Vehicle.Primary or 0, saveData.Colors.Vehicle.Secondary or 0)
+    if saveData.Colors.Primary.Custom and saveData.Colors.Primary["Custom Color"] then
         VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Primary["Custom Color"].r, saveData.Colors.Primary["Custom Color"].b, saveData.Colors.Primary["Custom Color"].g)
     else
         VEHICLE.SET_VEHICLE_MOD_COLOR_1(vehicle, saveData.Colors.Primary["Paint Type"], saveData.Colors.Primary.Color, saveData.Colors.Primary["Pearlescent Color"])
     end
-    if saveData.Colors.Secondary.Custom then
+    if saveData.Colors.Secondary.Custom and saveData.Colors.Secondary["Custom Color"] then
         VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Secondary["Custom Color"].r,  saveData.Colors.Secondary["Custom Color"].b, saveData.Colors.Secondary["Custom Color"].g)
     else
         VEHICLE.SET_VEHICLE_MOD_COLOR_2(vehicle, saveData.Colors.Secondary["Paint Type"], saveData.Colors.Secondary.Color, saveData.Colors.Secondary["Pearlescent Color"])
     end
-    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"])
+    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"] or 0)
     -- Misc Colors / Looks
-    VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r, saveData["Tire Smoke"].g, saveData["Tire Smoke"].b)
-    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, saveData["Bulletproof Tires"])
-    VEHICLE._SET_VEHICLE_DASHBOARD_COLOR(vehicle, saveData["Dashboard Color"])
-    VEHICLE._SET_VEHICLE_INTERIOR_COLOR(vehicle, saveData["Interior Color"])
-    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, saveData["Dirt Level"])
+    if saveData["Tire Smoke"] then
+        VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r or 255, saveData["Tire Smoke"].g or 255, saveData["Tire Smoke"].b or 255)
+    end
+    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, saveData["Bulletproof Tires"] or false)
+    VEHICLE._SET_VEHICLE_DASHBOARD_COLOR(vehicle, saveData["Dashboard Color"] or -1)
+    VEHICLE._SET_VEHICLE_INTERIOR_COLOR(vehicle, saveData["Interior Color"] or -1)
+    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, saveData["Dirt Level"] or 0.0)
 
     -- Lights
-    VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle, saveData["Lights"]["Xenon Color"])
-    VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, saveData.Lights.Neon.Color.r, saveData.Lights.Neon.Color.g, saveData.Lights.Neon.Color.b)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 0, saveData.Lights.Neon.Left)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1, saveData.Lights.Neon.Right)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2, saveData.Lights.Neon.Front)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3, saveData.Lights.Neon.Back)
+    VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle, saveData["Lights"]["Xenon Color"] or 255)
+    VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, saveData.Lights.Neon.Color.r or 255, saveData.Lights.Neon.Color.g or 255, saveData.Lights.Neon.Color.b or 255)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 0, saveData.Lights.Neon.Left or false)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1, saveData.Lights.Neon.Right or false)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2, saveData.Lights.Neon.Front or false)
+    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3, saveData.Lights.Neon.Back or false)
 
     if saveData["Engine Running"] then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true, false)
@@ -1082,10 +1286,10 @@ function apply_vehicle_save_data(vehicle, saveData)
     end
 
     -- Misc
-    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style)
-    VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, saveData["Window Tint"])
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text)
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type)
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style or -1)
+    VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, saveData["Window Tint"] or 0)
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
 end
 menu.action(menu.my_root(), "Save Current Vehicle", {"savevehicle"}, "Saves your current vehicle with all customizations", function(on_click)
@@ -1105,7 +1309,7 @@ end)
 local savedVehiclesList = menu.list(menu.my_root(), "Spawn Saved Vehicles", {}, "List of spawnable saved vehicles.\nStored in %appdata%\\Stand\\Vehicles")
 local savedVehicleMenus = {}
 local applySaved = false
-menu.toggle(menu.my_root(), "Apply Saved to Current Vehicle", {}, "Instead of spawning a new saved vehicle, it will instead apply it to your current vehicle.", function(on)
+menu.toggle(menu.my_root(), "Apply Saved Vehicle to Current Vehicle", {}, "Instead of spawning a new saved vehicle, it will instead apply its settings to your current vehicle.", function(on)
     applySaved = on
 end, applySaved)
 menu.on_focus(savedVehiclesList, function()
@@ -1120,11 +1324,15 @@ menu.on_focus(savedVehiclesList, function()
             io.input(file)
             local saveData = json.decode(io.read("*a"))
             io.close(file)
-            local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-            local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s", manuf, saveData.Name, saveData.Type, saveData.Format)
-            local displayName = string.sub(name, 0, -6)
-            local m = menu.action(savedVehiclesList, "Spawn", {"spawnvehicle" .. displayName}, "Spawns a saved custom vehicle\n" .. desc, function(on_click)
-                if saveData['Model'] ~= nil then
+            if saveData.Model and saveData.Mods then
+                local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
+                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s", manuf, saveData.Name, saveData.Type, saveData.Format)
+                local displayName = string.sub(name, 0, -6)
+                local previewVehicle = 0
+                local m = menu.action(savedVehiclesList, displayName, {"spawnvehicle" .. displayName}, "Spawns a saved custom vehicle\n" .. desc, function(on_click)
+                    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                        util.delete_entity(previewVehicle)
+                    end
                     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 5.0, 0.5)
                     local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
@@ -1149,16 +1357,48 @@ menu.on_focus(savedVehiclesList, function()
                     if vehicle > 0 then
                         apply_vehicle_save_data(vehicle, saveData)
                     end
-                else
-                    util.toast("JSON Vehicle is invalid, missing 'Model' parameter.")
-                end
-            end)
-            table.insert(savedVehicleMenus, m)
+                end)
+            
+                menu.on_focus(m, function(a)
+                    STREAMING.REQUEST_MODEL(saveData.Model)
+                    while not STREAMING.HAS_MODEL_LOADED(saveData.Model) do
+                        util.yield()
+                    end
+                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.0)
+                    previewVehicle = VEHICLE.CREATE_VEHICLE(saveData.Model, pos.x, pos.y, pos.z, 0, false, false)
+                    apply_vehicle_save_data(previewVehicle, saveData)
+                    local heading = 0
+                    ENTITY.SET_ENTITY_ALPHA(previewVehicle, 150)
+                    VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(previewVehicle)
+                    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(previewVehicle, false, false)
+                    util.create_tick_handler(function(a)
+                        local rot = ENTITY.GET_ENTITY_ROTATION(my_ped)
+                        heading = heading + 5
+                        if heading == 360 then
+                            heading = 0
+                        end
+                        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
+                        ENTITY.SET_ENTITY_COORDS(previewVehicle, pos.x, pos.y, pos.z, true, true, false, false)
+                        ENTITY.SET_ENTITY_HEADING(previewVehicle, heading)
+                        util.yield(10)
+                        return previewVehicle > 0
+                    end)
+                end)
+                menu.on_blur(m, function(a)
+                    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                        util.delete_entity(previewVehicle)
+                    end
+                    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
+                end)
+                table.insert(savedVehicleMenus, m)
+            end
         end
     end
 end)
 local spawned_tows = {}
-menu.action(menu.my_root(), "Tow All Nearby Vehicles", {}, "WARNING: This can make your FPS drop or even crash your game!\nLimited to 30 tow trucks to prevent crashes.", function(sdfa)
+local nearbyMenu = menu.list(menu.my_root(), "Nearby Vehicles", {"nearbyvehicles"}, "Actions to do on nearby vehicles")
+menu.action(nearbyMenu, "Tow All Nearby Vehicles", {}, "WARNING: This can make your FPS drop or even crash your game!\nLimited to 30 tow trucks to prevent crashes.", function(sdfa)
     local pz = memory.alloc(8)
     STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_1)
     STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_2)
@@ -1183,7 +1423,7 @@ menu.action(menu.my_root(), "Tow All Nearby Vehicles", {}, "WARNING: This can ma
         end
     end
     memory.free(pz)
-    table.sort(nearby_vehicles, function(a, b) return a[2] > b[2] end)
+    table.sort(nearby_vehicles, function(a, b) return b[2] > a[2] end)
     for i = 1,30 do
         if nearby_vehicles[i] then
             local vehicle = nearby_vehicles[i][1]
@@ -1202,7 +1442,7 @@ menu.action(menu.my_root(), "Tow All Nearby Vehicles", {}, "WARNING: This can ma
         end
     end
 end)
-menu.action(menu.my_root(), "Clear All Nearby Tows", {}, "", function(sdfa)
+menu.action(nearbyMenu, "Clear All Nearby Tows", {}, "", function(sdfa)
     local vehicles = util.get_all_vehicles()
     for _, vehicle in ipairs(vehicles) do
         local model = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -1215,7 +1455,7 @@ menu.action(menu.my_root(), "Clear All Nearby Tows", {}, "", function(sdfa)
         end
     end
 end)
-menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so they can watch :)\nMay have a small chance of crashing, don't spam it too quickly.", function(a)
+menu.action(nearbyMenu, "Cargobob Nearby Cars", {}, "Ignores players, so they can watch :)\nMay have a small chance of crashing, don't spam it too quickly.", function(a)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -1226,8 +1466,8 @@ menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so the
             local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
             if driver == 0 or not PED.IS_PED_A_PLAYER(driver) then
                 local pos2 = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
-                local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-                if dist <= 100.0 then
+                local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
+                if dist <= 10000.0 then
                     local cargobob, driver = spawn_cargobob_for_vehicle(vehicle)
                     VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargobob, false)
                     VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
@@ -1253,9 +1493,9 @@ menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so the
                     util.delete_entity(cargo)
                     table.remove(cargobobs, i)
                 end
-                util.yield(2000)
+                util.yield(5000)
                 iterations = iterations + 1
-                if iterations >= 15 then
+                if iterations >= 6 then
                     break
                 end
             end
@@ -1268,7 +1508,7 @@ menu.action(menu.my_root(), "Cargobob Nearby Cars", {}, "Ignores players, so the
         return false
     end)
 end)
-menu.action(menu.my_root(), "Clear All Nearby Cargobobs", {}, "", function(sdfa)
+menu.action(nearbyMenu, "Clear All Nearby Cargobobs", {}, "", function(sdfa)
     local vehicles = util.get_all_vehicles()
     for _, vehicle in ipairs(vehicles) do
         local model = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -1279,6 +1519,75 @@ menu.action(menu.my_root(), "Clear All Nearby Cargobobs", {}, "", function(sdfa)
             end
             util.delete_entity(vehicle)
         end
+    end
+end)
+menu.click_slider(nearbyMenu, "Clear All Nearby Vehicles", {"clearvehicles"}, "Clears all nearby vehicles in a range.", 50, 2000, 100, 100, function(range)
+    local range = range * range
+    local vehicles = util.get_all_vehicles()
+    local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
+
+    local count = 0
+    for _, vehicle in ipairs(vehicles) do
+        local pos2 = ENTITY.GET_ENTITY_COORDS(vehicles, 1)
+        local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
+        if dist <= range then
+            local has_control = false
+            local loops = 5
+            while not has_control do
+                has_control = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
+                loops = loops - 1
+                -- wait for control
+                util.yield(15)
+                if loops <= 0 then
+                    break
+                end
+            end
+            util.delete_entity(vehicle)
+            count = count + 1
+        end
+    end
+    util.toast("Deleted " .. count .. " vehicles")
+end)
+menu.action(nearbyMenu, "Hijack All Nearby", {"hijackall"}, "Makes npcs hijack all nearby vehicles", function(a)
+    for _, vehicle in ipairs(util.get_all_vehicles()) do
+        local has_control = false
+        local loops = 5
+        VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, false, true)
+        while not has_control do
+            has_control = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
+            loops = loops - 1
+            -- wait for control
+            util.yield(15)
+            if loops <= 0 then
+                break
+            end
+        end
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
+        ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
+        local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+        PED.SET_PED_AS_ENEMY(ped, true)
+        TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+    end
+end)
+menu.action(nearbyMenu, "honk", {"honkall"}, "Makes all nearby vehicles alarms go off", function(a)
+    for _, vehicle in ipairs(util.get_all_vehicles()) do
+        local has_control = false
+        local loops = 5
+        while not has_control do
+            has_control = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
+            loops = loops - 1
+            -- wait for control
+            util.yield(15)
+            if loops <= 0 then
+                break
+            end
+        end
+        VEHICLE.SET_VEHICLE_ALARM(vehicle, true)
+        VEHICLE.START_VEHICLE_ALARM(vehicle)
+        VEHICLE.START_VEHICLE_HORN(vehicle, 50000, 0)
     end
 end)
 
