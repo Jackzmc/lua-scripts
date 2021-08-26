@@ -16,6 +16,7 @@ train_control:
 	Warning: Also due to nature of GTA, the closest person to the locomotive usually gets control of the train, which will fight your control of the train and it's speed.
 
 vehicle_options:
+    VIEW MOST UP TO DATE FEATURE LIST: https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/264612
 	Adds the following options under  players -> [player name] -> vehicle options:
     * Teleport Vehicle to Me
     * Movement >
@@ -72,10 +73,8 @@ vehicle_options:
 	* Clear All Nearby Tows
     * Cargobob All Nearby Vehicles
     * Clear All Nearby Cargobobs
-	
-vehicle_autodrive:
-	Not as polished as other scripts, allows you to set speed/driving style of ai,
-	and have it either drive to waypoint or wander.
+    
+    * Vehicle autodrive options included since 1.16
 	
 actions:
 	Allows you to play any scenario or animation on your character,

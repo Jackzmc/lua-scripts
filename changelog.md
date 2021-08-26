@@ -113,6 +113,23 @@ V1.15.0
 * (1.15.3) Fix tow all nearby towing farthest instead
 * (1.15.4) Automatically flip vehicle upright for more efficient cargobobing
 
+V1.16.0
+
+* Added "Titan" attachments: (circles around destination)
+  * Fly to Mt. Chiliad
+  * Fly to Waypoint
+  * Fly to Player
+* Added "All Vehicles" menu:
+  * Nearby Only (on by default, off will auto spectate all far vehicles one by one)
+  * Clean Vehicle
+  * Repair Vehicle
+  * Toggle Godmode
+  * Set License Plate
+* Added "Use Magnet" to cargobob attachments
+* Added Nearby Vehicles -> "Cargobob Nearby Cars (Magnet)"
+* (1.16.1) Lots of bug fixes & improvements
+* (1.16.1) Also merged vehicle_autodrive into script
+
 # actions (v1.7.1)
 
 v1.1

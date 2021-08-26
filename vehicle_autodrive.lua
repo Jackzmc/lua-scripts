@@ -1,36 +1,11 @@
 -- Vehicle Autodrive
 -- Created By Jackz
 local SCRIPT = "vehicle_autodrive"
-local VERSION = "1.0.2"
+local VERSION = "1.0.3"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
-    chunks = {}
-    for substring in string.gmatch(result, "%S+") do
-        table.insert(chunks, substring)
-    end
-    if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-31) to disable auto updates
-        util.async_http_get("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
-            local file = io.open(CHANGELOG_PATH, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-        end)
-        util.async_http_get("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-
-            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function(e)
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
-        end)
-    end
-end)
+util.toast("Notice: vehicle_autodrive has been merged into vehicle_options and this script has reached end of life. Use vehicle options for bug fixes", 2)
 
 local WaitingLibsDownload = false
 function try_load_lib(lib)
@@ -56,18 +31,6 @@ try_load_lib("natives-1627063482")
 while WaitingLibsDownload do
     util.yield()
 end
--- Check if there is any changelogs (just auto-updated)
-if filesystem.exists(CHANGELOG_PATH) then
-    local file = io.open(CHANGELOG_PATH, "r")
-    io.input(file)
-    local text = io.read("*all")
-    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
-    io.close(file)
-    os.remove(CHANGELOG_PATH)
-end
-
--- TODO: Spawn ped to drive
-
 local drive_speed = 50.0
 local drive_style = 0
 local is_driving = false
@@ -111,7 +74,7 @@ menu.action(menu.my_root(), "Drive to Waypoint", {"aiwaypoint"}, "", function(v)
     if HUD.IS_WAYPOINT_ACTIVE() then
         local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
         local pos = HUD.GET_BLIP_COORDS(blip)
-        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_mode, 5.0, 1.0)
+        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
     else
         util.toast("You have no waypoint to drive to")
     end
