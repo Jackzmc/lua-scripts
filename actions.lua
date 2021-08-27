@@ -716,7 +716,7 @@ end
 local path = filesystem.stand_dir() .. "/Favorite Animations.txt"
 if filesystem.exists(path) then
     local headerRead = false
-    for line in io.lines(path) do 
+    for line in io.lines(path) do
         if headerRead then
             chunks = {}
             for substring in string.gmatch(line, "%S+") do

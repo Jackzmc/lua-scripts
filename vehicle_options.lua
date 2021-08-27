@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "1.16.2"
+local VERSION = "2.0.0"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -26,8 +26,8 @@ util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT
 
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
         end, function(e)
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
+            --util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+            --util.stop_script()
         end)
     end
 end)
@@ -233,7 +233,6 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
     end
     VEHICLE.ATTACH_VEHICLE_TO_TRAILER(cab, trailer, 5)
     util.yield(2)
-    local pos = ENTITY.GET_ENTITY_COORDS(vehicle)
     VEHICLE.ATTACH_VEHICLE_ON_TO_TRAILER(vehicle, trailer, 0, 0, -2.0, 0, 0, 0.0, 0, 0, 0, 0.0)
     ENTITY.DETACH_ENTITY(vehicle)
     util.yield(1)
@@ -305,7 +304,7 @@ function spawn_titan_for_vehicle(vehicle)
     local pos_veh = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 0.0, 1001.3) -- offset by 1.3
 
     local heading = ENTITY.GET_ENTITY_HEADING(vehicle)
-    VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 10)
+    VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 5000)
     local titan = util.create_vehicle(TITAN_MODEL, pos, heading)
     VEHICLE.SET_VEHICLE_ENGINE_ON(titan, true, true, false)
     VEHICLE.SET_HELI_BLADES_FULL_SPEED(titan, true)
@@ -1820,7 +1819,13 @@ local DRIVING_STYLES = {
     { 2883621,      "Ignore Lights" },
     { 786468,       "Avoid Traffic" },
     { 1076,         "Reversed" },
-    { 8388614,      "Supposedly Good Driving" }
+    { 8388614,      "Supposedly Good Driving" },
+    { 16777216,     "The Most Efficient", "Goes A to B, not good for vehicles." },
+    { 787260,       "Quick & Smart", "Avoids all entities, takes shortest path.\nMost importantly: Uses blinkers!" },
+    { 536871299,    "Nervous Driver", "Stops at EVERYTHING. Waits patiently. Avoids highways." },
+    { 2147483647,   "Untested, Everything", "All options turned on. Probably awful" },
+    { 0,            "Untested, Nothing", "All options turned off. Also probably awful"},
+    { 7791,         "Untested. Meh", "Meh. Just used in rockstar scripts. unknown."}
 }
 
 -- Grabs the driver, first checks attachments (tow, cargo, etc) then driver seat
@@ -1834,6 +1839,7 @@ function get_my_driver()
         end
         goto continue
     end
+
     ::continue::
     return VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1), vehicle
 end
@@ -1841,7 +1847,11 @@ end
 local styleMenu = menu.list(autodriveMenu, "Driving Style", {}, "Sets how the ai will drive")
 
 for _, style in pairs(DRIVING_STYLES) do
-    menu.action(styleMenu, style[2], { }, "Sets driving style to " .. style[2], function(v) 
+    local desc = "Sets driving style to " .. style[2]
+    if style[3] then
+        desc = desc .. "\n" .. style[3]
+    end
+    menu.action(styleMenu, style[2], { }, desc, function(_)
         driving_mode = style[1]
         if is_driving then
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -1913,7 +1923,7 @@ menu.action(autodriveMenu, "Drive to Waypoint", {"aiwaypoint"}, "", function(v)
     end
 end)
 
-menu.action(autodriveMenu, "Wander", {"aiwander"}, "", function(v)
+menu.action(autodriveMenu, "Wander / Hover", {"aiwander"}, "Helicopters will hover instead. Planes idk probably crash", function(v)
     local ped, vehicle = get_my_driver()
     is_driving = true
 
