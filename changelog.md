@@ -1,4 +1,4 @@
-# vehicle options (v1.14)
+# jackz vehicles (v1.16.6)
 
 V1.2
 
@@ -129,6 +129,9 @@ V1.16.0
 * Added Nearby Vehicles -> "Cargobob Nearby Cars (Magnet)"
 * (1.16.1) Lots of bug fixes & improvements
 * (1.16.1) Also merged vehicle_autodrive into script
+* (1.16.4) Fix color not applying to some stock vehicles
+* (1.16.5) Possible fix for apply spawning new vehicles instead
+* (1.16.6) Remove old named version (vehicle_options.lua) 
 
 # actions (v1.7.1)
 
