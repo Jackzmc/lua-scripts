@@ -1433,7 +1433,9 @@ function setup_vehicle_submenu(m, user, vehicleName)
             HUD.BUSYSPINNER_OFF()
             saveData = json.decode(result)
             cloudUserVehicleSaveDataCache[user][vehicleName] = saveData
-            menu.action(m, "Spawn", {}, "", function(_)
+            local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
+            local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
+            menu.action(m, "Spawn", {}, desc, function(_)
                 while not cloudUserVehicleSaveDataCache[user][vehicleName] do
                     util.yield()
                 end
@@ -1447,7 +1449,7 @@ function setup_vehicle_submenu(m, user, vehicleName)
                     util.delete_entity(previewVehicle)
                 end
             end)
-            menu.action(m, "Download", {}, "", function(_)
+            menu.action(m, "Download", {}, desc, function(_)
                 while not cloudUserVehicleSaveDataCache[user][vehicleName] do
                     util.yield()
                 end
@@ -1522,6 +1524,10 @@ else
     io.close(file)
 end
 menu.on_focus(cloudUploadMenu, function(_)
+    for _, m in ipairs(cloudUploadMenus) do
+        menu.delete(m)
+    end
+    cloudUploadMenus = {}
     for _, file in ipairs(filesystem.list_files(vehicleDir)) do
         local _, name, ext = string.match(file, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if ext == "json" then
@@ -1531,10 +1537,10 @@ menu.on_focus(cloudUploadMenu, function(_)
             io.close(file)
             if saveData.Model and saveData.Mods then
                 local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s", manuf, saveData.Name, saveData.Type, saveData.Format)
+                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
                 local displayName = string.sub(name, 0, -6)
                 local previewVehicle = 0
-                local m = menu.action(cloudUploadMenu, displayName, {}, "Click to upload this vehicle to the cloud\n" .. desc, function(_)
+                local m = menu.action(cloudUploadMenu, displayName, {}, "Click to upload this vehicle\n\n" .. desc .. "\n\nWill overwrite existing versions in the cloud.", function(_)
                     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
                         util.delete_entity(previewVehicle)
                         previewVehicle = 0
@@ -1562,7 +1568,7 @@ menu.on_focus(cloudUploadMenu, function(_)
                     previewVehicle = 0
                     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
                 end)
-                table.insert(cloudSearchMenus, m)
+                table.insert(cloudUploadMenus, m)
             end
         end
     end
@@ -1606,10 +1612,8 @@ menu.on_focus(cloudVehicles, function(_)
                     cloudUserVehicleMenus = {}
                     HUD.BUSYSPINNER_OFF()
                     for vehicleName in string.gmatch(result, "[^\r\n]+") do
-                        --FIXME: userMenu can be deleted before async finishes
                         local vehicleMenuList = menu.list(userMenu, vehicleName, {}, "")
                         menu.on_focus(vehicleMenuList, function(_)
-                            -- FIXME: DEbug why not being called
                             setup_vehicle_submenu(vehicleMenuList, user, vehicleName)
                         end)
                         table.insert(cloudUserVehicleMenus, vehicleMenuList)
@@ -1643,7 +1647,7 @@ menu.on_focus(savedVehiclesList, function()
             io.close(file)
             if saveData.Model and saveData.Mods then
                 local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s", manuf, saveData.Name, saveData.Type, saveData.Format)
+                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
                 local displayName = string.sub(name, 0, -6)
                 local previewVehicle = 0
                 local m = menu.action(savedVehiclesList, displayName, {"spawnvehicle" .. displayName}, "Spawns a saved custom vehicle\n" .. desc, function(_)

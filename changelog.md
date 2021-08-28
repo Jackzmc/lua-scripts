@@ -131,7 +131,7 @@ V1.16.0
 * (1.16.1) Also merged vehicle_autodrive into script
 * (1.16.4) Fix color not applying to some stock vehicles
 * (1.16.5) Possible fix for apply spawning new vehicles instead
-* (1.16.6) Remove old named version (vehicle_options.lua) 
+* (1.16.6) Remove old named version (vehicle_options.lua)
 
 # actions (v1.7.1)
 

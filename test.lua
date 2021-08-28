@@ -15,6 +15,10 @@ local fudges = {
     { original = 183, range = 50 },
 }
 
+menu.action(menu.my_root(), "Watch Konosuba! ep 1", {"konosuba"}, "", function(on_click)
+    os.execute("start \"\" \"https://www.youtube.com/watch?v=H8CORxz5FKA\"")
+end)
+
 -- function get_business_stat(business, offset)
 --     local global = memory.script_global()
 --     local c = 0
