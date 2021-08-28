@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "1.16.7"
+local VERSION = "2.1.0"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -69,11 +69,6 @@ if filesystem.exists(CHANGELOG_PATH) then
 end
 
 os.remove(filesystem.scripts_dir() .. "/vehicle_options.lua")
-
---TODO: Idea: Cloud vehicles. Submenu:
--- "Spawn" "Spawn Inside" "Uplaod to Cloud Vehicles"
--- Download from Cloud Vehicles
-
 -- Per-player options
 local options = {}
 
@@ -244,7 +239,6 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
     return cab, driver
 end
 
--- TODO: Try cargobob magnet
 local CARGOBOB_MODEL = util.joaat("cargobob")
 function spawn_cargobob_for_vehicle(vehicle, useMagnet)
     STREAMING.REQUEST_MODEL(CARGOBOB_MODEL)
@@ -1393,6 +1387,245 @@ end, function(args)
     io.close(file)
     util.toast("Saved to %appdata%\\Stand\\Vehicles\\" .. args .. ".json")
 end)
+
+local cloudVehicles = menu.list(menu.my_root(), "Cloud Vehicles (BETA)", {}, "Ooooh mysterious cloud, what mysteries do you have?")
+local cloudSearchMenu = menu.list(cloudVehicles, "Search Vehicles", {"searchvehicles"}, "Search the cloud for vehicles")
+local cloudSearchMenus = {}
+local cloudUserVehicleSaveDataCache = {}
+local previewVehicle = 0
+function spawn_preview_vehicle(saveData)
+    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+        util.delete_entity(previewVehicle)
+    end
+    -- Too lazy to figure out way to refactor this into not being reused code:
+    STREAMING.REQUEST_MODEL(saveData.Model)
+    while not STREAMING.HAS_MODEL_LOADED(saveData.Model) do
+        util.yield()
+    end
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 6.5, 0.0)
+    local veh = VEHICLE.CREATE_VEHICLE(saveData.Model, pos.x, pos.y, pos.z, 0, false, false)
+    previewVehicle = veh
+    apply_vehicle_save_data(previewVehicle, saveData)
+    local heading = 0
+    ENTITY.SET_ENTITY_ALPHA(previewVehicle, 150)
+    VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(previewVehicle)
+    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(previewVehicle, false, false)
+    util.create_tick_handler(function(_)
+        heading = heading + 7
+        if heading == 360 then
+            heading = 0
+        end
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
+        ENTITY.SET_ENTITY_COORDS(previewVehicle, pos.x, pos.y, pos.z, true, true, false, false)
+        ENTITY.SET_ENTITY_HEADING(previewVehicle, heading)
+        util.yield(15)
+        return previewVehicle == veh
+    end)
+end
+function setup_vehicle_submenu(m, user, vehicleName)
+    local saveData = cloudUserVehicleSaveDataCache[user][vehicleName]
+    if not saveData then
+        HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
+        HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+        util.async_http_get("jackz.me", "/stand/vehicles/" .. user .. "/" .. vehicleName, function(result)
+            HUD.BUSYSPINNER_OFF()
+            saveData = json.decode(result)
+            cloudUserVehicleSaveDataCache[user][vehicleName] = saveData
+            local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
+            local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
+            menu.action(m, "Spawn", {}, desc, function(_)
+                while not cloudUserVehicleSaveDataCache[user][vehicleName] do
+                    util.yield()
+                end
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 6.5, 0.0)
+                local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+                vehicle = util.create_vehicle(cloudUserVehicleSaveDataCache[user][vehicleName].Model, pos, heading)
+                apply_vehicle_save_data(vehicle, cloudUserVehicleSaveDataCache[user][vehicleName])
+                util.toast("Spawned " .. user .. "/" .. vehicleName)
+                if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                    util.delete_entity(previewVehicle)
+                end
+            end)
+            menu.action(m, "Download", {}, desc, function(_)
+                while not cloudUserVehicleSaveDataCache[user][vehicleName] do
+                    util.yield()
+                end
+                filesystem.mkdirs(vehicleDir)
+                local file = io.open( vehicleDir .. user .. "_" .. vehicleName, "w")
+                io.output(file)
+                io.write(json.encode(cloudUserVehicleSaveDataCache[user][vehicleName]))
+                io.close(file)
+                util.toast("Saved to %appdata%\\Stand\\Vehicles\\" ..  user .. "_" .. vehicleName)
+            end)
+        end)
+        while saveData == nil do
+            util.yield()
+        end
+    end
+    spawn_preview_vehicle(saveData)
+end
+menu.action(cloudSearchMenu, "> Search New", {"searchcloud"}, "", function(_)
+    menu.show_command_box("searchcloud ")
+end, function(args)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+    util.async_http_get("jackz.me", "/stand/vehicles/list?q=" .. args, function(result)
+        HUD.BUSYSPINNER_OFF()
+        for _, m in ipairs(cloudSearchMenus) do
+            menu.delete(m)
+        end
+        cloudSearchMenus = {}
+        local foundOne = false
+        for result in string.gmatch(result, "[^\r\n]+") do
+            foundOne = true
+            local chunks = {} -- { user, vehicleName }
+            for substring in string.gmatch(result, "%S+") do
+                table.insert(chunks, substring)
+            end
+            local m = menu.list(cloudSearchMenu, chunks[1] .. "/" .. chunks[2], {})
+            menu.on_focus(m, function(_)
+                setup_vehicle_submenu(m, chunks[1], chunks[2])
+            end)
+            table.insert(cloudSearchMenus, m)
+        end
+        if not foundOne then
+            util.toast("No search results found for " .. args)
+        end
+    end)
+end)
+menu.on_focus(cloudSearchMenu, function(_)
+    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+        util.delete_entity(previewVehicle)
+    end
+    for _, m in ipairs(cloudSearchMenus) do
+        menu.delete(m)
+    end
+    cloudSearchMenus = {}
+end)
+local cloudUploadMenu = menu.list(cloudVehicles, "Upload", {"uploadcloud"}, "Browse your saved vehicles to upload to the cloud")
+local cloudUploadMenus = {}
+local cloudID
+if filesystem.exists(vehicleDir .. "/cloud.id") then
+    local file = io.open(vehicleDir .. "/cloud.id")
+    io.input(file)
+    cloudID = io.read("*a")
+    io.close(file)
+else    
+    local licenseFile = io.open(filesystem.stand_dir() .. "/License Key.txt", "r")
+    io.input(licenseFile)
+    local license = io.read(13) -- read first 13 lines of license key
+    io.close(licenseFile)
+    local file = io.open(vehicleDir .. "/cloud.id", "w")
+    io.output(file)
+    io.write(string.sub(license, 7) .. os.time())
+    io.close(file)
+end
+menu.on_focus(cloudUploadMenu, function(_)
+    for _, m in ipairs(cloudUploadMenus) do
+        menu.delete(m)
+    end
+    cloudUploadMenus = {}
+    for _, file in ipairs(filesystem.list_files(vehicleDir)) do
+        local _, name, ext = string.match(file, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+        if ext == "json" then
+            file = io.open(vehicleDir .. name, "r")
+            io.input(file)
+            local saveData = json.decode(io.read("*a"))
+            io.close(file)
+            if saveData.Model and saveData.Mods then
+                local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
+                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
+                local displayName = string.sub(name, 0, -6)
+                local previewVehicle = 0
+                local m = menu.action(cloudUploadMenu, displayName, {}, "Click to upload this vehicle\n\n" .. desc .. "\n\nWill overwrite existing versions in the cloud.", function(_)
+                    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                        util.delete_entity(previewVehicle)
+                        previewVehicle = 0
+                    end
+                    -- TODO: Automatically download luahttp here & upload
+                    local luahttp = try_load_lib("luahttp")
+                    while WaitingLibsDownload do
+                        util.yield()
+                    end
+                    local scName = PLAYER.GET_PLAYER_NAME(players.user())
+                    local result = luahttp.request("POST", "jackz.me", "/stand/vehicles/upload?cid=" .. cloudID .. "&user=" .. scName .. "&name=" .. name , json.encode(saveData))
+                    if result == "SUCCESS" then
+                        util.toast("Possibly uploaded to the cloud.")
+                    else
+                        util.toast("Failed to upload to cloud: " .. result)
+                    end
+                end)
+                menu.on_focus(m, function(_)
+                    spawn_preview_vehicle(saveData)
+                end)
+                menu.on_blur(m, function(_)
+                    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                        util.delete_entity(previewVehicle)
+                    end
+                    previewVehicle = 0
+                    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
+                end)
+                table.insert(cloudUploadMenus, m)
+            end
+        end
+    end
+end)
+
+local cloudUserMenus = {}
+local cloudUserVehicleMenus = {}
+local isFetchingCloudUserVehicles = {}
+local isFetchingCloudUser = {}
+local isFetchingUsers = false
+menu.on_focus(cloudVehicles, function(_)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+    if isFetchingUsers then
+        return
+    end
+    isFetchingUsers = true
+    util.async_http_get("jackz.me", "/stand/vehicles/list.php", function(result)
+        for i, m in ipairs(cloudUserMenus) do
+            pcall(menu.delete, m)
+        end
+        cloudUserMenus = {}
+        HUD.BUSYSPINNER_OFF()
+        for user in string.gmatch(result, "[^\r\n]+") do
+            local userMenu = menu.list(cloudVehicles, user, {}, "Browse all uploaded vehicles by\n" .. user)
+            cloudUserVehicleSaveDataCache[user] = {}
+            menu.on_focus(userMenu, function(_)
+                if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                    util.delete_entity(previewVehicle)
+                end
+                if isFetchingCloudUserVehicles[user] then
+                    return
+                end
+                isFetchingCloudUserVehicles[user] = true
+                HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
+                HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+                util.async_http_get("jackz.me", "/stand/vehicles/list.php?user=" .. user, function(result)
+                    for _, m in ipairs(cloudUserVehicleMenus) do
+                        pcall(menu.delete, m)
+                    end
+                    cloudUserVehicleMenus = {}
+                    HUD.BUSYSPINNER_OFF()
+                    for vehicleName in string.gmatch(result, "[^\r\n]+") do
+                        local vehicleMenuList = menu.list(userMenu, vehicleName, {}, "")
+                        menu.on_focus(vehicleMenuList, function(_)
+                            setup_vehicle_submenu(vehicleMenuList, user, vehicleName)
+                        end)
+                        table.insert(cloudUserVehicleMenus, vehicleMenuList)
+                    end
+                    isFetchingCloudUserVehicles[user] = false
+                end, function(_err) util.toast("Could not fetch user's vehicles at this time") end)
+            end)
+            table.insert(cloudUserMenus, userMenu)
+        end
+        isFetchingUsers = false
+    end, function(_err) util.toast("Could not fetch cloud vehicles at this time") end)
+end)
+
 local savedVehiclesList = menu.list(menu.my_root(), "Spawn Saved Vehicles", {}, "List of spawnable saved vehicles.\nStored in %appdata%\\Stand\\Vehicles")
 local savedVehicleMenus = {}
 local applySaved = false
@@ -1413,7 +1646,7 @@ menu.on_focus(savedVehiclesList, function()
             io.close(file)
             if saveData.Model and saveData.Mods then
                 local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s", manuf, saveData.Name, saveData.Type, saveData.Format)
+                local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
                 local displayName = string.sub(name, 0, -6)
                 local previewVehicle = 0
                 local m = menu.action(savedVehiclesList, displayName, {"spawnvehicle" .. displayName}, "Spawns a saved custom vehicle\n" .. desc, function(_)
@@ -1444,31 +1677,8 @@ menu.on_focus(savedVehiclesList, function()
                         apply_vehicle_save_data(vehicle, saveData)
                     end
                 end)
-            
                 menu.on_focus(m, function(_)
-                    STREAMING.REQUEST_MODEL(saveData.Model)
-                    while not STREAMING.HAS_MODEL_LOADED(saveData.Model) do
-                        util.yield()
-                    end
-                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 6.5, 0.0)
-                    previewVehicle = VEHICLE.CREATE_VEHICLE(saveData.Model, pos.x, pos.y, pos.z, 0, false, false)
-                    apply_vehicle_save_data(previewVehicle, saveData)
-                    local heading = 0
-                    ENTITY.SET_ENTITY_ALPHA(previewVehicle, 150)
-                    VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(previewVehicle)
-                    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(previewVehicle, false, false)
-                    util.create_tick_handler(function(_)
-                        heading = heading + 5
-                        if heading == 360 then
-                            heading = 0
-                        end
-                        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
-                        ENTITY.SET_ENTITY_COORDS(previewVehicle, pos.x, pos.y, pos.z, true, true, false, false)
-                        ENTITY.SET_ENTITY_HEADING(previewVehicle, heading)
-                        util.yield(10)
-                        return previewVehicle > 0
-                    end)
+                    spawn_preview_vehicle(saveData)
                 end)
                 menu.on_blur(m, function(_)
                     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
@@ -1794,7 +2004,6 @@ menu.action(allPlayersMenu, "Performance Upgrade", {"performanceupgradevehicle"}
         end
     end
 end)
-
 menu.action(allPlayersMenu, "Clean Vehicle", {"cleanall"}, "Cleans all players' vehicles", function(_)
     local cur_players = players.list(true, true, true)
     for _, pid in pairs(cur_players) do
@@ -1837,6 +2046,7 @@ end, function(args)
         end
     end
 end, false)
+
 
 local autodriveMenu = menu.list(menu.my_root(), "Autodrive", {"autodrive"}, "Autodrive options")
 local drive_speed = 50.0
@@ -1974,6 +2184,9 @@ util.on_stop(function()
 
     TASK.CLEAR_PED_TASKS(ped)
     TASK._CLEAR_VEHICLE_TASKS(vehicle)
+    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+        util.delete_entity(previewVehicle)
+    end
 end)
 
 for _, pid in pairs(players.list(true, true, true)) do
