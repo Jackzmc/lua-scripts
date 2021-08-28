@@ -129,6 +129,7 @@ V1.16.0
 * Added Nearby Vehicles -> "Cargobob Nearby Cars (Magnet)"
 * (1.16.1) Lots of bug fixes & improvements
 * (1.16.1) Also merged vehicle_autodrive into script
+* (1.16.7) Add "Upgrade Performance" and "Upgrade" to All Vehicles 
 
 # actions (v1.7.1)
 
