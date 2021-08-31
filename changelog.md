@@ -163,6 +163,7 @@ v2.3.0
 * (2.3.2) Fix spawning saved vehicles not clearing preview
 * (2.3.3) Made chauffeurs not flee when gunshots occur
 * (2.3.3) Automatically warp player into passenger seat instead of hijacking
+* (2.3.4) Used built in menu async_http instead of luahttp for uploading
 
 # actions (v1.7.1)
 
