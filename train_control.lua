@@ -1,24 +1,25 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.0.1"
+local VERSION = "1.0.2"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
     chunks = {}
     for substring in string.gmatch(result, "%S+") do
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
         -- Remove this block (lines 15-31) to disable auto updates
-        util.async_http_get("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
             local file = io.open(CHANGELOG_PATH, "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             io.close(file)
         end)
-        util.async_http_get("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
+        async_http.dispatch()
+        async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
             local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
@@ -29,15 +30,17 @@ util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT
             util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
             util.stop_script()
         end)
+        async_http.dispatch()
     end
 end)
+async_http.dispatch()
 
 local WaitingLibsDownload = false
 function try_load_lib(lib)
     local status = pcall(require, lib)
     if not status then
         WaitingLibsDownload = true
-        util.async_http_get("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
+        async_http.init("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
             local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib .. ".lua", "w")
             io.output(file)
             io.write(result)
@@ -49,6 +52,7 @@ function try_load_lib(lib)
             util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
             util.stop_script()
         end)
+        async_http.dispatch()
     end
 end
 try_load_lib("natives-1627063482")

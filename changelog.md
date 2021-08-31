@@ -1,4 +1,4 @@
-# jackz vehicles (v1.16.6)
+# jackz vehicles (v2.1)
 
 V1.2
 
@@ -133,6 +133,36 @@ V1.16.0
 * (1.16.5) Possible fix for apply spawning new vehicles instead
 * (1.16.6) Remove old named version (vehicle_options.lua)
 * (1.16.7) Add "Upgrade Performance" and "Upgrade" to All Vehicles 
+
+V2.1.0
+
+* Added a CLOUD VEHICLES system! Download, spawn, and upload custom vehicles between each other.
+* 2.0.0 skipped because I accidently released 2.0.0 early with no changes
+* (2.1.1) Fixed some users not generating cloud id
+* (2.1.2) Fix vehicle folder not being created
+* (2.1.3) Fix cloudID not being set on first-generation
+* (2.1.4) Fix preview vehicle not vanishing when backing out of menu
+* (2.1.5) Fix lauhttp lib not installing correctly
+* (2.1.6) Fixed libs not downloading correctly. Again.
+* (2.1.7) Fix error when hovering over 'upload' if lib was downloaded
+* (2.1.8) Remove auto downloading luahttp due to corruption
+* (2.1.9) Fixed 'hijack & drive to player'
+* (2.1.9) Fix set license plate clearing on personal vehicles
+* (2.1.10) Improved auto-spectating for all players
+
+v2.2.0
+
+* Added Autodrive > Chauffeur - A ped that will drive for you with full control
+* Fix some search results being invalid
+
+v2.3.0
+
+* Added Spinning Cars
+* Made uploaded vehicle account be unspoofed socialclub name
+* (2.3.1) Improved loading of luahttp
+* (2.3.2) Fix spawning saved vehicles not clearing preview
+* (2.3.3) Made chauffeurs not flee when gunshots occur
+* (2.3.3) Automatically warp player into passenger seat instead of hijacking
 
 # actions (v1.7.1)
 

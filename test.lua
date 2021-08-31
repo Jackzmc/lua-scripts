@@ -171,7 +171,7 @@ end
 
 local active_target = 0
 local iAngle = 45
-local iVel = 20
+local iVel = 500
 local delay = 1000
 local ticks = 0
 local launchFromSrc = true
@@ -210,7 +210,7 @@ menu.slider(menu.my_root(), "Angle", {"jangle"}, "", 0, 90, iAngle, 5, function(
     iAngle = v
 end)
 
-menu.slider(menu.my_root(), "Veloc", {"jvelocity"}, "", 0, 200, iVel, 1, function(v)
+menu.slider(menu.my_root(), "Veloc", {"jvelocity"}, "", 0, 5000, iVel, 1, function(v)
     iVel = v
 end)
 
@@ -489,6 +489,41 @@ while true do
         tick = tick + 1
         directx.draw_text(0.93, 0.85, string.format("src (%.1f, %.1f, %.1f)\ndest (%.1f, %.1f, %.1f)", src.x, src.y, src.z, dest.x, dest.y, dest.z), 1, 0.5, textc_w, false)
         util.yield()
+    end
+    local player = players.user()
+    PLAYER.SET_EVERYONE_IGNORE_PLAYER(player, true)
+    PLAYER.SET_IGNORE_LOW_PRIORITY_SHOCKING_EVENTS(player, true)
+    if PAD.IS_CONTROL_JUST_PRESSED(2, 24) then
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(player)
+        local pos = ENTITY.GET_ENTITY_COORDS(my_ped, 1)
+        local pos2 = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 200.0, 0)
+        local ray = SHAPETEST.START_SHAPE_TEST_LOS_PROBE(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z, 2, 0, 4)
+        -- local ray = SHAPETEST.START_SHAPE_TEST_CAPSULE(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z, 20.0, 10, 0, 7)
+        local p_bool = memory.alloc(8)
+        local p_endPos = memory.alloc(24)
+        local p_surfaceNormal = memory.alloc(24)
+        local p_entityHit = memory.alloc(32)
+
+        while SHAPETEST.GET_SHAPE_TEST_RESULT(ray, p_bool, p_endPos, p_surfaceNormal, p_entityHit) == 1 do
+            util.yield()
+        end
+        local hit = memory.read_byte(p_bool)
+        if hit == 1 then
+            util.toast("hit")
+            local ent = memory.read_int(p_entityHit)
+            util.toast(ent)
+            local endVec = memory.read_vector3(p_endPos)
+            if ENTITY.DOES_ENTITY_EXIST(ent) then
+                VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(ent, 255, 105, 180)
+                VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(ent, 255, 105, 180)
+                util.toast("ded")
+                -- FIRE.ADD_EXPLOSION(endVec.x, endVec.y, endVec.z + 1.0, 26, 60, true, true, 0.0)
+            end
+        end
+        memory.free(p_bool)
+        memory.free(p_endPos)
+        memory.free(p_surfaceNormal)
+        memory.free(p_entityHit)
     end
     -- if AUDIO.IS_MOBILE_PHONE_CALL_ONGOING() then
     --     PAD._SET_CONTROL_NORMAL(2, 176, 1.0)

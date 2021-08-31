@@ -1,24 +1,25 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "2.1.0"
+local VERSION = "2.3.4"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
     chunks = {}
     for substring in string.gmatch(result, "%S+") do
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
         -- Remove this block (lines 15-31) to disable auto updates
-        util.async_http_get("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
             local file = io.open(CHANGELOG_PATH, "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             io.close(file)
         end)
-        util.async_http_get("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
+        async_http.dispatch()
+        async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
             local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
@@ -26,34 +27,41 @@ util.async_http_get("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT
 
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
         end, function(e)
-            --util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            --util.stop_script()
+            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+            util.stop_script()
         end)
+        async_http.dispatch()
     end
 end)
+async_http.dispatch()
 local WaitingLibsDownload = false
-function try_load_lib(lib)
-    local status, f = pcall(require, lib)
+function try_load_lib(lib, globalName)
+    local status, f = pcall(require, string.sub(lib, 0, #lib - 4))
     if not status then
         WaitingLibsDownload = true
-        util.async_http_get("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib .. ".lua", "w")
+        async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+            -- FIXME: somehow only writing 1 KB file
+            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
             io.output(file)
             io.write(result)
+            io.flush() -- redudant, probably?
             io.close(file)
+            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. "'")
+            if globalName then
+                _G[globalName] = require(string.sub(lib, 0, #lib - 4))
+            end
             WaitingLibsDownload = false
-            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. ".lua'")
-            return require(lib)
         end, function(e)
             util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
             util.stop_script()
         end)
-    else
-        return f
+        async_http.dispatch()
+    elseif globalName then
+        _G[globalName] = f
     end
 end
-try_load_lib("natives-1627063482")
-local json = try_load_lib("json")
+try_load_lib("natives-1627063482.lua")
+try_load_lib("json.lua", "json")
 -- If script is actively downloading new update, wait:
 while WaitingLibsDownload do
     util.yield()
@@ -67,7 +75,6 @@ if filesystem.exists(CHANGELOG_PATH) then
     io.close(file)
     os.remove(CHANGELOG_PATH)
 end
-
 os.remove(filesystem.scripts_dir() .. "/vehicle_options.lua")
 -- Per-player options
 local options = {}
@@ -143,6 +150,9 @@ local VEHICLE_TYPES = {
 	"Trains"
 }
 local vehicleDir = filesystem.stand_dir() .. "/Vehicles/"
+if not filesystem.exists(vehicleDir) then
+    filesystem.mkdir(vehicleDir)
+end
 local VEHICLE_SAVEDATA_FORMAT_VERSION = "JSTAND 1.1"
 local TOW_TRUCK_MODEL_1 = util.joaat("towtruck")
 local TOW_TRUCK_MODEL_2 = util.joaat("towtruck2")
@@ -168,7 +178,7 @@ function get_player_vehicle_in_control(pid, opts)
         util.toast("Player is too far, auto-spectating for upto 3s.")
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
         -- To prevent a hard 3s loop, we keep waiting upto 3s or until vehicle is acquired
-        local loop = options and options.loops ~= nil and options.loops or 30 -- 3000 / 100
+        local loop = (opts and opts.loops ~= nil) and opts.loops or 30 -- 3000 / 100
         while vehicle == 0 and loop > 0 do
             util.yield(100)
             vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, true)
@@ -184,7 +194,6 @@ function get_player_vehicle_in_control(pid, opts)
         local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
         local has_control_ent = false
         local loops = 15
-        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
         NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
 
         -- Attempts 15 times, with 8ms per attempt
@@ -197,15 +206,8 @@ function get_player_vehicle_in_control(pid, opts)
                 break
             end
         end
-        if was_spectating then
-            NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
-        else
-            NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
-        end
     end
-    if was_spectating then
-        NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
-    else
+    if not was_spectating then
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, target_ped)
     end
     return vehicle
@@ -956,7 +958,6 @@ function setup_action_for(pid)
         if vehicle > 0 then
             local saveData = get_vehicle_save_data(vehicle)
 
-            filesystem.mkdirs(vehicleDir)
             local file = io.open( vehicleDir .. args .. ".json", "w")
             io.output(file)
             io.write(json.encode(saveData))
@@ -1062,15 +1063,16 @@ function setup_action_for(pid)
                 if vehicle > 0 then
                     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 1.0, 0.1)
                     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
-                    VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 5000, false)
                     local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
                     TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                     PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                    VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
                     PED.SET_PED_AS_ENEMY(ped, true)
                     --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
-                    TASK.TASK_ENTER_VEHICLE(ped, vehicle, 20000, -1, 2, 1, 0)
                     local loops = 10
                     while not PED.IS_PED_IN_VEHICLE(ped, vehicle, false) do
+                        local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
                         util.yield(1000)
                         loops = loops - 1
                         if loops == 0 then
@@ -1175,6 +1177,7 @@ function setup_action_for(pid)
     end, function(args)
         local vehicle = get_player_vehicle_in_control(pid)
         if vehicle > 0 then
+            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
             VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
         else
             util.toast("Player is not in a car or out of range")
@@ -1182,6 +1185,7 @@ function setup_action_for(pid)
     end, false)
 
 end
+
 function get_vehicle_save_data(vehicle)
     local model = ENTITY.GET_ENTITY_MODEL(vehicle)
     local Primary = {
@@ -1373,6 +1377,7 @@ function apply_vehicle_save_data(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
 end
+
 menu.action(menu.my_root(), "Save Current Vehicle", {"savevehicle"}, "Saves your current vehicle with all customizations", function(_)
     util.toast("Enter a name to save the vehicle as")
     menu.show_command_box("savevehicle ")
@@ -1380,7 +1385,6 @@ end, function(args)
     local vehicle = util.get_vehicle()
     local saveData = get_vehicle_save_data(vehicle)
 
-    filesystem.mkdirs(vehicleDir)
     local file = io.open( vehicleDir .. args .. ".json", "w")
     io.output(file)
     io.write(json.encode(saveData))
@@ -1389,7 +1393,7 @@ end, function(args)
 end)
 
 local cloudVehicles = menu.list(menu.my_root(), "Cloud Vehicles (BETA)", {}, "Ooooh mysterious cloud, what mysteries do you have?")
-local cloudSearchMenu = menu.list(cloudVehicles, "Search Vehicles", {"searchvehicles"}, "Search the cloud for vehicles")
+local cloudSearchMenu = menu.list(cloudVehicles, "Search", {"searchvehicles"}, "Search the cloud for vehicles")
 local cloudSearchMenus = {}
 local cloudUserVehicleSaveDataCache = {}
 local previewVehicle = 0
@@ -1420,7 +1424,7 @@ function spawn_preview_vehicle(saveData)
         ENTITY.SET_ENTITY_COORDS(previewVehicle, pos.x, pos.y, pos.z, true, true, false, false)
         ENTITY.SET_ENTITY_HEADING(previewVehicle, heading)
         util.yield(15)
-        return previewVehicle == veh
+        return previewVehicle == veh and menu.is_open()
     end)
 end
 function setup_vehicle_submenu(m, user, vehicleName)
@@ -1428,7 +1432,7 @@ function setup_vehicle_submenu(m, user, vehicleName)
     if not saveData then
         HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
         HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
-        util.async_http_get("jackz.me", "/stand/vehicles/" .. user .. "/" .. vehicleName, function(result)
+        async_http.init("jackz.me", "/stand/vehicles/" .. user .. "/" .. vehicleName, function(result)
             HUD.BUSYSPINNER_OFF()
             saveData = json.decode(result)
             cloudUserVehicleSaveDataCache[user][vehicleName] = saveData
@@ -1452,7 +1456,6 @@ function setup_vehicle_submenu(m, user, vehicleName)
                 while not cloudUserVehicleSaveDataCache[user][vehicleName] do
                     util.yield()
                 end
-                filesystem.mkdirs(vehicleDir)
                 local file = io.open( vehicleDir .. user .. "_" .. vehicleName, "w")
                 io.output(file)
                 io.write(json.encode(cloudUserVehicleSaveDataCache[user][vehicleName]))
@@ -1460,18 +1463,21 @@ function setup_vehicle_submenu(m, user, vehicleName)
                 util.toast("Saved to %appdata%\\Stand\\Vehicles\\" ..  user .. "_" .. vehicleName)
             end)
         end)
+        async_http.dispatch()
+        -- do we need this yield?
         while saveData == nil do
             util.yield()
         end
     end
     spawn_preview_vehicle(saveData)
 end
+
 menu.action(cloudSearchMenu, "> Search New", {"searchcloud"}, "", function(_)
     menu.show_command_box("searchcloud ")
 end, function(args)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
-    util.async_http_get("jackz.me", "/stand/vehicles/list?q=" .. args, function(result)
+    async_http.init("jackz.me", "/stand/vehicles/list?q=" .. args, function(result)
         HUD.BUSYSPINNER_OFF()
         for _, m in ipairs(cloudSearchMenus) do
             menu.delete(m)
@@ -1484,9 +1490,16 @@ end, function(args)
             for substring in string.gmatch(result, "%S+") do
                 table.insert(chunks, substring)
             end
-            local m = menu.list(cloudSearchMenu, chunks[1] .. "/" .. chunks[2], {})
+            local vehicleName = chunks[2]
+            if #chunks > 2 then
+                for i = 3, #chunks do
+                    vehicleName = vehicleName .. " " .. chunks[i]
+                end
+            end
+            
+            local m = menu.list(cloudSearchMenu, chunks[1] .. "/" .. vehicleName, {})
             menu.on_focus(m, function(_)
-                setup_vehicle_submenu(m, chunks[1], chunks[2])
+                setup_vehicle_submenu(m, chunks[1], vehicleName)
             end)
             table.insert(cloudSearchMenus, m)
         end
@@ -1494,6 +1507,7 @@ end, function(args)
             util.toast("No search results found for " .. args)
         end
     end)
+    async_http.dispatch()
 end)
 menu.on_focus(cloudSearchMenu, function(_)
     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
@@ -1512,14 +1526,12 @@ if filesystem.exists(vehicleDir .. "/cloud.id") then
     io.input(file)
     cloudID = io.read("*a")
     io.close(file)
-else    
-    local licenseFile = io.open(filesystem.stand_dir() .. "/License Key.txt", "r")
-    io.input(licenseFile)
-    local license = io.read(13) -- read first 13 lines of license key
-    io.close(licenseFile)
+else
+    math.randomseed(os.time())
     local file = io.open(vehicleDir .. "/cloud.id", "w")
+    cloudID = math.random(1, 10000000)
     io.output(file)
-    io.write(string.sub(license, 7) .. os.time())
+    io.write(cloudID)
     io.close(file)
 end
 menu.on_focus(cloudUploadMenu, function(_)
@@ -1544,18 +1556,20 @@ menu.on_focus(cloudUploadMenu, function(_)
                         util.delete_entity(previewVehicle)
                         previewVehicle = 0
                     end
-                    -- TODO: Automatically download luahttp here & upload
-                    local luahttp = try_load_lib("luahttp")
-                    while WaitingLibsDownload do
-                        util.yield()
+                    if not cloudID then
+                        util.toast("You do not have a cloudID, contact jackz for help.")
                     end
-                    local scName = PLAYER.GET_PLAYER_NAME(players.user())
-                    local result = luahttp.request("POST", "jackz.me", "/stand/vehicles/upload?cid=" .. cloudID .. "&user=" .. scName .. "&name=" .. name , json.encode(saveData))
-                    if result == "SUCCESS" then
-                        util.toast("Possibly uploaded to the cloud.")
-                    else
-                        util.toast("Failed to upload to cloud: " .. result)
-                    end
+                    local scName = SOCIALCLUB._SC_GET_NICKNAME()
+                    async_http.init("jackz.me", "/stand/vehicles/upload?user=" .. scName .. "&name=" .. name, function(result)
+                        if result == "SUCCESS" then
+                            util.toast("Vehicle uploaded to cloud successfully.")
+                        else
+                            util.toast("Failed to upload to cloud: " .. result)
+                        end
+                    end)
+                    async_http.add_header("X-Cloud-ID", cloudID)
+                    async_http.set_post("Content-Type: application/json", json.encode(saveData))
+                    async_http.dispatch()
                 end)
                 menu.on_focus(m, function(_)
                     spawn_preview_vehicle(saveData)
@@ -1578,6 +1592,7 @@ local cloudUserVehicleMenus = {}
 local isFetchingCloudUserVehicles = {}
 local isFetchingCloudUser = {}
 local isFetchingUsers = false
+menu.divider(cloudVehicles, "Browse User Vehicles")
 menu.on_focus(cloudVehicles, function(_)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
@@ -1585,8 +1600,8 @@ menu.on_focus(cloudVehicles, function(_)
         return
     end
     isFetchingUsers = true
-    util.async_http_get("jackz.me", "/stand/vehicles/list.php", function(result)
-        for i, m in ipairs(cloudUserMenus) do
+    async_http.init("jackz.me", "/stand/vehicles/list", function(result)
+        for _, m in ipairs(cloudUserMenus) do
             pcall(menu.delete, m)
         end
         cloudUserMenus = {}
@@ -1604,7 +1619,7 @@ menu.on_focus(cloudVehicles, function(_)
                 isFetchingCloudUserVehicles[user] = true
                 HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
                 HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
-                util.async_http_get("jackz.me", "/stand/vehicles/list.php?user=" .. user, function(result)
+                async_http.init("jackz.me", "/stand/vehicles/list?user=" .. user, function(result)
                     for _, m in ipairs(cloudUserVehicleMenus) do
                         pcall(menu.delete, m)
                     end
@@ -1619,11 +1634,13 @@ menu.on_focus(cloudVehicles, function(_)
                     end
                     isFetchingCloudUserVehicles[user] = false
                 end, function(_err) util.toast("Could not fetch user's vehicles at this time") end)
+                async_http.dispatch()
             end)
             table.insert(cloudUserMenus, userMenu)
         end
         isFetchingUsers = false
     end, function(_err) util.toast("Could not fetch cloud vehicles at this time") end)
+    async_http.dispatch()
 end)
 
 local savedVehiclesList = menu.list(menu.my_root(), "Spawn Saved Vehicles", {}, "List of spawnable saved vehicles.\nStored in %appdata%\\Stand\\Vehicles")
@@ -1637,6 +1654,9 @@ menu.on_focus(savedVehiclesList, function()
         menu.delete(m)
     end
     savedVehicleMenus = {}
+    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+        util.delete_entity(previewVehicle)
+    end
     for _, file in ipairs(filesystem.list_files(vehicleDir)) do
         local _, name, ext = string.match(file, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if ext == "json" then
@@ -1648,7 +1668,6 @@ menu.on_focus(savedVehiclesList, function()
                 local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
                 local desc = string.format("Vehicle: %s%s (%s)\nFormat Version: %s (Current: %s)", manuf, saveData.Name, saveData.Type, saveData.Format, VEHICLE_SAVEDATA_FORMAT_VERSION)
                 local displayName = string.sub(name, 0, -6)
-                local previewVehicle = 0
                 local m = menu.action(savedVehiclesList, displayName, {"spawnvehicle" .. displayName}, "Spawns a saved custom vehicle\n" .. desc, function(_)
                     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
                         util.delete_entity(previewVehicle)
@@ -1859,8 +1878,7 @@ menu.action(nearbyMenu, "Cargobob Nearby Cars (Magnet)", {}, "Ignores players, s
     end)
 end)
 menu.action(nearbyMenu, "Clear All Nearby Cargobobs", {}, "", function(sdfa)
-    local vehicles = util.get_all_vehicles()
-    for _, vehicle in ipairs(vehicles) do
+    for _, vehicle in ipairs(util.get_all_vehicles()) do
         local model = ENTITY.GET_ENTITY_MODEL(vehicle)
         if model == CARGOBOB_MODEL then
             local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
@@ -2042,6 +2060,7 @@ end, function(args)
     for _, pid in pairs(cur_players) do
         local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
         if vehicle > 0 then
+            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
             VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
         end
     end
@@ -2085,7 +2104,7 @@ function get_my_driver()
     ::continue::
     return VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1), vehicle
 end
-
+local chauffeurMenu = menu.list(autodriveMenu, "Chauffeur", {"chauffeur"}, "Make another NPC drive for you.")
 local styleMenu = menu.list(autodriveMenu, "Driving Style", {}, "Sets how the ai will drive")
 
 for _, style in pairs(DRIVING_STYLES) do
@@ -2179,6 +2198,156 @@ menu.action(autodriveMenu, "Stop Driving", {"aistop"}, "", function(v)
     TASK.CLEAR_PED_TASKS(ped)
 end)
 
+local autodriveDriver = 0
+local autodriveVehicle = 0
+local autodriveOnlyWhenOntop = false
+menu.toggle(chauffeurMenu, "Stop Driving When Not In/On", {}, "Should the driver stop when you either exit the vehicle or fallen off on top?", function(on)
+    autodriveOnlyWhenOntop = on
+end, autodriveOnlyWhenOntop)
+menu.action(chauffeurMenu, "Spawn Driver", {}, "Will acquire a driver into your last/active vehicle to drive for you. It will automatically hijack any player drivers.\nOnce the ready signal is given, choose a destination.", function(_)
+    local vehicle = get_player_vehicle_in_control(players.user())
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    if vehicle > 0 then
+        if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+            util.delete_entity(autodriveDriver)
+        end
+        ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
+        local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
+        if driver == 0 then
+            -- teleport them in if free spot
+            util.toast("New driver spawned, ready")
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 0.0, 0.6)
+            driver = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+            for _ = 1, 5 do
+                TASK.TASK_WARP_PED_INTO_VEHICLE(driver, vehicle, -1)
+                util.yield(100)
+            end
+        elseif PED.IS_PED_A_PLAYER(driver) then
+            -- hijack if its a player
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
+            if driver == my_ped then
+                TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, vehicle, -2)
+                driver = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+                -- PED.SET_PED_AS_ENEMY(ped, true)
+                TASK.TASK_VEHICLE_DRIVE_WANDER(driver, vehicle, 100.0, 2883621)
+                PED.SET_PED_FLEE_ATTRIBUTES(driver, 46, true)
+                for _ = 1, 5 do
+                    TASK.TASK_WARP_PED_INTO_VEHICLE(driver, vehicle, -1)
+                    util.yield(100)
+                end
+                util.toast("Driver ready.")
+            else
+                local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+                -- PED.SET_PED_AS_ENEMY(ped, true)
+                TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+                PED.SET_PED_FLEE_ATTRIBUTES(ped, 46, true)
+                local tries = 25
+                local vehicle = 0
+                while tries > 0 and vehicle == 0 do
+                    vehicle = PED.GET_VEHICLE_PED_IS_IN(ped, false)
+                    util.yield(1000)
+                    tries = tries - 1
+                end
+                if vehicle == 0 then
+                    util.delete_entity(ped)
+                    util.toast("Driver failed to acquire driver seat in time.")
+                    return
+                end
+                PED.SET_PED_AS_ENEMY(ped, false)
+                driver = ped
+                util.toast("New driver spawned & ready")
+            end
+        else
+            -- use the existing driver
+            util.toast("Using existing vehicle driver, ready")
+        end
+
+        if vehicle > 0 then
+            autodriveDriver = driver
+            autodriveVehicle = vehicle
+            TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 10000)
+        elseif ENTITY.DOES_ENTITY_EXIST(driver) then
+            util.delete_entity(driver)
+        end
+    else
+        util.toast("Player is not in a car or out of range")
+    end
+end)
+menu.action(chauffeurMenu, "Delete Driver", {}, "", function(_)
+    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+        util.delete_entity(autodriveDriver)
+    else
+        util.toast("No driver to delete.")
+    end
+    autodriveDriver = 0
+end)
+menu.action(chauffeurMenu, "Stop Driving", {}, "Makes the driver stop the vehicle", function(_)
+    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
+        if vehicle == 0 then
+            util.toast("Driver is not in a car or out of range")
+        else
+            TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 100000)
+        end
+    else
+        autodriveDriver = 0
+        util.toast("No driver to control, spawn a new driver.")
+    end
+end)
+menu.divider(chauffeurMenu, "Destinations")
+menu.action(chauffeurMenu, "Drive to Waypoint", {}, "", function(_)
+    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+        if HUD.IS_WAYPOINT_ACTIVE() then
+            local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
+            if vehicle == 0 then
+                util.toast("Driver is not in a car or out of range")
+            else
+                local model = ENTITY.GET_ENTITY_MODEL(vehicle)
+                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
+                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+                TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
+            end
+        else
+            util.toast("You have no waypoint to drive to")
+        end
+    else
+        autodriveDriver = 0
+        util.toast("No driver to control, spawn a new driver.")
+    end
+end)
+menu.action(chauffeurMenu, "Wander", {}, "", function(_)
+    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
+        if vehicle == 0 then
+            util.toast("Driver is not in a car or out of range")
+        else
+            TASK.TASK_VEHICLE_DRIVE_WANDER(autodriveDriver, vehicle, 40.0, 6)
+        end
+    else
+        autodriveDriver = 0
+        util.toast("No driver to control, spawn a new driver.")
+    end
+end)
+
+local spinningCars = false
+local spinningSpeed = 5.0
+menu.toggle(menu.my_root(), "Spinning Cars", {}, "Turn it on and see", function(on)
+    spinningCars = on
+end, spinningCars)
+menu.slider(menu.my_root(), "Spinning Cars Speed", {"spinningspeed"}, "", 0, 300.0, spinningSpeed * 10, 10, function(value)
+    if value == 0 then
+        spinningSpeed = 0.1
+    else
+        spinningSpeed = value / 10
+    end
+end)
+
 util.on_stop(function()
     local ped, vehicle = get_my_driver()
 
@@ -2194,7 +2363,26 @@ for _, pid in pairs(players.list(true, true, true)) do
 end
 
 players.on_join(function(pid) setup_action_for(pid) end)
-
+local spinHeading = 0
 while true do
+    if autodriveDriver > 0 and autodriveOnlyWhenOntop then
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local selfOntop = PED.IS_PED_ON_VEHICLE(my_ped)
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+        if not selfOntop and vehicle ~= autodriveVehicle then
+            -- VEHICLE.BRING_VEHICLE_TO_HALT(autodriveVehicle, 2.0, 20, false)
+            ENTITY.SET_ENTITY_VELOCITY(autodriveVehicle, 0.0, 0.0, 0.0)
+        end
+    end
+    if spinningCars then
+        spinHeading = spinHeading + spinningSpeed
+        if spinHeading > 360 then
+            spinHeading = 0.0
+        end
+        for _, vehicle in ipairs(util.get_all_vehicles()) do
+            -- heading = ENTITY.GET_ENTITY_HEADING(vehicle)
+            ENTITY.SET_ENTITY_HEADING(vehicle, spinHeading)
+        end
+    end
     util.yield()
 end
