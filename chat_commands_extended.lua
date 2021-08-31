@@ -31,6 +31,7 @@ end
  
 
 chat.on_message(function(sender_player_id, sender_player_name, message, is_team_chat)
+    util.toast(message)
     if string.find(string.lower(message), "lester") then
         util.toast(string.format("%s spawned lester", PLAYER.GET_PLAYER_NAME(sender_player_id)))
         spawn_ped_on_player(util.joaat("cs_lestercrest"), sender_player_id)

@@ -16,5 +16,7 @@
 !lib/animations.lua
 !lib/vehicles.lua
 !lib/weapons.lua
+!lib/json.lua
 !.vscode/
+!.vscode/settings.json
 !.gitignore
