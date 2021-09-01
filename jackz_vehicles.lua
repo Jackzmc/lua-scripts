@@ -1068,11 +1068,12 @@ function setup_action_for(pid)
                     PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                     VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
                     PED.SET_PED_AS_ENEMY(ped, true)
+                    local model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
                     local loops = 10
                     while not PED.IS_PED_IN_VEHICLE(ped, vehicle, false) do
                         local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
-                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
+                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, model, 6, 1.0, 1.0)
                         util.yield(1000)
                         loops = loops - 1
                         if loops == 0 then

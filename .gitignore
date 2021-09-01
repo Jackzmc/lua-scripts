@@ -10,6 +10,7 @@
 !actions.lua
 !test.lua
 !jackz_vehicles.lua
+!chat.lua
 
 !lib/
 !lib/natives-1627063482.lua
