@@ -201,3 +201,11 @@ v1.6
 * Able to play on self, choose a voice under Self Model Voice (spawns an invisible attached ped)
 * (1.7.0) Allow you to set the interval that voice lines are repeated
   * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)
+
+# jackz chat (v1)
+
+V1.1.0
+
+* Add setting to change how long a message is shown
+* Set a cap to 20 messages to be shown at once
+* (1.1.1) 
