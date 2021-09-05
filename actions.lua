@@ -1,7 +1,7 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.7.5"
+local VERSION = "1.7.6"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -251,7 +251,7 @@ local clearActionImmediately = true
 local favorites = {}
 local favoritesActions = {}
 local recents = {}
-local flags = 1
+local flags = 1 | 32
 local allowControl = true
 local affectType = 0
 -----------------------

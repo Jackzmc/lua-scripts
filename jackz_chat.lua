@@ -1,7 +1,7 @@
 -- Stand Chat 
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.0.2"
+local VERSION = "1.1.4"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -75,11 +75,11 @@ if filesystem.exists(CHANGELOG_PATH) then
     io.close(file)
     os.remove(CHANGELOG_PATH)
 end
-
+-- begin actual plugin code
 local lastTimestamp = util.current_unix_time_millis() * 1000 - 10000
 local messages = {}
 local user = SOCIALCLUB._SC_GET_NICKNAME() -- don't be annoying.
-local waiting = false 
+local waiting = false
 local showExampleMessage = false
 local sendChannel = "default"
 local recvChannel = sendChannel
@@ -89,7 +89,8 @@ local bgColor = { r = 0.0, g = 0.0, b = 0.0, a = 0.3 }
 local chatPos = { x = 0.0, y = 0.4 }
 local textOffsetSize = 0.02
 local textSize = 0.5
-local textTime = 30000
+local textTime = 40000
+local keyhash = menu.get_activation_key_hash()
 
 local optionsMenu = menu.list(menu.my_root(), "Chat Box Design", {}, "Change how the chatbox looks")
 menu.on_blur(optionsMenu, function(_)
@@ -113,7 +114,7 @@ table.insert(submenus, menu.slider(optionsMenu, "Text Size", {"standchatsize"}, 
   local _, height = directx.get_text_size("Example", textSize)
   textOffsetSize = height
 end))
-table.insert(submenus, menu.slider(optionsMenu, "Message Duration", {"standchatmsgtime"}, "How long until a message disappears in seconds?", 15, 120, 30, 1, function(time)
+table.insert(submenus, menu.slider(optionsMenu, "Message Duration", {"standchatmsgtime"}, "How long until a message disappears in seconds?", 15, 120, textTime / 1000, 1, function(time)
   textTime = time * 1000
 end))
 for _, submenu in ipairs(submenus) do
@@ -121,31 +122,39 @@ for _, submenu in ipairs(submenus) do
     showExampleMessage = true
   end)
 end
-
-local channelList = menu.list(menu.my_root(), "Channels", {}, "Switch to other channels if one is too active or you wish to chat privately")
-local channels = { "default", "english" }
-for _, lang in ipairs(channels) do
-  menu.action(channelList, lang, {"chatlang" .. lang}, "Chat in the " .. lang .. " channel", function(_)
-    sendChannel = lang
-    recvChannel = sendChannel
-    util.toast("Switched chat channel to " .. lang)
-  end)
+local channelList = menu.list(menu.my_root(), "Channels", {}, "Switch to other channels if one is too active or you wish to chat privately\n\nCurrent Channel: default")
+function switchChannel(channel)
+  sendChannel = channel
+  recvChannel = sendChannel
+  menu.set_help_text(channelList, "Switch to other channels if one is too active or you wish to chat privately\n\nurrent Channel: " .. channel)
+  util.toast("Switched chat channel to " .. channel)
 end
+
+async_http.init("stand-chat.jackz.me", "/info", function(body)
+  if body:sub(1, 1) == "{" then
+    local data = json.decode(body)
+    for _, lang in ipairs(data.publicChannels) do
+      menu.action(channelList, lang, {"chatlang" .. lang}, "Chat in the " .. lang .. " public channel", function(_)
+        switchChannel(lang)
+      end)
+    end
+  end
+end, function(err) util.toast("Could not fetch public channels: " .. err) end)
+async_http.dispatch()
+
 menu.action(channelList, "Enter a specific channel", { "chatchannel" } , "Chat & receive messages from a specific channel. Useful to message any of your friends privately.\nChannel ID must be an alphanumeric id (letters and numbers only)", function(_)
   menu.show_command_box("chatchannel ")
 end, function(args)
   args = args:gsub('%W','')
   if string.len(args) == 0 or args == "_all" or args == "system" then
-    -- Before you try to bypass this, it's handled on the server side. 
+    -- Before you try to bypass this, it's handled on the server side.
     util.toast("Invalid channel entered")
   else
-    sendChannel = string.lower(args)
-    recvChannel = sendChannel
-    util.toast("Switched chat channel to " .. sendChannel)
+    switchChannel(string.lower(args))
   end
 end)
 
-menu.toggle(menu.my_root(), "Receive messages from all channels", {"chatglobal"}, "Enabled, you will receive messages from all channels\nDisabled, you will only receive messages from your active channel", function(on)
+menu.toggle(menu.my_root(), "Receive messages from all public channels", {"chatglobal"}, "Enabled, you will receive messages from all public channels (channels prefilled in channels list)\n\nDisabled, you will only receive messages from your active channel", function(on)
   if on then
     recvChannel = "_all"
   else
@@ -153,10 +162,11 @@ menu.toggle(menu.my_root(), "Receive messages from all channels", {"chatglobal"}
   end
 end, false)
 
-menu.action(menu.my_root(), "Send Message", {"chat"}, "Sends a chat message to all online stand users.\n\nNote: Racism, spamming, or any form of harassment is not tolerated and will result in your account being banned from chatting. Don't be a dick.", function(_)
+
+menu.action(menu.my_root(), "Send Message", { "chat", "c" }, "Sends a chat message to all online stand users.\n\nNote: Racism, spamming, or any form of harassment is not tolerated and will result in your account being banned from chatting. Don't be a dick.\n\nChatting as \"" .. user .. "\"", function(_)
   menu.show_command_box("chat ")
 end, function(args)
-  async_http.init("stand-chat.jackz.me", "/" .. sendChannel .. "?v=" .. VERSION, function(result)
+  async_http.init("stand-chat.jackz.me", "/channels/" .. sendChannel .. "?v=" .. VERSION, function(result)
     if result == "OK" or result == "Bad Request" then
       table.insert(messages, {
         u = user,
@@ -172,7 +182,8 @@ end, function(args)
   end)
   async_http.set_post("application/json", json.encode({
     user = user,
-    content = args
+    content = args,
+    hash = keyhash
   }))
   async_http.dispatch()
 end)
@@ -180,7 +191,8 @@ end)
 
 util.create_tick_handler(function(_)
   waiting = true
-  async_http.init("stand-chat.jackz.me", "/" .. recvChannel .. "/" .. lastTimestamp, function(body)
+  async_http.init("stand-chat.jackz.me", "/channels/" .. recvChannel .. "/" .. lastTimestamp, function(body)
+    -- check if response is validish json (incase ratelimitted)
     if body:sub(1, 1) == "{" then
       local data = json.decode(body)
       for _, message in ipairs(data.m) do
@@ -196,11 +208,11 @@ util.create_tick_handler(function(_)
     end
     waiting = false
   end)
-  if devToken then
+  if devToken then -- don't even try, you arent finding the token
     async_http.add_header("x-dev-token", devToken)
   end
   async_http.dispatch()
-  while waiting do
+  while waiting do --wait until last fetch finishes
     util.yield()
   end
   util.yield(7000)
@@ -221,6 +233,7 @@ while true do
       else
         content = msg.l and string.format("[%s] %s: %s", msg.l, msg.u, msg.c) or (msg.u .. ": " .. msg.c)
       end
+      -- compute largest width of chat box
       local w = directx.get_text_size(content, textSize)
       if w > width then
         width = w

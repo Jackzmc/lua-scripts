@@ -68,7 +68,8 @@
         "TOAST_CHAT",
         "TOAST_CHAT_TEAM",
         "TOAST_DEFAULT",
-        "TOAST_ALL"
+        "TOAST_ALL",
+        "LOCALIZATION"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"

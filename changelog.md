@@ -165,6 +165,11 @@ v2.3.0
 * (2.3.3) Automatically warp player into passenger seat instead of hijacking
 * (2.3.4) Used built in menu async_http instead of luahttp for uploading
 
+v2.4.0
+
+* Made nearby vehicles -> explode random. That's all. It's fun.
+* (2.4.1) Add minor ui updates to cloud vehicles (show vehicle count & vehicle info on vehicle name)
+
 # actions (v1.7.1)
 
 v1.1
@@ -201,6 +206,7 @@ v1.6
 * Able to play on self, choose a voice under Self Model Voice (spawns an invisible attached ped)
 * (1.7.0) Allow you to set the interval that voice lines are repeated
   * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)
+* (1.7.6) Fixed 'controllable' not activating on first load
 
 # jackz chat (v1)
 
@@ -208,4 +214,7 @@ V1.1.0
 
 * Add setting to change how long a message is shown
 * Set a cap to 20 messages to be shown at once
-* (1.1.1) 
+* (1.1.1) Minor changes
+* (1.1.2) Add clarification
+* (1.1.3) Pull channel list from server
+* (1.1.4) Small UI changes
