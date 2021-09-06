@@ -213,6 +213,15 @@ function get_player_vehicle_in_control(pid, opts)
     return vehicle
 end
 
+function control_vehicle(pid, callback, opts)
+    local vehicle = get_player_vehicle_in_control(pid, opts)
+    if vehicle > 0 then
+        callback(vehicle)
+    elseif opts.silent ~= true then
+        lang.toast("PLAYER_OUT_OF_RANGE")
+    end
+end
+
 local CAB_MODEL = util.joaat("phantom")
 local TRAILER_MODEL = util.joaat("tr2")
 function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
@@ -338,6 +347,26 @@ function spawn_tow_for_vehicle(vehicle)
     return tow, driver, model
 end
 
+function setup_choose_player_menu(rootMenu, menuList, callback, pid)
+    menu.on_focus(rootMenu, function(_)
+        for _, m in ipairs(menuList) do
+            menu.delete(m)
+        end
+        menuList = {}
+        local cur_players = players.list(true, true, true)
+        local my_pid = players.user()
+        for _, target_pid in ipairs(cur_players) do
+            local name = PLAYER.GET_PLAYER_NAME(target_pid)
+            if pid ~= nil and target_pid == pid then
+                name = name .. " (" .. lang.format("THEM") .. ")"
+            elseif target_pid == my_pid then
+                name = name .. " (" .. lang.format("ME") .. ")"
+            end
+            local m = callback(target_pid, name)
+            table.insert(menuList, m)
+        end
+    end)
+end
 
 function setup_action_for(pid) 
     menu.divider(menu.player_root(pid), "Jackz Vehicles")
@@ -355,12 +384,9 @@ function setup_action_for(pid)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle then
+        control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_COORDS(vehicle, pos.x, pos.y, pos.z + 3.0, 0, 0, 0, 0)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     ----------------------------------------------------------------
@@ -371,26 +397,20 @@ function setup_action_for(pid)
     -- TOW 
         menu.divider(towMenu, lang.format("TOW_TRUCKS_DIVIDER"))
         menu.action(towMenu, lang.format("TOW_TRUCKS_WANDER_NAME"), {"towwander"}, lang.format("TOW_TRUCKS_WANDER_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local tow, driver = spawn_tow_for_vehicle(vehicle)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 6)
-            end
+            end)
         end)
 
         menu.action(towMenu, lang.format("TOW_TO_WAYPOINT_NAME"), {"towwaypoint"}, lang.format("TOW_TO_WAYPOINT_DESC"), function(_)
             if HUD.IS_WAYPOINT_ACTIVE() then
                 local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
                 local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
-                local vehicle = get_player_vehicle_in_control(pid)
-                if vehicle == 0 then
-                    lang.toast("PLAYER_OUT_OF_RANGE")
-                else
+                control_vehicle(pid, function(vehicle)
                     local tow, driver, model = spawn_tow_for_vehicle(vehicle)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, tow, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
-                end
+                end)
             else
                 lang.toast("NO_WAYPOINT_SET")
             end
@@ -413,10 +433,7 @@ function setup_action_for(pid)
                 end
                 local m = menu.action(towPlayerMenu, name, {}, lang.format("TOW_TO_PLAYER_INDV_DESC"), function(_)
                     local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid2)
-                    local vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle == 0 then
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    else
+                    control_vehicle(pid, function(vehicle)
                         local tow, driver = spawn_tow_for_vehicle(vehicle)
                         local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
                         util.create_tick_handler(function(_)
@@ -425,19 +442,16 @@ function setup_action_for(pid)
                             util.yield(5000)
                             return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(driver) and TASK.GET_SCRIPT_TASK_STATUS(driver, 0x93A5526E) < 7
                         end)
-                    end
+                    end)
                 end)
                 table.insert(towPlayerMenus, m)
             end
         end)
 
         menu.action(towMenu, lang.format("DETACH_TOW_NAME"), {"detachtow"},  lang.format("DETACH_TOW_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle > 0 then
+            control_vehicle(pid, function(vehicle)
                 VEHICLE.DETACH_VEHICLE_FROM_ANY_TOW_TRUCK(vehicle)
-            else
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            end
+            end)
         end)
 
         menu.divider(towMenu, "Cargobob")
@@ -447,20 +461,14 @@ function setup_action_for(pid)
         end, options[pid].cargo_magnet)
 
         menu.action(towMenu, lang.format("CARGOBOB_MT_CHILIAD_NAME"), {"cargobobmt"}, lang.format("CARGOBOB_MT_CHILIAD_DESC"), function(on_click)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, 450.718 , 5566.614, 806.183, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
-            end
+            end)
         end)
 
         menu.action(towMenu, lang.format("CARGOBOB_OCEAN_NAME"), {"cargobobocean"}, lang.format("CARGOBOB_OCEAN_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
                 local pos = ENTITY.GET_ENTITY_COORDS(cargobob)
                 local vec = memory.alloc(24)
@@ -474,57 +482,36 @@ function setup_action_for(pid)
                     dest.y = -1311
                 end
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, dest.x, dest.y, dest.z, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
-            end
+            end)
         end)
+        
         local cargoPlayerMenu = menu.list(towMenu, lang.format("CARGOBOB_TO_PLAYER_NAME"), {"cargobobtoplayer"})
         local cargoPlayerMenus = {}
-        menu.on_focus(cargoPlayerMenu, function(_)
-            for _, m in ipairs(cargoPlayerMenus) do
-                menu.delete(m)
-            end
-            cargoPlayerMenus = {}
-            local cur_players = players.list(true, true, true)
-            local my_pid = players.user()
-            for _, pid_target in ipairs(cur_players) do
-                local name = PLAYER.GET_PLAYER_NAME(pid_target)
-                if pid_target == pid then
-                    name = name .. " (" .. lang.format("THEM") .. ")"
-                elseif pid_target == my_pid then
-                    name = name .. " (" .. lang.format("ME") .. ")"
-                end
-                local m = menu.action(cargoPlayerMenu, name, {}, lang.format("CARGOBOB_TO_PLAYER_INDV_DESC"), function(_)
-                    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid_target)
-                    local vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle == 0 then
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    else
-                        local _, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
-                        TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
-                    end
+        setup_choose_player_menu(cargoPlayerMenu, cargoPlayerMenus, function(target_pid, name)
+            return menu.action(cargoPlayerMenu, name, {}, lang.format("CARGOBOB_TO_PLAYER_INDV_DESC"), function(_)
+                local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
+                control_vehicle(pid, function(vehicle)
+                    local _, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                    TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
                 end)
-                table.insert(cargoPlayerMenus, m)
-            end
-        end)
+            end)
+        end, pid)
 
         menu.action(towMenu, lang.format("CARGOBOB_TO_WAYPOINT_NAME"), {"cargobobwaypoint"}, lang.format("CARGOBOB_TO_WAYPOINT_DESC"), function(_)
             if HUD.IS_WAYPOINT_ACTIVE() then
                 local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
                 local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
-                local vehicle = get_player_vehicle_in_control(pid)
-                if vehicle == 0 then
-                    lang.toast("PLAYER_OUT_OF_RANGE")
-                else
+                control_vehicle(pid, function(vehicle)
                     local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
-                end
+                end)
             else
                 lang.toast("NO_WAYPOINT_SET")
             end
         end)
 
         menu.action(towMenu, lang.format("DETACH_CARGOBOB_NAME"), {"detachcargo"}, lang.format("DETACH_CARGOBOB_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle > 0 then
+            control_vehicle(pid, function(vehicle)
                 VEHICLE.DETACH_VEHICLE_FROM_ANY_CARGOBOB(vehicle)
                 local hasPlayer = false
                 for seat = 1, 6 do
@@ -538,34 +525,26 @@ function setup_action_for(pid)
                     local pointer = util.get_entity_address(vehicle)
                     ENTITY.SET_VEHICLE_AS_NO_LONGER_NEEDED(pointer)
                 end
-            else
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            end
+            end)
         end)
 
         menu.divider(towMenu, lang.format("TRAILERS_DIVIDER"))
 
         menu.action(towMenu, lang.format("TRAILER_DRIVE_WANDER_NAME"), {"trailerwander"}, lang.format("TRAILER_DRIVE_WANDER_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(driver, cab, 30.0, 786603)
-            end
+            end)
         end)
 
         menu.action(towMenu, lang.format("TRAILER_TO_WAYPOINT_NAME"), {"trailerwaypoint"}, lang.format("TRAILER_TO_WAYPOINT_DESC"), function(_)
             if HUD.IS_WAYPOINT_ACTIVE() then
                 local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
                 local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
-                local vehicle = get_player_vehicle_in_control(pid)
-                if vehicle == 0 then
-                    lang.toast("PLAYER_OUT_OF_RANGE")
-                else
+                control_vehicle(pid, function(vehicle)
                     local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cab, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CAB_MODEL, 786603, 5.0, 1.0)
-                end
+                end)
             else
                 lang.toast("NO_WAYPOINT_SET")
             end
@@ -577,55 +556,31 @@ function setup_action_for(pid)
 
         menu.divider(towMenu, "Titan")
         menu.action(towMenu, lang.format("TITAN_FLY_TO_MT_CHILIAD_NAME"), {"titanmtchiliad"}, lang.format("TITAN_FLY_TO_MT_CHILIAD_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local titan, driver = spawn_titan_for_vehicle(vehicle, true)
                 --TASK.TASK_PLANE_CHASE(driver, target_ped, 0, 0, 80.0)
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, titan, 450.718 , 5566.614, 806.183, 100.0, 1.0, TITAN_MODEL, 786603, 5.0, 1.0)
-            end
+            end)
         end)
         local titanPlayerMenu = menu.list(towMenu, lang.format("TITAN_FLY_TO_PLAYER_NAME"), {"titantoplayer"})
         local titanPlayerMenus = {}
-        menu.on_focus(titanPlayerMenu, function(_)
-            for _, m in ipairs(titanPlayerMenus) do
-                menu.delete(m)
-            end
-            titanPlayerMenus = {}
-            local cur_players = players.list(true, true, true)
-            local my_pid = players.user()
-            for _, pid_target in ipairs(cur_players) do
-                local name = PLAYER.GET_PLAYER_NAME(pid_target) 
-                if pid_target == pid then
-                    name = name .. " (" .. lang.format("THEM") .. ")"
-                elseif pid_target == my_pid then
-                    name = name .. " (" .. lang.format("ME") .. ")"
-                end
-                local m = menu.action(titanPlayerMenu, name, {}, lang.format("TITAN_FLY_TO_PLAYER_INDV_DESC"), function(_)
-                    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid_target)
-                    local vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle == 0 then
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    else
-                        local _, driver = spawn_titan_for_vehicle(vehicle)
-                        TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
-                    end
+        setup_choose_player_menu(titanPlayerMenu, titanPlayerMenus, function(target_pid, name)
+            return menu.action(titanPlayerMenu, name, {}, lang.format("TITAN_FLY_TO_PLAYER_INDV_DESC"), function(_)
+                local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
+                control_vehicle(pid, function(vehicle)
+                    local _, driver = spawn_titan_for_vehicle(vehicle)
+                    TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
                 end)
-                table.insert(titanPlayerMenus, m)
-            end
-        end)
+            end)
+        end, pid)
         menu.action(towMenu, lang.format("TITAN_FLY_TO_WAYPOINT_NAME"), {"flywaypoint"}, lang.format("TITAN_FLY_TO_WAYPOINT_DESC"), function(_)
             if HUD.IS_WAYPOINT_ACTIVE() then
                 local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
                 local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
-                local vehicle = get_player_vehicle_in_control(pid)
-                if vehicle == 0 then
-                    lang.toast("PLAYER_OUT_OF_RANGE")
-                else
+                control_vehicle(pid, function(vehicle)
                     local titan, driver = spawn_titan_for_vehicle(vehicle, true)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, titan, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, TITAN_MODEL, 786603, 5.0, 1.0)
-                end
+                end)
             else
                lang.toast("NO_WAYPOINT_SET")
             end
@@ -634,67 +589,51 @@ function setup_action_for(pid)
         menu.divider(towMenu, "Misc")
 
         menu.action(towMenu, lang.format("ATTACH_FREE_VEHICLE_NAME"), {"freevehicle"}, lang.format("ATTACH_FREE_VEHICLE_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle == 0 then
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            else
+            control_vehicle(pid, function(vehicle)
                 local pos = ENTITY.GET_ENTITY_COORDS(vehicle)
                 ENTITY.SET_ENTITY_COORDS(vehicle, pos.x, pos.y, pos.z + 5.0)
-            end
+            end)
         end)
 
         menu.action(towMenu, lang.format("ATTACH_DETACH_ALL_NAME"), {"detachall"}, lang.format("ATTACH_DETACH_ALL_DESC"), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle > 0 then
+            control_vehicle(pid, function(vehicle)
                 ENTITY.DETACH_ENTITY(vehicle, true, 0)
-            else
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            end
+            end)
         end)
 
     -- END TOW
     local movementMenu = menu.list(submenu, lang.format("MOVEMENT_NAME"), {}, lang.format("MOVEMENT_DESC"))
     menu.click_slider(movementMenu, lang.format("MOVEMENT_BOOST_NAME"), {"boost"}, lang.format("MOVEMENT_BOOST_DESC"), -200, 200, 200, 10, function(mph)
         local speed = mph / 0.44704
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, speed)
             local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 2.0)
             VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(movementMenu, lang.format("MOVEMENT_SLINGSHOT_NAME"), {"slingshot"}, lang.format("MOVEMENT_SLINGSHOT_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
             local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, vel.x, vel.y, vel.z + 100.0)
             VEHICLE.RESET_VEHICLE_WHEELS(vehicle)
-        end
+        end)
     end)
 
     menu.click_slider(movementMenu, lang.format("MOVEMENT_LAUNCH_NAME"), {"launch"}, lang.format("MOVEMENT_LAUNCH_DESC"), -200, 200, 200, 10, function(mph)
         local speed = mph / 0.44704
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, speed)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(movementMenu, lang.format("MOVEMENT_STOP_NAME"), {"stopvehicle"}, lang.format("MOVEMENT_STOP_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE._STOP_BRING_VEHICLE_TO_HALT(vehicle)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, 0.0)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     ----------------------------------------------------------------
@@ -705,8 +644,7 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     local door_submenu = menu.list(submenu, lang.format("DOORS_NAME"), {}, lang.format("DOORS_DESC"))
     menu.slider(door_submenu, lang.format("DOORS_LOCK_STATUS_NAME"), {"lockstatus"}, lang.format("DOORS_LOCK_STATUS_DESC"), 0, 2, 0, 1, function(state)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             if state == 0 then
                 VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle, 1)
             elseif state == 1 then
@@ -714,9 +652,7 @@ function setup_action_for(pid)
             else
                 VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle, 2)
             end
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     local open_doors = true
@@ -725,8 +661,7 @@ function setup_action_for(pid)
     end, open_doors)
 
     menu.action(door_submenu, lang.format("DOORS_ALL_DOORS_NAME"), {}, lang.format("DOORS_ALL_DOORS_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             if open_doors then
                 for door = 0,7 do
                     VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle, door, false, false)
@@ -734,33 +669,25 @@ function setup_action_for(pid)
             else
                 VEHICLE.SET_VEHICLE_DOORS_SHUT(vehicle, false)
             end
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
     
 
     for i, name in pairs(DOOR_NAMES) do
         menu.action(door_submenu, name, {}, lang.format("DOORS_INDV_DESC", name), function(_)
-            local vehicle = get_player_vehicle_in_control(pid)
-            if vehicle > 0 then
+            control_vehicle(pid, function(vehicle)
                 if open_doors then
                     VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle, i - 1, false, false)
                 else
                     VEHICLE.SET_VEHICLE_DOOR_SHUT(vehicle, i - 1, false)
                 end
-            else
-                lang.toast("PLAYER_OUT_OF_RANGE")
-            end
+            end)
         end)
     end
     menu.toggle(door_submenu, lang.format("DOORS_LANDING_GEAR_NAME"), {}, lang.format("DOORS_LANDING_GEAR_DESC"), function(on)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.CONTROL_LANDING_GEAR(vehicle, on and 0 or 3)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
     ----------------------------------------------------------------
     -- END Door Section
@@ -770,12 +697,9 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     local lsc = menu.list(submenu, "Los Santos Customs", {"lcs"}, lang.format("LSC_DESC"))
     menu.slider(lsc, lang.format("LSC_XENON_TYPE_NAME"), {"xenoncolor"}, lang.format("LSC_XENON_TYPE_DESC"), -1, 12, 0, 1, function(paint)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle, paint)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
     -- 
     -- NEON SECTION
@@ -783,15 +707,12 @@ function setup_action_for(pid)
     local neon = menu.list(lsc, lang.format("LSC_NEON_LIGHTS_NAME"), {}, "")
     local neon_menus = {}
     menu.action(neon, lang.format("LSC_NEON_APPLY_NAME"), {"paintneon"}, lang.format("LSC_NEON_APPLY_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local r = math.floor(options[pid].neon_color.r * 255)
             local g = math.floor(options[pid].neon_color.g * 255)
             local b = math.floor(options[pid].neon_color.b * 255)
             VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, r, g, b)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.colour(neon, lang.format("LSC_NEON_COLOR_NAME"), {"neoncolor"}, lang.format("LSC_NEON_COLOR_DESC"), options[pid].neon_color, false, function(color)
@@ -802,28 +723,21 @@ function setup_action_for(pid)
             menu.delete(m)
             table.remove(neon_menus, i)
         end
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            for x = 0,3 do
-                local enabled = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x)
-                local m = menu.toggle(neon, NEON_INDICES[x+1], {}, "", function(_)
-                    vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle > 0 then
-                        enabled = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x)
-                        VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x, not enabled)
-                    else
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    end
-                end, enabled)
-                table.insert(neon_menus, m)
-            end
+        for x = 0,3 do
+            local enabled = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x)
+            local m = menu.toggle(neon, NEON_INDICES[x+1], {}, "", function(_)
+                control_vehicle(pid, function(vehicle)
+                    enabled = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x)
+                    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, x, not enabled)
+                end, { silent = true })
+            end, enabled)
+            table.insert(neon_menus, m)
         end
     end)
     --END NEON--
 
     menu.action(lsc, lang.format("LSC_PAINT_NAME"), {"paint"}, lang.format("LSC_PAINT_DESC"), function(on_click)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local r = math.floor(options[pid].paint_color_primary.r * 255)
             local g = math.floor(options[pid].paint_color_primary.g * 255)
             local b = math.floor(options[pid].paint_color_primary.b * 255)
@@ -832,9 +746,7 @@ function setup_action_for(pid)
             g = math.floor(options[pid].paint_color_secondary.g * 255)
             b = math.floor(options[pid].paint_color_secondary.b * 255)
             VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, r, g, b)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.colour(lsc, lang.format("LSC_PAINT_PRIMARY_NAME"), {"paintcolorprimary"}, lang.format("LSC_PAINT_PRIMARY_DESC"), options[pid].paint_color_primary, false, function(color)
@@ -852,57 +764,43 @@ function setup_action_for(pid)
             menu.delete(m)
         end
         subMenus = {}
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             for i, mod in pairs(MOD_TYPES) do
                 local default = VEHICLE.GET_VEHICLE_MOD(vehicle, i -1)
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, i - 1)
                 local m = menu.slider(modMenu, mod, {"set" .. mod}, lang.format("LSC_MOD_NORMAL_DESC", max, mod), -1, max, default, 1, function(index)
-                    local vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle > 0 then
-                       VEHICLE.SET_VEHICLE_MOD(vehicle, i - 1, index)
-                    else
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    end
+                    control_vehicle(pid, function(vehicle)
+                        VEHICLE.SET_VEHICLE_MOD(vehicle, i - 1, index)
+                    end)
                 end)
                 table.insert(subMenus, m)
             end
             for i, mod in pairs(TOGGLE_MOD_TYPES) do
                 local default = VEHICLE.IS_TOGGLE_MOD_ON(vehicle, i-1)
                 local m = menu.toggle(modMenu, mod, {"toggle" .. mod}, lang.format("LSC_MOD_TOGGLE_DESC", mod), function(on)
-                    local vehicle = get_player_vehicle_in_control(pid)
-                    if vehicle > 0 then
-                       VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, i-1, on)
-                    else
-                        lang.toast("PLAYER_OUT_OF_RANGE")
-                    end
+                    control_vehicle(pid, function(vehicle)
+                        VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, i-1, on)
+                    end)
                 end, default)
                 table.insert(subMenus, m)
             end
-        end
+        end)
     end)
 
-    menu.click_slider(modMenu, lang.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, lang.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(type)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-           VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, type)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+    menu.click_slider(modMenu, lang.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, lang.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(wheelType)
+        control_vehicle(pid, function(vehicle)
+            VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, wheelType)
+        end)
     end)
 
     menu.click_slider(modMenu, lang.format("LSC_WINDOW_TINT_NAME"), {"windowtint"}, lang.format("LSC_WINDOW_TINT_DESC"), 0, 6, 0, 1, function(value)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, value)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(lsc, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, lang.format("LSC_UPGRADE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
@@ -914,23 +812,18 @@ function setup_action_for(pid)
             for x = 17, 22 do
                 VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, x, true)
             end
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(lsc, lang.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, lang.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local mods = { 11, 12, 13, 16 }
             for x in ipairs(mods) do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
                 VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
             end
             VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     ----------------------------------------------------------------
@@ -938,25 +831,21 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
 
     menu.action(submenu, lang.format("VEH_CLONE_NAME"), {"clonevehicle"}, lang.format("VEH_CLONE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local saveData = get_vehicle_save_data(vehicle)
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 5.0, 0.5)
             local heading = ENTITY.GET_ENTITY_HEADING(vehicle)
             local vehicle = util.create_vehicle(saveData.Model, pos, heading)
             apply_vehicle_save_data(vehicle, saveData)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_SAVE_NAME"), {"saveplayervehicle"}, lang.format("VEH_SAVE_DESC"), function(_)
         lang.toast("VEH_SAVE_HINT")
         menu.show_command_box("savevehicle ")
     end, function(args)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local saveData = get_vehicle_save_data(vehicle)
 
             local file = io.open( vehicleDir .. args .. ".json", "w")
@@ -964,9 +853,7 @@ function setup_action_for(pid)
             io.write(json.encode(saveData))
             io.close(file)
             lang.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. args .. ".json")
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
     menu.action(submenu, lang.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnfor"}, lang.format("VEH_SPAWN_VEHICLE_DESC"), function(_)
         local name = PLAYER.GET_PLAYER_NAME(pid)
@@ -981,48 +868,38 @@ function setup_action_for(pid)
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 5.0, 0.5)
             local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
-            local veh = util.create_vehicle(model, pos, heading)
+            util.create_vehicle(model, pos, heading)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
         else
-            lang.toast(VEH_SPAWN_NOT_FOUND)
+            lang.toast("VEH_SPAWN_NOT_FOUND")
         end
     end, false)
 
     menu.action(submenu, lang.format("VEH_FLIP_UPRIGHT_NAME"), {"flipveh"}, lang.format("VEH_FLIP_UPRIGHT_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
             ENTITY.SET_ENTITY_ROTATION(vehicle, 0, rot.y, rot.z)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
 
     menu.action(submenu, lang.format("VEH_FLIP_180_NAME"), {"flipv"}, lang.format("VEH_FLIP_180_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
             ENTITY.SET_ENTITY_ROTATION(vehicle, 0, 0, -rot.z)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_HONK_NAME"), {"honk"}, lang.format("VEH_HONK_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_ALARM(vehicle, true)
             VEHICLE.START_VEHICLE_ALARM(vehicle)
             VEHICLE.START_VEHICLE_HORN(vehicle, 50000, 0)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.click_slider(submenu, lang.format("VEH_HIJACK_WANDER_NAME"), {"hijack"}, lang.format("VEH_HIJACK_WANDER_DESC"), 0, 1, 0, 1, function(hijackLevel)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
             local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
@@ -1038,71 +915,48 @@ function setup_action_for(pid)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
                 util.yield(50)
             end
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
     local hijackToMenu = menu.list(submenu, lang.format("VEH_HIJACK_TO_PLAYER_NAME"), {"hijacktoplayer"})
     local hijackToMenus = {}
-    menu.on_focus(hijackToMenu, function(_)
-        for _, m in ipairs(hijackToMenus) do
-            menu.delete(m)
-        end
-        hijackToMenus = {}
-        local cur_players = players.list(true, true, true)
-        local my_pid = players.user()
-        for k,pid_target in ipairs(cur_players) do
-            local name = PLAYER.GET_PLAYER_NAME(pid_target) 
-            if pid_target == pid then
-                name = name .. " (" .. lang.format("THEM") .. ")"
-            elseif pid_target == my_pid then
-                name = name .. " (" .. lang.format("ME") .. ")"
-            end
-            local m = menu.action(hijackToMenu, name, {}, lang.format("VEH_HIJACK_TO_PLAYER_INDV_DESC"), function(_)
-                local vehicle = get_player_vehicle_in_control(pid)
-                local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid_target)
-                if vehicle > 0 then
-                    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 1.0, 0.1)
-                    ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
-                    local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
-                    TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
-                    PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
-                    VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-                    PED.SET_PED_AS_ENEMY(ped, true)
-                    local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-                    --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
-                    local loops = 10
-                    while not PED.IS_PED_IN_VEHICLE(ped, vehicle, false) do
-                        local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
-                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, model, 6, 1.0, 1.0)
-                        util.yield(1000)
-                        loops = loops - 1
-                        if loops == 0 then
-                            lang.toast("VEH_HIJACK_FAILED_ACQUIRE")
-                            return false
-                        end
+    setup_choose_player_menu(hijackToMenu, hijackToMenus, function(target_pid, name)
+        return menu.action(hijackToMenu, name, {}, lang.format("VEH_HIJACK_TO_PLAYER_INDV_DESC"), function(_)
+            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
+            control_vehicle(pid, function(vehicle)
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 1.0, 0.1)
+                ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
+                local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+                PED.SET_PED_AS_ENEMY(ped, true)
+                local model = ENTITY.GET_ENTITY_MODEL(vehicle)
+                --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+                local loops = 10
+                while not PED.IS_PED_IN_VEHICLE(ped, vehicle, false) do
+                    local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+                    TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, model, 6, 1.0, 1.0)
+                    util.yield(1000)
+                    loops = loops - 1
+                    if loops == 0 then
+                        lang.toast("VEH_HIJACK_FAILED_ACQUIRE")
+                        return false
                     end
-                    VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-                    local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
-                    util.create_tick_handler(function(_)
-                        local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
-                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
-                        util.yield(5000)
-                        return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
-                    end)
-                else
-                    lang.toast("PLAYER_OUT_OF_RANGE")
                 end
+                VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+                local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
+                util.create_tick_handler(function(_)
+                    local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+                    TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
+                    util.yield(5000)
+                    return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
+                end)
             end)
-            table.insert(hijackToMenus, m)
-        end
+        end, pid)
     end)
 
     menu.action(submenu, lang.format("VEH_BURST_TIRES_NAME"), {"bursttires", "bursttyres"}, lang.format("VEH_BURST_TIRES_DESC"), function(_)
-        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             for wheel = 0,7 do
                 local burstable = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle, wheel)
                 VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, wheel, true)
@@ -1111,79 +965,55 @@ function setup_action_for(pid)
                     VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, wheel, false)
                 end
             end
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_DELETE_NAME"), {"deletevehicle"}, lang.format("VEH_DELETE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             util.delete_entity(vehicle)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_EXPLODE_NAME"), {"explodevehicle"}, lang.format("VEH_EXPLODE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             local pos = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
             FIRE.ADD_EXPLOSION(pos.x, pos.y, pos.z + 1.0, 26, 60, true, true, 0.0)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_KILL_ENGINE_NAME"), {"killengine"}, lang.format("VEH_KILL_ENGINE_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle, -4000)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_CLEAN_NAME"), {"cleanvehicle"}, lang.format("VEH_CLEAN_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             GRAPHICS.REMOVE_DECALS_FROM_VEHICLE(vehicle)
             VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, 0.0)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.action(submenu, lang.format("VEH_REPAIR_NAME"), {"repairvehicle"}, lang.format("VEH_REPAIR_DESC"), function(_)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_FIXED(vehicle)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end)
 
     menu.toggle(submenu, lang.format("VEH_TOGGLE_GODMODE_NAME"), {"setvehgod"}, lang.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
-            -- TODO: TEST SET_VEHICLE_HAS_UNBREAKABLE_LIGHTS
+        control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end, false)
 
     menu.action(submenu, lang.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, lang.format("VEH_LICENSE_DESC"), function(on)
         local name = PLAYER.GET_PLAYER_NAME(pid)
         menu.show_command_box("setlicenseplate" .. name .. " ")
     end, function(args)
-        local vehicle = get_player_vehicle_in_control(pid)
-        if vehicle > 0 then
+        control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
             VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
-        else
-            lang.toast("PLAYER_OUT_OF_RANGE")
-        end
+        end)
     end, false)
 
 end
@@ -2017,6 +1847,15 @@ menu.toggle(allPlayersMenu, lang.format("ALL_NEAR_ONLY_NAME"), {"allnearby"}, la
     allNearOnly = on
 end, allNearOnly)
 
+function control_all_vehicles(callback)
+    local cur_players = players.list(true, true, true)
+    for _, pid in pairs(cur_players) do
+        control_vehicle(pid, function(vehicle)
+            callback(pid, vehicle)
+        end, { near_only = allNearOnly, loops = 10, silent = true })
+    end
+end
+
 menu.action(allPlayersMenu, lang.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnall"}, lang.format("ALL_SPAWN_DESC"), function(_)
     menu.show_command_box("spawnall ")
 end, function(args)
@@ -2027,7 +1866,7 @@ end, function(args)
             util.yield()
         end
         local cur_players = players.list(true, true, true)
-        for _,pid in pairs(cur_players) do
+        for _, pid in pairs(cur_players) do
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 5.0, 0.5)
             local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
@@ -2040,11 +1879,8 @@ end, function(args)
 end)
 
 menu.action(allPlayersMenu, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, lang.format("LSC_UPGRADE_DESC"), function(_)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
+    control_all_vehicles(function(pid, vehicle)
+        VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
                 VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
@@ -2054,66 +1890,45 @@ menu.action(allPlayersMenu, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"},
             for x = 17, 22 do
                 VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, x, true)
             end
-        end
-    end
+    end)
 end)
 
 menu.action(allPlayersMenu, lang.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, lang.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            local mods = { 11, 12, 13, 16 }
-            for x in ipairs(mods) do
-                local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
-                VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
-            end
-            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
+    control_all_vehicles(function(pid, vehicle)
+        local mods = { 11, 12, 13, 16 }
+        for x in ipairs(mods) do
+            local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
+            VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
         end
-    end
+        VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
+    end)
 end)
 menu.action(allPlayersMenu, lang.format("VEH_CLEAN_NAME"), {"cleanall"}, lang.format("ALL_CLEAN_DESC"), function(_)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            GRAPHICS.REMOVE_DECALS_FROM_VEHICLE(vehicle)
-            VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, 0.0)
-        end
-    end
+    control_all_vehicles(function(pid, vehicle)
+        GRAPHICS.REMOVE_DECALS_FROM_VEHICLE(vehicle)
+        VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, 0.0)
+    end)
 end)
 
 menu.action(allPlayersMenu, lang.format("VEH_REPAIR_NAME"), {"repairall"}, lang.format("ALL_REPAIR_DESC"), function(_)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            VEHICLE.SET_VEHICLE_FIXED(vehicle)
-        end
-    end
+    control_all_vehicles(function(pid, vehicle)
+        VEHICLE.SET_VEHICLE_FIXED(vehicle)
+    end)
 end)
 
 menu.toggle(allPlayersMenu, lang.format("VEH_TOGGLE_GODMODE_NAME"), {"vehgodall"}, lang.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
-        end
-    end
+    control_all_vehicles(function(pid, vehicle)
+        ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
+    end)
 end, false)
 
 menu.action(allPlayersMenu, lang.format("VEH_LICENSE_NAME"), {"setlicenseplateall"}, lang.format("VEH_LICENSE_DESC"), function(_)
     menu.show_command_box("setlicenseplateall ")
 end, function(args)
-    local cur_players = players.list(true, true, true)
-    for _, pid in pairs(cur_players) do
-        local vehicle = get_player_vehicle_in_control(pid, { near_only = allNearOnly, loops = 10 })
-        if vehicle > 0 then
-            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
+    control_all_vehicles(function(pid, vehicle)
+        ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
             VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
-        end
-    end
+    end)
 end, false)
 
 ----------------------------
@@ -2197,31 +2012,18 @@ end)
 
 local drivetoPlayerMenu = menu.list(autodriveMenu, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_NAME"), {"drivetoplayer"})
 local drivetoPlayers = {}
-menu.on_focus(drivetoPlayerMenu, function(_)
-    for _, m in ipairs(drivetoPlayers) do
-        menu.delete(m)
-    end
-    drivetoPlayers = {}
-    local cur_players = players.list(true, true, true)
-    local my_pid = players.user()
-    local ped, vehicle = get_my_driver()
-    for _ ,pid in ipairs(cur_players) do
-        local name = PLAYER.GET_PLAYER_NAME(pid)
-        if pid == my_pid then
-            name = name .. " (" .. lang.format("ME") .. ")"
-        end
-        local m = menu.action(drivetoPlayerMenu, name, {"driveto"}, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_INDV_DESC"), function(on_click)
-            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
-            local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
-            util.create_tick_handler(function(_)
-                local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
-                TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
-                util.yield(5000)
-                return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
-            end)
+setup_choose_player_menu(drivetoPlayerMenu, drivetoPlayers, function(target_pid, name)
+    return menu.action(drivetoPlayerMenu, name, {"driveto"}, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_INDV_DESC"), function(_)
+        local ped, vehicle = get_my_driver()
+        local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
+        local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
+        util.create_tick_handler(function(_)
+            local target_pos = ENTITY.GET_ENTITY_COORDS(target_ped)
+            TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, target_pos.x, target_pos.y, target_pos.z, 100, 5, hash, 6, 1.0, 1.0)
+            util.yield(5000)
+            return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
         end)
-        table.insert(drivetoPlayers, m)
-    end
+    end)
 end)
 
 menu.action(autodriveMenu, lang.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwander"}, lang.format("AUTODRIVE_WANDER_HOVER_DESC"), function(v)
@@ -2275,7 +2077,6 @@ menu.action(chauffeurMenu, lang.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
                 TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
                 PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
                 VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-                -- PED.SET_PED_AS_ENEMY(ped, true)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(driver, vehicle, 100.0, 2883621)
                 PED.SET_PED_FLEE_ATTRIBUTES(driver, 46, true)
                 for _ = 1, 5 do
@@ -2288,7 +2089,6 @@ menu.action(chauffeurMenu, lang.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
                 TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                 PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                 VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-                -- PED.SET_PED_AS_ENEMY(ped, true)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
                 PED.SET_PED_FLEE_ATTRIBUTES(ped, 46, true)
                 local tries = 25
@@ -2406,11 +2206,12 @@ util.on_stop(function()
     end
 end)
 
+-- Setup player menus:
 for _, pid in pairs(players.list(true, true, true)) do
     setup_action_for(pid)
 end
-
 players.on_join(function(pid) setup_action_for(pid) end)
+
 local spinHeading = 0
 while true do
     if autodriveDriver > 0 and autodriveOnlyWhenOntop then
