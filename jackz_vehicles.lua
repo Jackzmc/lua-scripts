@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "2.4.2"
+local VERSION = "3.0.2"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -24,7 +24,6 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             io.close(file)
-
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
         end, function(e)
             util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
@@ -34,28 +33,29 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
     end
 end)
 async_http.dispatch()
-local WaitingLibsDownload = false
 function try_load_lib(lib, globalName)
     local status, f = pcall(require, string.sub(lib, 0, #lib - 4))
     if not status then
-        WaitingLibsDownload = true
+        local downloading = true
         async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-            -- FIXME: somehow only writing 1 KB file
             local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
             io.output(file)
-            io.write(result)
+            io.write(result:gsub("\r", "") .. "\n")
             io.flush() -- redudant, probably?
             io.close(file)
             util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. "'")
             if globalName then
                 _G[globalName] = require(string.sub(lib, 0, #lib - 4))
             end
-            WaitingLibsDownload = false
+            downloading = false
         end, function(e)
             util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
             util.stop_script()
         end)
         async_http.dispatch()
+        while downloading do
+            util.yield()
+        end
     elseif globalName then
         _G[globalName] = f
     end
@@ -63,20 +63,8 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
--- If script is actively downloading new update, wait:
-while WaitingLibsDownload do
-    util.yield()
-end
-if not lang.load_translation_file("jackz_vehicles") then
-    lang.download_translation_file("jackz.me", "/stand/translations/", "jackz_vehicles")
-    while lang.is_downloading do
-        util.yield()
-    end
-end
--- local transl = require('translations')
--- transl.set_lang("test_file", "en")
--- local a = transl.format("APPLE_SAUCE")
--- util.toast(a)
+lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+lang.load_translation_file(SCRIPT)
 -- Check if there is any changelogs (just auto-updated)
 if filesystem.exists(CHANGELOG_PATH) then
     local file = io.open(CHANGELOG_PATH, "r")
@@ -85,8 +73,9 @@ if filesystem.exists(CHANGELOG_PATH) then
     util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
     io.close(file)
     os.remove(CHANGELOG_PATH)
+    -- Update translations
+    lang.update_translation_file(SCRIPT)
 end
-os.remove(filesystem.scripts_dir() .. "/vehicle_options.lua")
 -- Per-player options
 local options = {}
 
@@ -1715,7 +1704,7 @@ menu.on_focus(savedVehiclesList, function()
                             util.yield()
                         end
                         vehicle = util.create_vehicle(saveData.Model, pos, heading)
-                        LANG.toast("VEHICLE_SPAWNED", name)
+                        lang.toast("VEHICLE_SPAWNED", name)
                     end
 
                     if vehicle > 0 then

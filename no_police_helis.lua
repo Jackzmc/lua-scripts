@@ -16,7 +16,7 @@ while true do
     if noHelis then
         local vehicles = util.get_all_vehicles()
         -- Loop all vehicles, and then get its passengers
-        for _, vehicle in ipairs(vehicles) do 
+        for _, vehicle in ipairs(vehicles) do
             if VEHICLE.IS_VEHICLE_MODEL(vehicle, heli_hash) then
                 local isSafeToDelete = false
                 -- Get all the vehicle's passenger peds
@@ -39,7 +39,6 @@ while true do
                 end
             end
         end
-        
     end
     util.yield(3500)
 end

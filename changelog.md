@@ -170,6 +170,12 @@ v2.4.0
 * Made nearby vehicles -> explode random. That's all. It's fun.
 * (2.4.1) Add minor ui updates to cloud vehicles (show vehicle count & vehicle info on vehicle name)
 
+v3.0.0
+
+* Added complete translation support. All text elements (within reason) are pulled from a translations file.
+* This took me like 5 hours
+* (3.1.1) Fixed spawning errroing
+
 # actions (v1.7.1)
 
 v1.1
@@ -218,3 +224,7 @@ V1.1.0
 * (1.1.2) Add clarification
 * (1.1.3) Pull channel list from server
 * (1.1.4) Small UI changes
+
+V1.2.0
+
+* Added translation support
