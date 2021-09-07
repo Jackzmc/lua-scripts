@@ -70,6 +70,12 @@
         "TOAST_DEFAULT",
         "TOAST_ALL",
         "LOCALIZATION",
+        "lang",
+        "ANIMATIONS",
+        "ANIMATIONS_INDEX_VERSION",
+        "ANIMATIONS_HEADINGS",
+        "ANIMATIONS_SUBHEADINGS",
+        "json"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"

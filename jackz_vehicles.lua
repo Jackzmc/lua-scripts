@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.0.2"
+local VERSION = "3.1.0"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -11,7 +11,7 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-31) to disable auto updates
+        -- Remove this block (lines 15-32) to disable auto updates
         async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
             local file = io.open(CHANGELOG_PATH, "w")
             io.output(file)
@@ -63,6 +63,13 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
+if lang.menus == nil or lang.VERSION == nil then
+    util.toast("Outdated translations library, downloading update...")
+    os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+    package.loaded["translations"] = nil
+    _G["translations"] = nil
+    try_load_lib("translations.lua", "lang")
+end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
 -- Check if there is any changelogs (just auto-updated)
@@ -217,8 +224,18 @@ function control_vehicle(pid, callback, opts)
     local vehicle = get_player_vehicle_in_control(pid, opts)
     if vehicle > 0 then
         callback(vehicle)
-    elseif opts.silent ~= true then
+    elseif opts == nil or opts.silent ~= true then
         lang.toast("PLAYER_OUT_OF_RANGE")
+    end
+end
+
+function get_waypoint_pos(callback)
+    if HUD.IS_WAYPOINT_ACTIVE() then
+        local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
+        local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+        return callback(waypoint_pos)
+    else
+        lang.toast("NO_WAYPOINT_SET")
     end
 end
 
@@ -368,9 +385,13 @@ function setup_choose_player_menu(rootMenu, menuList, callback, pid)
     end)
 end
 
+local driveClone = {
+    vehicle = 0,
+    target = 0
+}
 function setup_action_for(pid) 
     menu.divider(menu.player_root(pid), "Jackz Vehicles")
-    local submenu = menu.list(menu.player_root(pid), lang.format("VEHICLE_OPTIONS_NAME"), {"vehicle"}, lang.format("VEHICLE_OPTIONS_DESC"))
+    local submenu = lang.menus.list(menu.player_root(pid), "VEHICLE_OPTIONS", { "vehicle"} )
     options[pid] = {
         teleport_last = false,
         paint_color_primary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
@@ -379,8 +400,7 @@ function setup_action_for(pid)
         trailer_gate = true,
         cargo_magnet = false
     }
-
-    menu.action(submenu, lang.format("TP_VEH_TO_ME_NAME"), {"tpvehme"}, lang.format("TP_VEH_TO_ME_DESC"), function(_)
+    lang.menus.action(submenu, "TP_VEH_TO_ME", { "tpvehme" }, function(_)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -392,28 +412,23 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- Movement & Attachment Section
     ----------------------------------------------------------------
-    local towMenu = menu.list(submenu, lang.format("ATTACHMENTS_NAME"), {"attachments"}, lang.format("ATTACHMENTS_DESC"))
+    local towMenu = lang.menus.list(submenu, "ATTACHMENTS", {"attachments"})
 
     -- TOW 
-        menu.divider(towMenu, lang.format("TOW_TRUCKS_DIVIDER"))
-        menu.action(towMenu, lang.format("TOW_TRUCKS_WANDER_NAME"), {"towwander"}, lang.format("TOW_TRUCKS_WANDER_DESC"), function(_)
+        lang.menus.divider(towMenu, "TOW_TRUCKS")
+        lang.menus.action(towMenu, "TOW_TRUCKS_WANDER", {"towwander"}, function(_)
             control_vehicle(pid, function(vehicle)
                 local tow, driver = spawn_tow_for_vehicle(vehicle)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 6)
             end)
         end)
-
         menu.action(towMenu, lang.format("TOW_TO_WAYPOINT_NAME"), {"towwaypoint"}, lang.format("TOW_TO_WAYPOINT_DESC"), function(_)
-            if HUD.IS_WAYPOINT_ACTIVE() then
-                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+            get_waypoint_pos(function(waypoint_pos)
                 control_vehicle(pid, function(vehicle)
                     local tow, driver, model = spawn_tow_for_vehicle(vehicle)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, tow, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
                 end)
-            else
-                lang.toast("NO_WAYPOINT_SET")
-            end
+            end)
         end)
         local towPlayerMenu = menu.list(towMenu, lang.format("TOW_TO_PLAYER_DIVIDER"), {"towtoplayer"})
         local towPlayerMenus = {}
@@ -498,16 +513,12 @@ function setup_action_for(pid)
         end, pid)
 
         menu.action(towMenu, lang.format("CARGOBOB_TO_WAYPOINT_NAME"), {"cargobobwaypoint"}, lang.format("CARGOBOB_TO_WAYPOINT_DESC"), function(_)
-            if HUD.IS_WAYPOINT_ACTIVE() then
-                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+            get_waypoint_pos(function(waypoint_pos)
                 control_vehicle(pid, function(vehicle)
                     local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
                 end)
-            else
-                lang.toast("NO_WAYPOINT_SET")
-            end
+            end)
         end)
 
         menu.action(towMenu, lang.format("DETACH_CARGOBOB_NAME"), {"detachcargo"}, lang.format("DETACH_CARGOBOB_DESC"), function(_)
@@ -538,16 +549,12 @@ function setup_action_for(pid)
         end)
 
         menu.action(towMenu, lang.format("TRAILER_TO_WAYPOINT_NAME"), {"trailerwaypoint"}, lang.format("TRAILER_TO_WAYPOINT_DESC"), function(_)
-            if HUD.IS_WAYPOINT_ACTIVE() then
-                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+            get_waypoint_pos(function(waypoint_pos)
                 control_vehicle(pid, function(vehicle)
                     local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cab, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CAB_MODEL, 786603, 5.0, 1.0)
                 end)
-            else
-                lang.toast("NO_WAYPOINT_SET")
-            end
+            end)
         end)
 
         menu.toggle(towMenu, lang.format("TRAILER_GATE_DOWN_OPT_NAME"), {"trailergate"}, lang.format("TRAILER_GATE_DOWN_OPT_DESC"), function(on)
@@ -574,16 +581,12 @@ function setup_action_for(pid)
             end)
         end, pid)
         menu.action(towMenu, lang.format("TITAN_FLY_TO_WAYPOINT_NAME"), {"flywaypoint"}, lang.format("TITAN_FLY_TO_WAYPOINT_DESC"), function(_)
-            if HUD.IS_WAYPOINT_ACTIVE() then
-                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
+            get_waypoint_pos(function(waypoint_pos)
                 control_vehicle(pid, function(vehicle)
                     local titan, driver = spawn_titan_for_vehicle(vehicle, true)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, titan, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, TITAN_MODEL, 786603, 5.0, 1.0)
                 end)
-            else
-               lang.toast("NO_WAYPOINT_SET")
-            end
+            end)
         end)
 
         menu.divider(towMenu, "Misc")
@@ -599,6 +602,30 @@ function setup_action_for(pid)
             control_vehicle(pid, function(vehicle)
                 ENTITY.DETACH_ENTITY(vehicle, true, 0)
             end)
+        end)
+        lang.menus.toggle(towMenu, "VEH_DRIVE", {"clonevehicle"}, function(on)
+            if on then
+                control_vehicle(pid, function(vehicle)
+                    local saveData = get_vehicle_save_data(vehicle)
+                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0.0, 5.0, 0.5)
+                    local heading = ENTITY.GET_ENTITY_HEADING(vehicle)
+                    local cvehicle = util.create_vehicle(saveData.Model, pos, heading)
+                    driveClone.vehicle = cvehicle
+                    driveClone.target = vehicle
+                    apply_vehicle_save_data(cvehicle, saveData)
+                    ENTITY.ATTACH_ENTITY_TO_ENTITY(vehicle, cvehicle, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, true, false, false, 2, true)
+                    for _ = 1, 5 do
+                        TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, cvehicle, -1)
+                        util.yield(10)
+                    end
+                end)
+            elseif driveClone.vehicle > 0 and ENTITY.DOES_ENTITY_EXIST(driveClone.vehicle) then
+                ENTITY.SET_ENTITY_VISIBLE(driveClone.target, true)
+                util.delete_entity(driveClone.vehicle)
+                driveClone.vehicle = 0
+                driveClone.target = 0
+            end
         end)
 
     -- END TOW
@@ -784,7 +811,7 @@ function setup_action_for(pid)
                 end, default)
                 table.insert(subMenus, m)
             end
-        end)
+        end, { silent = true})
     end)
 
     menu.click_slider(modMenu, lang.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, lang.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(wheelType)
@@ -952,8 +979,8 @@ function setup_action_for(pid)
                     return ENTITY.DOES_ENTITY_EXIST(target_ped) and ENTITY.DOES_ENTITY_EXIST(ped) and TASK.GET_SCRIPT_TASK_STATUS(ped, 0x93A5526E) < 7
                 end)
             end)
-        end, pid)
-    end)
+        end)
+    end, pid)
 
     menu.action(submenu, lang.format("VEH_BURST_TIRES_NAME"), {"bursttires", "bursttyres"}, lang.format("VEH_BURST_TIRES_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
@@ -2001,13 +2028,9 @@ menu.action(autodriveMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiway
     is_driving = true
 
     local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
-    if HUD.IS_WAYPOINT_ACTIVE() then
-        local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-        local pos = HUD.GET_BLIP_COORDS(blip)
+    get_waypoint_pos(function(pos)
         TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
-    else
-       lang.toast("NO_WAYPOINT_SET")
-    end
+    end)
 end)
 
 local drivetoPlayerMenu = menu.list(autodriveMenu, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_NAME"), {"drivetoplayer"})
@@ -2147,19 +2170,15 @@ end)
 menu.divider(chauffeurMenu, "Destinations")
 menu.action(chauffeurMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "", function(_)
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
-        if HUD.IS_WAYPOINT_ACTIVE() then
+        get_waypoint_pos(function(waypoint_pos)
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
             if vehicle == 0 then
                 lang.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
             else
                 local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-                local blip = HUD.GET_FIRST_BLIP_INFO_ID(8)
-                local waypoint_pos = HUD.GET_BLIP_COORDS(blip)
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
             end
-        else
-           lang.toast("NO_WAYPOINT_SET")
-        end
+        end)
     else
         autodriveDriver = 0
         lang.toast("AUTODRIVE_RIVER_NONE")
@@ -2203,6 +2222,9 @@ util.on_stop(function()
     TASK._CLEAR_VEHICLE_TASKS(vehicle)
     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
         util.delete_entity(previewVehicle)
+    end
+    if ENTITY.DOES_ENTITY_EXIST(driveClone.vehicle) then
+        util.delete_entity(driveClone.vehicle)
     end
 end)
 

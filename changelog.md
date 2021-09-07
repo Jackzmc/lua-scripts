@@ -175,6 +175,12 @@ v3.0.0
 * Added complete translation support. All text elements (within reason) are pulled from a translations file.
 * This took me like 5 hours
 * (3.1.1) Fixed spawning errroing
+* (3.1.2) Refactored a LOT of code
+* (3.1.2) Automatically update translations library to latest
+
+v3.1.0
+
+* Added "Drive Vehicle" to player list
 
 # actions (v1.7.1)
 
