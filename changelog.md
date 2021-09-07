@@ -181,6 +181,7 @@ v3.0.0
 v3.1.0
 
 * Added "Drive Vehicle" to player list
+* (3.1.1) Added a 'Language' selector
 
 # actions (v1.7.1)
 
@@ -234,3 +235,4 @@ V1.1.0
 V1.2.0
 
 * Added translation support
+* (1.2.1) Added a 'Language' selector

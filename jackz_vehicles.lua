@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.1.0"
+local VERSION = "3.1.1"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -72,6 +72,7 @@ if lang.menus == nil or lang.VERSION == nil then
 end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
+lang.add_language_selector_to_menu(menu.my_root())
 -- Check if there is any changelogs (just auto-updated)
 if filesystem.exists(CHANGELOG_PATH) then
     local file = io.open(CHANGELOG_PATH, "r")
