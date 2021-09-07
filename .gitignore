@@ -18,6 +18,7 @@
 !lib/vehicles.lua
 !lib/weapons.lua
 !lib/json.lua
+!lib/translations.lua
 !.vscode/
 !.vscode/settings.json
 !.gitignore
