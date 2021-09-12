@@ -3,9 +3,9 @@
 -- File format: Empty lines and lines that start with # (only first two characters checked) are ignored.
 -- Note: First character MUST be a # for auto download to work.
 -- See the return { } table at bottom for public methods
--- See jackz_chat or jackz_vehicles for examples
+-- See jackz_chat or jackz_vehicles for examples (jackz_vehicles: line 73)
 
-local LIB_VERSION = "1.1.0"
+local LIB_VERSION = "1.2.0"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -55,7 +55,7 @@ local HARDCODED_TRANSLATIONS = {
         ["LANG_PREF_CHANGED"] = "Preferred language has been switched. Please restart scripts to use selected language."
     }
 }
-
+-- Automatically tries to find a internal message in their language, falls back to en-US or even hardcoded string
 local function get_internal_message(key)
     if HARDCODED_TRANSLATIONS[lang] and HARDCODED_TRANSLATIONS[lang][key] then
         return HARDCODED_TRANSLATIONS[lang][key]
@@ -65,7 +65,7 @@ local function get_internal_message(key)
         return "_NO_TRANSLATION_AVAILABLE_"
     end
 end
-
+-- Loaded a user's preferred language iso.
 local PREF_FILE = filesystem.stand_dir() .. "/Translations/Preferred Language.txt"
 if filesystem.exists(PREF_FILE) then
     local file = io.open(PREF_FILE, "r")
@@ -85,7 +85,7 @@ if filesystem.exists(PREF_FILE) then
         util.toast(get_internal_message("ERR_INVALID_STORED_LANGUAGE"))
     end
 end
-
+-- Main function that parses the translation .txt file.
 local function parse_translations_from_file(file)
     local path = filesystem.stand_dir() .. "Translations/" .. file .. ".txt"
     if not filesystem.exists(path) then
@@ -95,26 +95,29 @@ local function parse_translations_from_file(file)
         local key = ""
         local value = ""
         local isValueReady = 0
+        -- Loop every character for every line
         line:gsub(".", function(c)
             if isValueReady == -1 then
                 return
             end
             if isValueReady > 0 then
-                if isValueReady == 1 and c ~= " " then
+                if isValueReady == 1 and c ~= " " then -- Skip any beginning spaces between : and value
                     isValueReady = 2
                 end
+                -- Finally, parse the final message
                 if isValueReady == 2 then
                     value = value .. c
                 end
-            elseif c ~= ":" then
-                if c == "#" then
+            elseif c ~= ":" then -- If part of key and key does not start with #, add to key string
+                if c == "#" then -- If starts with #, because cant break out of function, just set var to skip every next call:
                     isValueReady = -1
                 end
                 key = key .. c
             else
-                isValueReady = 1
+                isValueReady = 1 -- Found first semicolon separator, key has been found. switch to string
             end
         end)
+        -- If a valid line was parsed (such that a key and value exist), add to table
         if isValueReady and isValueReady == 2 then
             translations[string.upper(key)] = value:gsub("\\([nt])", {n="\n", t="\t"})
         end
@@ -127,6 +130,7 @@ end
 -- Public API
 ---------------
 -- Set the saved language preference. Returns true on success, returns false on invalid language
+-- prefLang: Valid ISO Code (see GAME_LANGUAGE_IDS)
 function set_language_preference(prefLang)
     for _, language in ipairs(GAME_LANGUAGE_IDS) do
         if prefLang == language then
@@ -140,12 +144,15 @@ function set_language_preference(prefLang)
     return false
 end
 -- Optional, will automatically download translation files from domain and uri if set
+-- Only supports web servers that the server filename is identical to final filename (/path/file.txt -> file.txt)
+-- You can call download_translation_file manually, has serverFileName parameter
 function set_autodownload_uri(domain, uri)
     autodownload.domain = domain
     autodownload.uri = uri
 end
 -- Attempt to load the specified translation file, returns language if successful or false if none found
 -- Needs to be called or all text will return translated ERR_NO_TRANSLATION_FILE_LOADED
+-- filePrefix: filename to load. Do not put extension.
 function load_translation_file(filePrefix)
     if parse_translations_from_file(filePrefix .. "_" .. lang) then
         translationAvailable = true
@@ -178,19 +185,23 @@ function load_translation_file(filePrefix)
 end
 -- Attempt to download a translation file from https://domai/path/fileprefix_lang-code.txt
 -- Example: download_translation_file("jackz.me", "/stand/translations/", "jackz_vehicles") -> https://jackz.me/stand/translations/jackz_vehicles-en-US.txt
-function download_translation_file(domain, uri, filepart)
+-- Domain & URI: The prefix to append to download file from.
+-- saveAsName: The name to save the file as on disk (and is added onto uri if serverFileName is nil)
+-- serverFileName(optional): The filename to append to uri, incase you downloading from a crappy webhost
+function download_translation_file(domain, uri, saveAsName, serverFileName)
     filesystem.mkdir(filesystem.stand_dir() .. "Translations")
-    async_http.init(domain, uri .. filepart .. ".txt" , function(result)
+    local dlPart = serverFileName or saveAsName 
+    async_http.init(domain, uri .. dlPart .. ".txt" , function(result)
         if result:sub(1, 1) ~= "#" then -- IS HTML
             autodownload.active = false
             return
         end
-        local file = io.open(filesystem.stand_dir() .. "/Translations/" .. filepart .. ".txt", "w")
+        local file = io.open(filesystem.stand_dir() .. "/Translations/" .. saveAsName .. ".txt", "w")
         io.output(file)
         io.write(result:gsub("\r", "") .. "\n")
         io.flush() -- redudant, probably?
         io.close(file)
-        parse_translations_from_file(filepart)
+        parse_translations_from_file(saveAsName)
         translationAvailable = true
         autodownload.active = false
     end, function(e)
@@ -201,9 +212,12 @@ function download_translation_file(domain, uri, filepart)
     async_http.dispatch()
 end
 -- Only works if an autodownload url was set
+-- Updates a filePrefix (filename w/o ext) for preferred language & fallback lang (en-US)
 function update_translation_file(filePrefix)
     download_translation_file(autodownload.domain, autodownload.uri, filePrefix .. "_" .. lang)
-    download_translation_file(autodownload.domain, autodownload.uri, filePrefix .. "_en-US")
+    if lang ~= "en-US" then
+        download_translation_file(autodownload.domain, autodownload.uri, filePrefix .. "_en-US")
+    end
 end
 -- Gets the language name (in english). en-US -> English, etc
 function get_language_name()
@@ -215,7 +229,9 @@ function get_language_id()
 end
 
 
--- Attempt to use translation ID & format text. Returns nil if translation key does not exist. Returns false if no translation file was loaded
+-- Formats the specified localized text entry with optional arguments. Calls string.format if arguments provided
+-- Returns an error message if no translation file was loaded.
+-- Returns translation id if translation was not found.
 function format(translationID, ...)
     if not translationAvailable then
         return get_internal_message("ERR_NO_TRANSLATION_FILE_LOADED")
@@ -230,6 +246,9 @@ function format(translationID, ...)
     end
 end
 
+-- Formats the specified localized text entry with optional arguments. Calls string.format if arguments provided
+-- Toasts an error message if no translation file was loaded.
+-- Toasts translation id if translation was not found.
 -- Runs the format function and also toasts the value
 function toast(translationID, ...)
     if not translationAvailable then
@@ -239,6 +258,8 @@ function toast(translationID, ...)
     util.toast(text)
 end
 
+-- Will add a new list "Language >" list to root with a selection of languages.
+-- Selection will set their preferred language for all scripts that use this library.
 function add_language_selector_to_menu(root)
     local list = menu.list(root, "Language", {}, "Sets your preferred language.\nCurrent language: " .. get_language_name() .. " (" .. lang .. ")")
     for _, iso in ipairs(GAME_LANGUAGE_IDS) do
@@ -248,7 +269,7 @@ function add_language_selector_to_menu(root)
         end)
     end
 end
-
+-- Needed due to menu.action not liking nil for somereason on 2nd callbacks
 function no_op() end
 
 return {
@@ -262,38 +283,40 @@ return {
     get_language_id = get_language_id,
     format = format,
     toast = toast,
-    translations = translations,
-    is_downloading = function() return autodownload.active end,
-    GAME_LANGUAGE_IDS = GAME_LANGUAGE_IDS,
-    LANGUAGE_NAMES = LANGUAGE_NAMES,
+    translations = translations, -- List of [TRANSLATION_KEY]: Message, can mutate but not best practice
+    GAME_LANGUAGE_IDS = GAME_LANGUAGE_IDS, -- Return table of lang iso's - don't mutate
+    LANGUAGE_NAMES = LANGUAGE_NAMES, -- Returns table of language english names - don't mutate
+    -- Implement implementations of stand menu items w/ nicer translation support.
+    -- Lang keys inputted (translationKey) will automatically be suffixed with _NAME and _DESC
+    -- MY_TRANSL_KEY -> MY_TRANSL_KEY_NAME && MY_TRANSL_KEY_DESC
     menus = {
         -- Creates a menu.list() with translation prefix
-        list = function(root, section, commands)
-            return menu.list(root, format(section .. "_NAME"), commands, format(section .. "_DESC"))
+        list = function(root, translationKey, commands)
+            return menu.list(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"))
         end,
         -- Creates a menu.action() with translation prefix
-        action = function(root, section, commands, callback, callback2, syntax)
-            return menu.action(root, format(section .. "_NAME"), commands, format(section .. "_DESC"), callback, callback2 or no_op, syntax or no_op)
+        action = function(root, translationKey, commands, callback, callback2, syntax)
+            return menu.action(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), callback, callback2 or no_op, syntax or no_op)
         end,
         -- Creates a menu.divider() with translation prefix
-        divider = function(root, section)
-            return menu.divider(root, format(section .. "_DIVIDER"))
+        divider = function(root, translationKey)
+            return menu.divider(root, format(translationKey .. "_DIVIDER"))
         end,
         -- Creates a menu.toggle() with translation prefix
-        toggle = function(root, section, commands, callback, default)
-            return menu.toggle(root, format(section .. "_NAME"), commands,format(section .. "_DESC"), callback, default or false)
+        toggle = function(root, translationKey, commands, callback, default)
+            return menu.toggle(root, format(translationKey .. "_NAME"), commands,format(translationKey .. "_DESC"), callback, default or false)
         end,
         -- Creates a menu.slider() with translation prefix
-        slider = function(root, section, commands, min, max, default, step, callback)
-            return menu.slider(root, format(section .. "_NAME"), commands, format(section .. "_DESC"), min, max, default or 0, step or 1, callback)
+        slider = function(root, translationKey, commands, min, max, default, step, callback)
+            return menu.slider(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), min, max, default or 0, step or 1, callback)
         end,
         -- Creates a menu.click_slider() with translation prefix
-        click_slider = function(root, section, commands, min, max, default, step, callback)
-            return menu.click_slider(root, format(section .. "_NAME"), commands, format(section .. "_DESC"), min, max, default or 0, step or 1, callback)
+        click_slider = function(root, translationKey, commands, min, max, default, step, callback)
+            return menu.click_slider(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), min, max, default or 0, step or 1, callback)
         end,
         -- Creates a menu.colour() (first method) with translation prefix
-        colour = function(root, section, commands, color, transparency, callback)
-            return menu.colour(root, format(section .. "_NAME"), commands, format(section .. "_DESC"), color, transparency, callback)
+        colour = function(root, translationKey, commands, color, transparency, callback)
+            return menu.colour(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), color, transparency, callback)
         end,
     },
     add_language_selector_to_menu = add_language_selector_to_menu

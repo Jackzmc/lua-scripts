@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.0.2"
+local VERSION = "1.1.0"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -70,17 +70,20 @@ if filesystem.exists(CHANGELOG_PATH) then
     os.remove(CHANGELOG_PATH)
 end
 
+-- Models[1] && Models[2] are engines
 local models = {
-    util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
+    util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcar2"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
 }
 local variations = {
     "Variation 1", "Variation 2", "Variation 3", "Variation 4", "Variation 5", "Variation 6", "Variation 7", "Variation 8", "Variation 9", "Variation 10", "Variation 11", "Variation 12", "Variation 13", "Variation 14", "Variation 15", "Variation 16", "Variation 17", "Variation 18", "Variation 19", "Variation 20", "Variation 21", "Variation 22"
 }
 
 local last_train = 0
+local last_metro_f = 0
+local last_metro_b = 0
 local last_train_menu = 0
-
-local spawnedMenu = menu.list(menu.my_root(), "Spawned Train Management", {}, "")
+local globalTrainSpeed = 15
+local globalTrainSpeedControlEnabled = false
 
 for _, model in ipairs(models) do
     STREAMING.REQUEST_MODEL(model)
@@ -89,17 +92,26 @@ for _, model in ipairs(models) do
     end
 end
 
-local function spawn_train(variation, pos) 
-    local train = VEHICLE.CREATE_MISSION_TRAIN(variation, pos.x, pos.y, pos.z, 0)
+local spawnedMenu = menu.list(menu.my_root(), "Spawned Train Management", {}, "")
+local function spawn_train(variation, pos, direction) 
+    local train = VEHICLE.CREATE_MISSION_TRAIN(variation, pos.x, pos.y, pos.z, direction or false)
+    local carts = {}
+    for i = 0, 100 do
+        local cart = VEHICLE.GET_TRAIN_CARRIAGE(train, i)
+        if cart == 0 then
+            break
+        end
+        table.insert(carts, cart)
+    end
     last_train = train
     
     local posTrain = ENTITY.GET_ENTITY_COORDS(last_train)
-    local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(veh)
+    local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(train)
     NETWORK.NETWORK_REQUEST_CONTROL_OF_NETWORK_ID(netid)
     NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, false)
     -- Setup menu actions (set speed, delete, etc)
     local submenu = menu.list(spawnedMenu, "Train " .. last_train, {"train" .. last_train}, "") 
-    menu.click_slider(submenu, "Set Speed", {"setspeedtrain" .. last_train}, "Sets this spawned train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, 10, 5, function(value, prev)
+    menu.slider(submenu, "Set Speed", {"setspeedtrain" .. last_train}, "Sets this spawned train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, 10, 5, function(value, prev)
         VEHICLE.SET_TRAIN_CRUISE_SPEED(train, value)
         VEHICLE.SET_TRAIN_SPEED(train, value)
     end)
@@ -113,14 +125,8 @@ local function spawn_train(variation, pos)
     end)
 
     menu.action(submenu, "Delete", {"deletetrain" .. last_train}, "Deletes the spawned train", function(v)
-        for i = 0,100 do
-            local cart = VEHICLE.GET_TRAIN_CARRIAGE(train, i)
+        for _, cart in ipairs(carts) do
             util.delete_entity(cart)
-        end
-        util.delete_entity(train)
-        if last_train == train then
-            last_train = 0
-            last_train_menu = 0
         end
         menu.delete(submenu)
     end)
@@ -135,7 +141,7 @@ end
 
 menu.divider(menu.my_root(), "Train Spawning")
 
-menu.click_slider(menu.my_root(), "Spawn Train", {"spawntrain"}, "Spawns a train with a certain variation", 1, 23, 1, 1, function(variation, prev)
+menu.click_slider(menu.my_root(), "Spawn Train", {"spawntrain"}, "Spawns a train with a certain variation\n22 = Metro\n23 = Long Train", 1, 25, 1, 1, function(variation)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -145,49 +151,85 @@ end)
 menu.action(menu.my_root(), "Spawn Metro Train", {"spawnmetro"}, "Spawn a metro train", function()
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
-
-    spawn_train(21, pos)
+    local metroFront = VEHICLE.CREATE_MISSION_TRAIN(21, pos.x, pos.y, pos.z, false)
+    local metroBack = VEHICLE.CREATE_MISSION_TRAIN(21, pos.x, pos.y, pos.z, true)
+    VEHICLE.SET_TRAIN_CRUISE_SPEED(metroFront, 15)
+    util.yield(155)
+    VEHICLE.SET_TRAIN_CRUISE_SPEED(metroBack, -15)
+    VEHICLE.SET_TRAIN_SPEED(metroBack, -15)
+    last_metro_f = metroFront
+    last_metro_b = metroBack
+    last_train = last_metro_f
 end)
 
-menu.click_slider(menu.my_root(), "Set Spawned Train Speed", {"setspawnedspeed"}, "Sets last spawned train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, 10, 5, function(value, prev)
+menu.slider(menu.my_root(), "Set Spawned Train Speed", {"setspawnedspeed"}, "Sets last spawned train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, 10, 5, function(value)
     VEHICLE.SET_TRAIN_CRUISE_SPEED(last_train, value)
     VEHICLE.SET_TRAIN_SPEED(last_train, value)
+    if last_train == last_metro_f then
+        VEHICLE.SET_TRAIN_CRUISE_SPEED(last_metro_b, -value)
+        VEHICLE.SET_TRAIN_SPEED(last_metro_b, -value)
+    end
 end)
 
 menu.action(menu.my_root(), "Delete Last Spawned Train", {"delltrain"}, "Deletes the last spawned train", function(v)
     if last_train > 0 then
-        last_train = 0
-        for i = 0,100 do
-            local cart = VEHICLE.GET_TRAIN_CARRIAGE(train, i)
+        if last_train == last_metro_f then
+            if last_metro_f > 0 then
+                util.delete_entity(last_metro_f)
+                last_metro_f = 0
+            end
+            if last_metro_b > 0 then
+                util.delete_entity(last_metro_b)
+                last_metro_b = 0
+            end
+            return
+        end
+        if not ENTITY.DOES_ENTITY_EXIST(last_train) then
+            menu.delete(last_train_menu)
+            last_train = 0
+            last_train_menu = 0
+            return
+        end
+        local carts = {}
+        for i = 0, 100 do
+            local cart = VEHICLE.GET_TRAIN_CARRIAGE(last_train, i)
+            if cart == 0 then
+                break
+            end
+            table.insert(carts, cart)
+        end
+        util.delete_entity(last_train)
+        for _, cart in ipairs(carts) do
             util.delete_entity(cart)
         end
-        util.delete_entity(train)
         menu.delete(last_train_menu)
+        last_train = 0
         last_train_menu = 0
     end
 end)
 
 menu.divider(menu.my_root(), "Global")
 
-menu.click_slider(menu.my_root(), "Set Global Train Speed", {"settrainspeed", "trainspeed"}, "Sets all nearby train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, 10, 5, function(value, prev)
+menu.toggle(menu.my_root(), "Global Speed Enabled", {"enableglobalspeed", "trainspeed"}, "Should script control all trains? (Speed set below)", function(on)
     -- Should _probably_ check if the model is a ya know train but ehh
-    local vehicles = util.get_all_vehicles()
-    for _, vehicle in pairs(vehicles) do 
-        VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, value)
-        VEHICLE.SET_TRAIN_SPEED(vehicle, value)
-    end
+    globalTrainSpeedControlEnabled = on
+end, globalTrainSpeedControlEnabled)
+
+menu.slider(menu.my_root(), "Global Train Speed", {"settrainspeed", "trainspeed"}, "Sets all nearby train's speed. Values over +/- 80 will result in players sliding backwards. Reversing trains will look desynced to other players.", -250, 250, globalTrainSpeed, 5, function(value)
+    globalTrainSpeed = value
 end)
 
 menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all trains in the game", function(v)
     local vehicles = util.get_all_vehicles()
     local count = 0
-    for _, vehicle in pairs(vehicles) do 
+    for _, vehicle in pairs(vehicles) do
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
         for _, model in ipairs(models) do
             -- Check if the vehicle is a train
             if model == vehicleModel then
                 count = count + 1
                 util.delete_entity(vehicle)
+                break
             end
         end
     end
@@ -246,6 +288,19 @@ while true do
                 VEHICLE.SET_TRAIN_SPEED(vehicle, speed)
             end
             tick = 0
+        end
+    elseif globalTrainSpeedControlEnabled then
+        for _, vehicle in pairs(util.get_all_vehicles()) do
+            local model = ENTITY.GET_ENTITY_MODEL(vehicle)
+            if model == models[1] or model == models[2] then --Only need to set speed for engine
+                local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
+                NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
+                NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
+                NETWORK.NETWORK_REQUEST_CONTROL_OF_NETWORK_ID(netid)
+                
+                VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, globalTrainSpeed)
+                VEHICLE.SET_TRAIN_SPEED(vehicle, globalTrainSpeed)
+            end
         end
     end
     util.yield()

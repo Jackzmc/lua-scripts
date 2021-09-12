@@ -9,15 +9,18 @@ STREAMING.REQUEST_MODEL(model)
 while not STREAMING.HAS_MODEL_LOADED(model) do
     util.yield()
 end
-local fudges = {
-    { original = 876, range = 50 },
-    { original = 274, range = 50 },
-    { original = 183, range = 50 },
-}
-
-menu.action(menu.my_root(), "Watch Konosuba! ep 1", {"konosuba"}, "", function(on_click)
-    os.execute("start \"\" \"https://www.youtube.com/watch?v=H8CORxz5FKA\"")
-end)
+function load_model(model)
+    local hash = util.joaat(model)
+    STREAMING.REQUEST_MODEL(hash)
+    while not STREAMING.HAS_MODEL_LOADED(hash) do
+        util.yield()
+    end
+    return hash
+end
+local textc_w = { r = 1, g = 1, b = 1, a = 1 }
+local textc_b = { r = 8 / 255, g = 159 / 255, b = 246, a = 1}
+local textc_g = { r = 0.7, g = 1, b = 0.7, a = 1 }
+local textc_r = { r = 1, g = 0.6, b = 0.6, a = 1 }
 
 -- function get_business_stat(business, offset)
 --     local global = memory.script_global()
@@ -35,25 +38,92 @@ end)
 --     end
 --     util.toast("found: " .. c)
 -- end
-local towtruck_1 = util.joaat("towtruck")
-local towtruck_2 = util.joaat("towtruck2")
-STREAMING.REQUEST_MODEL(towtruck_1)
-STREAMING.REQUEST_MODEL(towtruck_2)
-while not STREAMING.HAS_MODEL_LOADED(towtruck_2) do
-    util.yield()
-end
 local pending_delete = {}
-menu.action(menu.my_root(), "wee", {}, "", function(sdfa)
-    
-end)
-function get_business_stat(business, offset)
-    return memory.read_int(memory.script_global(1590908+1+(players.user()*874)+267+185+1+(business*12))+offset)
+function find_offset(struct, expected, start)
+    local offset = start or 0
+    local value = 0
+    while value ~= expected do
+        offset = offset + 1
+        value = memory.read_int(struct + offset)
+        if offset > 4096 then
+            util.toast("no offset found", 2)
+        end
+    end
+    util.toast("offset: " .. offset, 2)
 end
-local values = {}
-menu.action(menu.my_root(), "test", {}, "", function(sdfa)
-    local v = get_business_stat(4, 2)
-    util.toast(v)
+
+local FIB_MODEL = load_model("mp_m_fibsec_01")
+local fibs = {}
+local running = false
+function GetCoordAround(entity, angle, radius, zOffset, relative)
+    if relative then
+        local offset = {
+            x = -radius * math.sin(angle + 90),
+            y = radius * math.cos(angle),
+            z = zOffset
+        }
+        return ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(entity, offset.x, offset.y, offset.z);
+    else
+        local entityPosition = ENTITY.GET_ENTITY_COORDS(entity, false)
+        return {
+            x = entityPosition.x - radius * math.sin(angle + 90),
+            y = entityPosition.y + radius * math.cos(angle),
+            z = entityPosition.z + zOffset
+        }
+    end
+end
+local min = memory.alloc(24)
+local max = memory.alloc(24)
+menu.action(menu.my_root(), "witness protection", {}, "", function(_)
+    for _, e in ipairs(fibs) do
+        util.delete_entity(e)
+    end
+    fibs = {}
+    running = false
+    local count = 5
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, true)
+    for i = 0, 20 do
+        local fib = util.create_ped(0, FIB_MODEL, my_pos, 0)
+        PED.SET_PED_GRAVITY(fib, false)
+        PED.SET_PED_CAN_RAGDOLL(fib, false)
+        ENTITY.SET_ENTITY_COLLISION(fib, false, true)
+        PED.SET_PED_CAN_BE_TARGETTED_BY_PLAYER(fib, players.user(), false)
+        local offset = (360 / 20) * i
+        table.insert(fibs, { fib, offset })
+        count = count - 1
+        if count == 0 then
+            util.yield()
+            count = 5
+        end
+    end
+    
+    running = true
+    util.create_tick_handler(function(_)
+        MISC.GET_MODEL_DIMENSIONS(ENTITY.GET_ENTITY_MODEL(my_ped), min, max)
+        local height = memory.read_vector3(max).z - memory.read_vector3(min).z
+        local zCorrection = (-height / 2) + 0.3
+        local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+        for _, pair in ipairs(fibs) do
+            local coord = GetCoordAround(my_ped, heading - pair[2], 3, zCorrection, true)
+            ENTITY.SET_ENTITY_COORDS(pair[1], coord.x, coord.y, coord.z , false, false, false, false)
+            ENTITY.SET_ENTITY_HEADING(pair[1], pair[2] + 90)
+            TASK.TASK_STAND_STILL(pair[1], 5000)
+        end
+        util.yield()
+        return running
+    end)
 end)
+menu.action(menu.my_root(), "clear witness protection", {}, "", function(_)
+    memory.free(min)
+    memory.free(max)
+    for _, e in ipairs(fibs) do
+        util.delete_entity(e[1])
+    end
+    fibs = {}
+    running = false
+end)
+
 menu.action(menu.my_root(), "spawn upside down world", {}, "", function(a)
     
     STREAMING.REQUEST_MODEL(util.joaat("dt1_lod_f1_slod3"))
@@ -358,30 +428,7 @@ menu.action(menu.my_root(), "yeet myself", {}, "", function(on_click)
 end)
 
 
-local textc_w = {
-    r = 1,
-    g = 1, 
-    b = 1,
-    a = 1
-}
-local textc_b = {
-    r = 8 / 255,
-    g = 159 / 255, 
-    b = 246,
-    a = 1
-}
-local textc_g = {
-    r = 0.7,
-    g = 1, 
-    b = 0.7,
-    a = 1
-}
-local textc_r = {
-    r = 1,
-    g = 0.6,
-    b = 0.6,
-    a = 1
-}
+
 
 local redbox = {
     r = 1,
@@ -502,7 +549,7 @@ while true do
         local p_bool = memory.alloc(8)
         local p_endPos = memory.alloc(24)
         local p_surfaceNormal = memory.alloc(24)
-        local p_entityHit = memory.alloc(32)
+        local p_entityHit = memory.alloc(8)
 
         while SHAPETEST.GET_SHAPE_TEST_RESULT(ray, p_bool, p_endPos, p_surfaceNormal, p_entityHit) == 1 do
             util.yield()

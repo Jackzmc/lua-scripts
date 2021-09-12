@@ -182,6 +182,22 @@ v3.1.0
 
 * Added "Drive Vehicle" to player list
 * (3.1.1) Added a 'Language' selector
+* (3.1.2) Fixed not auto updating translation lib
+
+v3.2.0
+
+* Added saving/restoring vehicle extras
+* Added modifying vehicle extras under LSC list
+* Added in lua root "Current Vehicle Multiplers"
+  * Lights Multipler
+  * Acceleration
+  * Traction
+* Re-arranged some root menu items
+* Moved spinning cars to nearby vehicles
+* (3.2.1) Fixed changing extras not changing vehicle
+* (3.2.1) Moved Set License Plate into Los Santos Customs
+* (3.2.1) Fix spawnvehicle conflicting with official stand saving
+* (3.2.1) Fixed extras not spawning on saved
 
 # actions (v1.7.1)
 
@@ -236,3 +252,14 @@ V1.2.0
 
 * Added translation support
 * (1.2.1) Added a 'Language' selector
+* (1.2.2) Fixed not auto updating translation lib
+
+# train control (v1)
+
+V1.1.0
+
+* Added a toggle for global speed control
+* Continously set speed for global train speed
+* Fix delete last spawned train not working
+* Fix deleting vehicle in spawned list not deleting
+* Properly spawn in metro train

@@ -1,7 +1,7 @@
 -- Stand Chat 
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.1"
+local VERSION = "1.2.2"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -63,6 +63,13 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
+if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= "1.2.0" then
+  util.toast("Outdated translations library, downloading update...")
+  os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+  package.loaded["translations"] = nil
+  _G["translations"] = nil
+  try_load_lib("translations.lua", "lang")
+end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
 lang.add_language_selector_to_menu(menu.my_root())

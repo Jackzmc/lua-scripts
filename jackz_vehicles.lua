@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.1.1"
+local VERSION = "3.2.1"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -63,7 +63,7 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
-if lang.menus == nil or lang.VERSION == nil then
+if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= "1.2.0" then
     util.toast("Outdated translations library, downloading update...")
     os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
     package.loaded["translations"] = nil
@@ -86,6 +86,8 @@ if filesystem.exists(CHANGELOG_PATH) then
 end
 -- Per-player options
 local options = {}
+local VEHICLE_SAVEDATA_FORMAT_VERSION = "JSTAND 1.2"
+local MAX_EXTRAS = 14
 
 local DOOR_NAMES = {
     "Front Left", "Front Right",
@@ -161,7 +163,6 @@ local vehicleDir = filesystem.stand_dir() .. "/Vehicles/"
 if not filesystem.exists(vehicleDir) then
     filesystem.mkdir(vehicleDir)
 end
-local VEHICLE_SAVEDATA_FORMAT_VERSION = "JSTAND 1.1"
 local TOW_TRUCK_MODEL_1 = util.joaat("towtruck")
 local TOW_TRUCK_MODEL_2 = util.joaat("towtruck2")
 local NEON_INDICES = { "Left", "Right", "Front", "Back"}
@@ -240,14 +241,23 @@ function get_waypoint_pos(callback)
     end
 end
 
+function load_model(model)
+    local hash = util.joaat(model)
+    load_hash(hash)
+    return hash 
+end
+function load_hash(hash)
+    STREAMING.REQUEST_MODEL(hash)
+    while not STREAMING.HAS_MODEL_LOADED(hash) do
+        util.yield()
+    end
+end
+
 local CAB_MODEL = util.joaat("phantom")
 local TRAILER_MODEL = util.joaat("tr2")
 function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
-    STREAMING.REQUEST_MODEL(CAB_MODEL)
-    STREAMING.REQUEST_MODEL(TRAILER_MODEL)
-    while not STREAMING.HAS_MODEL_LOADED(TRAILER_MODEL) do
-        util.yield()
-    end
+    load_hash(CAB_MODEL)
+    load_hash(TRAILER_MODEL)
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
     local cabPos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 10, 0.0)
     local trailerPos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 0, 0.0)
@@ -259,21 +269,15 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
         VEHICLE.SET_VEHICLE_DOOR_OPEN(trailer, 5, 0, 0)
     end
     VEHICLE.ATTACH_VEHICLE_TO_TRAILER(cab, trailer, 5)
-    util.yield(2)
     VEHICLE.ATTACH_VEHICLE_ON_TO_TRAILER(vehicle, trailer, 0, 0, -2.0, 0, 0, 0.0, 0, 0, 0, 0.0)
     ENTITY.DETACH_ENTITY(vehicle)
-    util.yield(1)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(cab, true)
-    util.yield(1)
     return cab, driver
 end
 
 local CARGOBOB_MODEL = util.joaat("cargobob")
 function spawn_cargobob_for_vehicle(vehicle, useMagnet)
-    STREAMING.REQUEST_MODEL(CARGOBOB_MODEL)
-    while not STREAMING.HAS_MODEL_LOADED(CARGOBOB_MODEL) do
-        util.yield()
-    end
+    load_hash(CARGOBOB_MODEL)
     local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
     ENTITY.SET_ENTITY_ROTATION(vehicle, 0, 0, -rot.z)
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 0, 8.0)
@@ -312,16 +316,12 @@ function spawn_cargobob_for_vehicle(vehicle, useMagnet)
         end
     end)
     ENTITY.FREEZE_ENTITY_POSITION(vehicle, false)
-    util.yield(1)
     return cargobob, driver
 end
 
 local TITAN_MODEL = util.joaat("titan")
 function spawn_titan_for_vehicle(vehicle)
-    STREAMING.REQUEST_MODEL(TITAN_MODEL)
-    while not STREAMING.HAS_MODEL_LOADED(TITAN_MODEL) do
-        util.yield()
-    end
+    load_hash(TITAN_MODEL)
     local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
     ENTITY.SET_ENTITY_ROTATION(vehicle, 0, 0, -rot.z)
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 5.0, 1000.0)
@@ -352,16 +352,12 @@ function spawn_tow_for_vehicle(vehicle)
     pos.z = memory.read_float(pz)
     memory.free(pz)
     local model = math.random(2) == 2 and TOW_TRUCK_MODEL_1 or TOW_TRUCK_MODEL_2
-    STREAMING.REQUEST_MODEL(model)
-    while not STREAMING.HAS_MODEL_LOADED(model) do
-        util.yield()
-    end
+    load_hash(model)
     local tow = util.create_vehicle(model, pos, heading)
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
     VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 5)
     VEHICLE.ATTACH_VEHICLE_TO_TOW_TRUCK(tow, vehicle, false, 0, 0, 0)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(tow, true)
-    util.yield(1)
     return tow, driver, model
 end
 
@@ -729,6 +725,25 @@ function setup_action_for(pid)
             VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle, paint)
         end)
     end)
+    local extras = lang.menus.list(lsc, "LSC_EXTRAS", {})
+    local extrasMenus = {}
+    menu.on_focus(extras, function(_)
+        for _, m in ipairs(extrasMenus) do
+            menu.delete(m)
+        end
+        extrasMenus = {}
+        control_vehicle(pid, function(vehicle)
+            for x = 0, MAX_EXTRAS do
+                if VEHICLE.DOES_EXTRA_EXIST(vehicle, x) then
+                    local active = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle, x)
+                    local m = menu.toggle(extras, "Extra " .. x, {}, lang.format("EXTRA_INDV_DESC"), function(on)
+                        VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, not on)
+                    end, active)
+                    table.insert(extrasMenus, m)
+                end
+            end
+        end, { silent = true })
+    end)
     -- 
     -- NEON SECTION
     --
@@ -832,7 +847,6 @@ function setup_action_for(pid)
             VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, x)
-                util.toast("max for x" .. x .. " is " .. max)
                 VEHICLE.SET_VEHICLE_MOD(vehicle, x, max)
             end
             VEHICLE.SET_VEHICLE_MOD(vehicle, 15, 45) -- re-set horn 
@@ -853,6 +867,16 @@ function setup_action_for(pid)
             VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
         end)
     end)
+
+    menu.action(lsc, lang.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, lang.format("VEH_LICENSE_DESC"), function(on)
+        local name = PLAYER.GET_PLAYER_NAME(pid)
+        menu.show_command_box("setlicenseplate" .. name .. " ")
+    end, function(args)
+        control_vehicle(pid, function(vehicle)
+            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
+            VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
+        end)
+    end, false)
 
     ----------------------------------------------------------------
     -- END LSC
@@ -889,10 +913,7 @@ function setup_action_for(pid)
     end, function(args)
         local model = util.joaat(args)
         if STREAMING.IS_MODEL_VALID(model) and STREAMING.IS_MODEL_A_VEHICLE(model) then
-            STREAMING.REQUEST_MODEL(model)
-            while not STREAMING.HAS_MODEL_LOADED(model) do
-                util.yield()
-            end
+            load_hash(model)
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 5.0, 0.5)
             local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
@@ -1033,17 +1054,6 @@ function setup_action_for(pid)
             ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
         end)
     end, false)
-
-    menu.action(submenu, lang.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, lang.format("VEH_LICENSE_DESC"), function(on)
-        local name = PLAYER.GET_PLAYER_NAME(pid)
-        menu.show_command_box("setlicenseplate" .. name .. " ")
-    end, function(args)
-        control_vehicle(pid, function(vehicle)
-            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
-            VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, args)
-        end)
-    end, false)
-
 end
 
 function get_vehicle_save_data(vehicle)
@@ -1131,7 +1141,12 @@ function get_vehicle_save_data(vehicle)
     memory.free(Color.r)
     memory.free(Color.g)
     memory.free(Color.b)
-
+    local Extras = {}
+    for x = 0, MAX_EXTRAS do
+        if VEHICLE.DOES_EXTRA_EXIST(vehicle, x) then
+            Extras[x] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle, x)
+        end
+    end
     local mods = { Toggles = {} }
     for i, modName in pairs(MOD_TYPES) do
         mods[modName] = VEHICLE.GET_VEHICLE_MOD(vehicle, i - 1)
@@ -1172,7 +1187,8 @@ function get_vehicle_save_data(vehicle)
         ["Interior Color"] = InteriorColor,
         ["Dirt Level"] = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle),
         ["Bulletproof Tires"] = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle),
-        Mods = mods
+        Mods = mods,
+        Extras = Extras
     }
 
     return saveData
@@ -1229,6 +1245,13 @@ function apply_vehicle_save_data(vehicle, saveData)
             VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, i - 1, saveData.Mods.Toggles[mod])
         end
     end
+    if saveData.Extras then
+        for x = 0, MAX_EXTRAS do
+            if saveData.Extras[x-1] then -- If true, set to 0 (its flipped for some reason)
+                VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, false)
+            end
+        end
+    end
 
     -- Misc
     VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style or -1)
@@ -1237,20 +1260,6 @@ function apply_vehicle_save_data(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
 end
-
-menu.action(menu.my_root(), lang.format("VEH_SAVE_CURRENT_NAME"), {"savevehicle"}, lang.format("VEH_SAVE_CURRENT_DESC"), function(_)
-    lang.toast("VEH_SAVE_CURRENT_HINT")
-    menu.show_command_box("savevehicle ")
-end, function(args)
-    local vehicle = util.get_vehicle()
-    local saveData = get_vehicle_save_data(vehicle)
-
-    local file = io.open( vehicleDir .. args .. ".json", "w")
-    io.output(file)
-    io.write(json.encode(saveData))
-    io.close(file)
-    lang.toast("FILE_SAVED", args .. ".json")
-end)
 ----------------------------
 -- CLOUD VEHICLES SECTION
 ----------------------------
@@ -1263,11 +1272,7 @@ function spawn_preview_vehicle(saveData)
     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
         util.delete_entity(previewVehicle)
     end
-    -- Too lazy to figure out way to refactor this into not being reused code:
-    STREAMING.REQUEST_MODEL(saveData.Model)
-    while not STREAMING.HAS_MODEL_LOADED(saveData.Model) do
-        util.yield()
-    end
+    load_hash(saveData.Model)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 6.5, 0.0)
     local veh = VEHICLE.CREATE_VEHICLE(saveData.Model, pos.x, pos.y, pos.z, 0, false, false)
@@ -1518,6 +1523,19 @@ end)
 local savedVehiclesList = menu.list(menu.my_root(), lang.format("SAVED_NAME"), {}, lang.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles")
 local savedVehicleMenus = {}
 local applySaved = false
+lang.menus.action(menu.my_root(), "VEH_SAVE_CURRENT", {"savevehicle2"}, function(_)
+    menu.show_command_box("savevehicle2 ")
+    lang.toast("VEH_SAVE_CURRENT_HINT")
+end, function(args)
+    local vehicle = util.get_vehicle()
+    local saveData = get_vehicle_save_data(vehicle)
+    local file = io.open( vehicleDir .. args .. ".json", "w")
+    io.output(file)
+    io.write(json.encode(saveData))
+    io.close(file)
+    lang.toast("FILE_SAVED", args .. ".json")
+end, "savevehicle2 name")
+
 menu.toggle(menu.my_root(), lang.format("SAVED_APPLY_CURRENT_NAME"), {}, lang.format("SAVED_APPLY_CURRENT_DESC"), function(on)
     applySaved = on
 end, applySaved)
@@ -1557,10 +1575,7 @@ menu.on_focus(savedVehiclesList, function()
                         end
                         lang.toast("SAVED_SUCCESS_CURRENT", name)
                     else
-                        STREAMING.REQUEST_MODEL(saveData.Model)
-                        while not STREAMING.HAS_MODEL_LOADED(saveData.Model) do
-                            util.yield()
-                        end
+                        load_hash(saveData.Model)
                         vehicle = util.create_vehicle(saveData.Model, pos, heading)
                         lang.toast("VEHICLE_SPAWNED", name)
                     end
@@ -1584,18 +1599,33 @@ menu.on_focus(savedVehiclesList, function()
         end
     end
 end)
+----------------------------------
+-- CURRENT VEHICLE MODIFIERS SEC
+----------------------------------
+local CVModifiers = {
+    Lights = 1.0,
+    Torque = 1.0,
+    Traction = 1,
+}
+local currentModifiersMenu = lang.menus.list(menu.my_root(), "CVM", {})
+lang.menus.slider(currentModifiersMenu, "CVM_LIGHTS", {"vlights"}, 0, 10000, CVModifiers.Lights * 100, 100, function(value)
+    CVModifiers.Lights = value / 100
+end)
+lang.menus.slider(currentModifiersMenu, "CVM_TORQUE", {"vtorque"}, -1000, 10000, CVModifiers.Torque * 100, 1, function(value)
+    CVModifiers.Torque = value / 100
+end)
+lang.menus.slider(currentModifiersMenu, "CVM_TRACTION", {"vtraction"}, 0, 500, CVModifiers.Traction, 1, function(value)
+    CVModifiers.Traction = value
+end)
 ----------------------------
--- NEARBy VEHICLES SECTION
+-- NEARBY VEHICLES SECTION
 ----------------------------
 local spawned_tows = {}
 local nearbyMenu = menu.list(menu.my_root(), lang.format("NEARBY_VEHICLES_NAME"), {"nearbyvehicles"}, lang.format("NEARBY_VEHICLES_DESC"))
 menu.action(nearbyMenu, lang.format("NEARBY_TOW_ALL_NAME"), {}, lang.format("NEARBY_TOW_ALL_DESC", 30), function(sdfa)
     local pz = memory.alloc(8)
-    STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_1)
-    STREAMING.REQUEST_MODEL(TOW_TRUCK_MODEL_2)
-    while not STREAMING.HAS_MODEL_LOADED(TOW_TRUCK_MODEL_2) do
-        util.yield()
-    end
+    load_hash(TOW_TRUCK_MODEL_1)
+    load_hash(TOW_TRUCK_MODEL_2)
     for _, ent in ipairs(spawned_tows) do
         util.delete_entity(ent)
     end
@@ -1864,6 +1894,18 @@ menu.action(nearbyMenu, lang.format("NEARBY_HONK_NAME"), {"honkall"}, lang.forma
         VEHICLE.START_VEHICLE_HORN(vehicle, 50000, 0)
     end
 end)
+local spinningCars = false
+local spinningSpeed = 5.0
+menu.toggle(nearbyMenu, lang.format("SPINNING_CARS_NAME"), {}, lang.format("SPINNING_CARS_DESC"), function(on)
+    spinningCars = on
+end, spinningCars)
+menu.slider(nearbyMenu, "Spinning Cars Speed", {"spinningspeed"}, "", 0, 300.0, spinningSpeed * 10, 10, function(value)
+    if value == 0 then
+        spinningSpeed = 0.1
+    else
+        spinningSpeed = value / 10
+    end
+end)
 
 ----------------------------
 -- ALL PLAYERS 
@@ -1889,10 +1931,7 @@ menu.action(allPlayersMenu, lang.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnall"},
 end, function(args)
     local model = util.joaat(args)
     if STREAMING.IS_MODEL_VALID(model) and STREAMING.IS_MODEL_A_VEHICLE(model) then
-        STREAMING.REQUEST_MODEL(model)
-        while not STREAMING.HAS_MODEL_LOADED(model) do
-            util.yield()
-        end
+        load_hash(model)
         local cur_players = players.list(true, true, true)
         for _, pid in pairs(cur_players) do
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
@@ -2203,18 +2242,7 @@ end)
 -- Root Menu Cont.
 ----------------------------
 
-local spinningCars = false
-local spinningSpeed = 5.0
-menu.toggle(menu.my_root(), lang.format("SPINNING_CARS_NAME"), {}, lang.format("SPINNING_CARS_DESC"), function(on)
-    spinningCars = on
-end, spinningCars)
-menu.slider(menu.my_root(), "Spinning Cars Speed", {"spinningspeed"}, "", 0, 300.0, spinningSpeed * 10, 10, function(value)
-    if value == 0 then
-        spinningSpeed = 0.1
-    else
-        spinningSpeed = value / 10
-    end
-end)
+
 
 util.on_stop(function()
     local ped, vehicle = get_my_driver()
@@ -2237,12 +2265,21 @@ players.on_join(function(pid) setup_action_for(pid) end)
 
 local spinHeading = 0
 while true do
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+    if my_vehicle > 0 then
+        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(my_vehicle, CVModifiers.Torque)
+        VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(my_vehicle, CVModifiers.Lights)
+        -- VEHICLE._SET_TYRE_TRACTION_LOSS_MULTIPLIER(my_vehicle, CVModifiers.Traction)
+        if CVModifiers.Traction ~= 1.0 then
+            VEHICLE.SET_VEHICLE_REDUCE_GRIP(my_vehicle, true)
+        end
+        VEHICLE._SET_VEHICLE_REDUCE_TRACTION(my_vehicle, CVModifiers.Traction)
+    end
     if autodriveDriver > 0 and autodriveOnlyWhenOntop then
-        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         local selfOntop = PED.IS_PED_ON_VEHICLE(my_ped)
-        local vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
         NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
-        if not selfOntop and vehicle ~= autodriveVehicle then
+        if not selfOntop and my_vehicle ~= autodriveVehicle then
             -- VEHICLE.BRING_VEHICLE_TO_HALT(autodriveVehicle, 2.0, 20, false)
             ENTITY.SET_ENTITY_VELOCITY(autodriveVehicle, 0.0, 0.0, 0.0)
         end

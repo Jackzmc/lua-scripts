@@ -38,7 +38,7 @@ chat.on_message(function(sender_player_id, sender_player_name, message, is_team_
         util.toast(string.format("%s spawned simeon", PLAYER.GET_PLAYER_NAME(sender_player_id)))
         spawn_ped_on_player(util.joaat("ig_siemonyetarian"), sender_player_id)
     elseif string.starts(message, "jesus") then
-        util.toast(string.format("%s spawned simeon", PLAYER.GET_PLAYER_NAME(sender_player_id)))
+        util.toast(string.format("%s spawned jesus", PLAYER.GET_PLAYER_NAME(sender_player_id)))
         spawn_ped_on_player(util.joaat("u_m_m_jesus_01"), sender_player_id)
     elseif string.starts(message, "ped") then
         -- cs_lifeinvad_01
