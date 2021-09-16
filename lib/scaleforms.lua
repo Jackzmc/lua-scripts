@@ -5,12 +5,18 @@
 -- TODO: Possibly methodmap?
 
 -- List of scaleforms
-local scaleforms = {}
-local displayedScaleforms = {}
-local displayThreadHandle
+local activeMethod = {
+    handle = nil,
+    type = nil
+}
+local displayTickThreadActive = false
+local displayedScaleforms = {} -- List of scaleform handles to display
+local SCALEFORM_TYPES = { -- List of valid scaleform movie types
+    ""
+}
 
 function show_busyspinner(text)
-
+    
 end
 
 function hide_busyspinner()
@@ -18,44 +24,69 @@ function hide_busyspinner()
 end
 
 -- Creates a new scaleform and returns its handle
-function create_new_scaleform()
-    
+function create_new_scaleform(sfType)
+    for _, sfType2 in ipairs(SCALEFORM_TYPES) do
+        if sfType2 == sfType then
+            local handle = GRAPHICS.REQUEST_SCALEFORM_MOVIE(sfType)
+            while not GRAPHICS.HAS_SCALEFORM_MOVIE_LOADED(handle) do
+                util.yield()
+            end
+            return handle
+        end
+    end
+    return error("Invalid scaleform type")
 end
 
 -- Sets active method to text
-function set_method_to_text([[ scaleformHandle ]] scaleform)
+function set_method_to_text(--[[ scaleformHandle --]] scaleform)
     --SET_TEXT method
+    if activeMethod then error("Call finish-method before starting new method") end
+    activeMethod = {
+        type = "SET_TEXT",
+        handle = scaleform
+    }
+    GRAPHICS.BEGIN_SCALEFORM_MOVIE_METHOD(scaleform, activeMethod.type)
 end
 
 -- Adds text
-function add_text([[ scaleformHandle  ]] scaleform, str)
-    -- player text
+function add_text(str)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING(str)
+end
+function add_bool(bool)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_BOOL(bool)
+end
+function add_int(int)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(int)
+end
+function add_float(float)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(float)
 end
 
--- Finally creates scaleform, ready to display
-function create()
-    
+function finish_method()
+    activeMethod = nil
+    GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
 end
 
 --Destroys scaleform, and removes from memory
 function destroy()
-
+    -- TODO: Get *ptr for SET_SCALEFORM_MOVIE_AS_NO_LONGER_NEEDED
 end
 
 -- Will internally call .display_fullscreen(), call deactivate() or destroy() to stop
-function activate(scaleform)
+function activate(--[[ scaleformHandle --]] scaleform)
     table.insert(displayedScaleforms, scaleform)
-    if not displayThreadHandle then
-        displayThreadHandle = util.create_tick_handler(function(_)
+    if not displayTickThreadActive then
+        displayTickThreadActive = true
+        util.create_tick_handler(function(_)
             for _, handle in ipairs(displayedScaleforms) do
                 display_fullscreen(handle)
             end
-            return true 
+            return displayTickThreadActive
         end)
     end
 end
 
-function deactivate(scaleform)
+function deactivate(--[[ scaleformHandle --]] scaleform)
     local isAnyOtherScaleform = false
     for i, handle in ipairs(displayedScaleforms) do
         if handle == scaleform then
@@ -66,29 +97,30 @@ function deactivate(scaleform)
         end
     end
     if not isAnyOtherScaleform then
-        -- TODO: delete thread
+        displayTickThreadActive = false -- Kill tick handler
     end
     return false
 end
-function clear_all(scaleform)
+function clear_all_displayed()
     displayedScaleforms = {}
-    -- TODO: delete thread
+    displayTickThreadActive = false -- Kill tick handler
 end
 
 -- 0: Normal, 1: Interactive, 2: Fullscreen
+-- Possibly use this to specify type for .activate() ?
 function set_display_mode(mode) end
 
 
 -- Needs to be called everyframe
-function display(scaleform, mode)
+function display(--[[ scaleformHandle --]] scaleform, mode)
 
 end
 
-function display_interactive(scaleform)
+function display_interactive(--[[ scaleformHandle --]] scaleform)
 
 end
 
-function display_fullscreen(scaleform)
+function display_fullscreen(--[[ scaleformHandle --]] scaleform)
 
 end
 
