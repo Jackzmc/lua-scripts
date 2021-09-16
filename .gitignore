@@ -19,6 +19,8 @@
 !lib/weapons.lua
 !lib/json.lua
 !lib/translations.lua
+!lib/scaleforms.lua
+
 !.vscode/
 !.vscode/settings.json
 !.gitignore
