@@ -9,6 +9,14 @@ local scaleforms = {}
 local displayedScaleforms = {}
 local displayThreadHandle
 
+function show_busyspinner(text)
+
+end
+
+function hide_busyspinner()
+    HUD.BUSYSPINNER_OFF()
+end
+
 -- Creates a new scaleform and returns its handle
 function create_new_scaleform()
     
@@ -21,7 +29,7 @@ end
 
 -- Adds text
 function add_text([[ scaleformHandle  ]] scaleform, str)
-
+    -- player text
 end
 
 -- Finally creates scaleform, ready to display
