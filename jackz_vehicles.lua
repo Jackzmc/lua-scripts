@@ -1,7 +1,8 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.2.1"
+local VERSION = "3.2.3"
+local LANG_TARGET_VERSION = "1.2.1" -- Target version of translations.lua lib
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -63,7 +64,7 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
-if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= "1.2.0" then
+if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= LANG_TARGET_VERSION then
     util.toast("Outdated translations library, downloading update...")
     os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
     package.loaded["translations"] = nil
@@ -163,8 +164,6 @@ local vehicleDir = filesystem.stand_dir() .. "/Vehicles/"
 if not filesystem.exists(vehicleDir) then
     filesystem.mkdir(vehicleDir)
 end
-local TOW_TRUCK_MODEL_1 = util.joaat("towtruck")
-local TOW_TRUCK_MODEL_2 = util.joaat("towtruck2")
 local NEON_INDICES = { "Left", "Right", "Front", "Back"}
 
 -- Gets the player's vehicle, attempts to request control. Returns 0 if unable to get control
@@ -185,6 +184,7 @@ function get_player_vehicle_in_control(pid, opts)
     end
     if vehicle == 0 and target_ped ~= my_ped and dist > 340000 and not was_spectating then
         lang.toast("AUTO_SPECTATE")
+        show_busyspinner(lang.format("AUTO_SPECTATE"))
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
         -- To prevent a hard 3s loop, we keep waiting upto 3s or until vehicle is acquired
         local loop = (opts and opts.loops ~= nil) and opts.loops or 30 -- 3000 / 100
@@ -193,6 +193,7 @@ function get_player_vehicle_in_control(pid, opts)
             vehicle = PED.GET_VEHICLE_PED_IS_IN(target_ped, true)
             loop = loop - 1
         end
+        HUD.BUSYSPINNER_OFF()
     end
 
     if vehicle > 0 then
@@ -221,7 +222,7 @@ function get_player_vehicle_in_control(pid, opts)
     end
     return vehicle
 end
-
+-- Helper functions
 function control_vehicle(pid, callback, opts)
     local vehicle = get_player_vehicle_in_control(pid, opts)
     if vehicle > 0 then
@@ -244,7 +245,7 @@ end
 function load_model(model)
     local hash = util.joaat(model)
     load_hash(hash)
-    return hash 
+    return hash
 end
 function load_hash(hash)
     STREAMING.REQUEST_MODEL(hash)
@@ -252,7 +253,7 @@ function load_hash(hash)
         util.yield()
     end
 end
-
+-- Vehicle spawn functions
 local CAB_MODEL = util.joaat("phantom")
 local TRAILER_MODEL = util.joaat("tr2")
 function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
@@ -272,6 +273,8 @@ function spawn_cab_and_trailer_for_vehicle(vehicle, rampDown)
     VEHICLE.ATTACH_VEHICLE_ON_TO_TRAILER(vehicle, trailer, 0, 0, -2.0, 0, 0, 0.0, 0, 0, 0, 0.0)
     ENTITY.DETACH_ENTITY(vehicle)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(cab, true)
+    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(CAB_MODEL)
+    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(TRAILER_MODEL)
     return cab, driver
 end
 
@@ -344,6 +347,8 @@ function spawn_titan_for_vehicle(vehicle)
     return titan, driver
 end
 
+local TOW_TRUCK_MODEL_1 = util.joaat("towtruck")
+local TOW_TRUCK_MODEL_2 = util.joaat("towtruck2")
 function spawn_tow_for_vehicle(vehicle)
     local pz = memory.alloc(8)
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 8, 0.1)
@@ -354,10 +359,13 @@ function spawn_tow_for_vehicle(vehicle)
     local model = math.random(2) == 2 and TOW_TRUCK_MODEL_1 or TOW_TRUCK_MODEL_2
     load_hash(model)
     local tow = util.create_vehicle(model, pos, heading)
+    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
+
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
     VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 5)
     VEHICLE.ATTACH_VEHICLE_TO_TOW_TRUCK(tow, vehicle, false, 0, 0, 0)
     local driver = PED.CREATE_RANDOM_PED_AS_DRIVER(tow, true)
+    
     return tow, driver, model
 end
 
@@ -386,6 +394,8 @@ local driveClone = {
     vehicle = 0,
     target = 0
 }
+
+-- Setup player menus
 function setup_action_for(pid) 
     menu.divider(menu.player_root(pid), "Jackz Vehicles")
     local submenu = lang.menus.list(menu.player_root(pid), "VEHICLE_OPTIONS", { "vehicle"} )
@@ -542,6 +552,7 @@ function setup_action_for(pid)
             control_vehicle(pid, function(vehicle)
                 local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
                 TASK.TASK_VEHICLE_DRIVE_WANDER(driver, cab, 30.0, 786603)
+                TASK.SET_PED_KEEP_TASK(driver, true)
             end)
         end)
 
@@ -1193,6 +1204,11 @@ function get_vehicle_save_data(vehicle)
 
     return saveData
 end
+function show_busyspinner(text)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
 function apply_vehicle_save_data(vehicle, saveData)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
@@ -1282,6 +1298,7 @@ function spawn_preview_vehicle(saveData)
     ENTITY.SET_ENTITY_ALPHA(previewVehicle, 150)
     VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(previewVehicle)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(previewVehicle, false, false)
+    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
     util.create_tick_handler(function(_)
         heading = heading + 7
         if heading == 360 then
@@ -1297,8 +1314,7 @@ end
 function setup_vehicle_submenu(m, user, vehicleName)
     local saveData = cloudUserVehicleSaveDataCache[user][vehicleName]
     if not saveData then
-        HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
-        HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+        show_busyspinner("Loading " .. vehicleName)
         async_http.init("jackz.me", "/stand/vehicles/" .. user .. "/" .. vehicleName, function(result)
             HUD.BUSYSPINNER_OFF()
             saveData = json.decode(result)
@@ -1345,8 +1361,7 @@ end
 menu.action(cloudSearchMenu, "> " .. lang.format("CLOUD_SEARCH_NEW_NAME"), {"searchcloud"}, "", function(_)
     menu.show_command_box("searchcloud ")
 end, function(args)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+    show_busyspinner("Searching " .. args)
     async_http.init("jackz.me", "/stand/vehicles/list?q=" .. args, function(result)
         HUD.BUSYSPINNER_OFF()
         for _, m in ipairs(cloudSearchMenus) do
@@ -1432,12 +1447,14 @@ menu.on_focus(cloudUploadMenu, function(_)
                         lang.toast("CLOUD_UPLOAD_NO_ID")
                     end
                     local scName = SOCIALCLUB._SC_GET_NICKNAME()
+                    show_busyspinner("Uploading vehicle...")
                     async_http.init("jackz.me", "/stand/vehicles/upload?user=" .. scName .. "&name=" .. name, function(result)
                         if result == "SUCCESS" then
                             lang.toast("CLOUD_UPLOAD_SUCCESS")
                         else
                             lang.toast("CLOUD_UPLOAD_ERROR", result)
                         end
+                        HUD.BUSYSPINNER_OFF()
                     end)
                     async_http.add_header("X-Cloud-ID", cloudID)
                     async_http.set_post("Content-Type: application/json", json.encode(saveData))
@@ -1468,8 +1485,7 @@ local isFetchingCloudUser = {}
 local isFetchingUsers = false
 menu.divider(cloudVehicles, lang.format("CLOUD_BROWSE_DIVIDER"))
 menu.on_focus(cloudVehicles, function(_)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+    show_busyspinner("Loading cloud users...")
     if isFetchingUsers then
         return
     end
@@ -1491,8 +1507,7 @@ menu.on_focus(cloudVehicles, function(_)
                     return
                 end
                 isFetchingCloudUserVehicles[user] = true
-                HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("MP_SPINLOADING")
-                HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(3)
+                show_busyspinner("Loading " .. user .. "'s vehicles")
                 async_http.init("jackz.me", "/stand/vehicles/list?user=" .. user, function(result)
                     for _, m in ipairs(cloudUserVehicleMenus) do
                         pcall(menu.delete, m)
@@ -1577,6 +1592,7 @@ menu.on_focus(savedVehiclesList, function()
                     else
                         load_hash(saveData.Model)
                         vehicle = util.create_vehicle(saveData.Model, pos, heading)
+                        STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
                         lang.toast("VEHICLE_SPAWNED", name)
                     end
 
@@ -1603,11 +1619,15 @@ end)
 -- CURRENT VEHICLE MODIFIERS SEC
 ----------------------------------
 local CVModifiers = {
+    ACTIVE = false,
     Lights = 1.0,
     Torque = 1.0,
     Traction = 1,
 }
 local currentModifiersMenu = lang.menus.list(menu.my_root(), "CVM", {})
+lang.menus.toggle(currentModifiersMenu, "CVM_ACTIVE", {}, function(on)
+    CVModifiers.ACTIVE = on
+end, CVModifiers.ACTIVE)
 lang.menus.slider(currentModifiersMenu, "CVM_LIGHTS", {"vlights"}, 0, 10000, CVModifiers.Lights * 100, 100, function(value)
     CVModifiers.Lights = value / 100
 end)
@@ -1874,6 +1894,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, la
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
         PED.SET_PED_AS_ENEMY(ped, true)
         TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
+        TASK.SET_PED_KEEP_TASK(ped, true)
     end
 end)
 menu.action(nearbyMenu, lang.format("NEARBY_HONK_NAME"), {"honkall"}, lang.format("NEARBY_HONK_DESC"), function(_)
@@ -2264,17 +2285,35 @@ end
 players.on_join(function(pid) setup_action_for(pid) end)
 
 local spinHeading = 0
+local Indicators = { Left = false, Right = false }
 while true do
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
     if my_vehicle > 0 then
-        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(my_vehicle, CVModifiers.Torque)
-        VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(my_vehicle, CVModifiers.Lights)
-        -- VEHICLE._SET_TYRE_TRACTION_LOSS_MULTIPLIER(my_vehicle, CVModifiers.Traction)
-        if CVModifiers.Traction ~= 1.0 then
-            VEHICLE.SET_VEHICLE_REDUCE_GRIP(my_vehicle, true)
+        if CVModifiers.ACTIVE then
+            VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(my_vehicle, CVModifiers.Torque)
+            VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(my_vehicle, CVModifiers.Lights)
+            -- VEHICLE._SET_TYRE_TRACTION_LOSS_MULTIPLIER(my_vehicle, CVModifiers.Traction)
+            if CVModifiers.Traction ~= 1.0 then
+                VEHICLE.SET_VEHICLE_REDUCE_GRIP(my_vehicle, true)
+            else
+                VEHICLE.SET_VEHICLE_REDUCE_GRIP(my_vehicle, false)
+            end
+            VEHICLE._SET_VEHICLE_REDUCE_TRACTION(my_vehicle, CVModifiers.Traction)
         end
-        VEHICLE._SET_VEHICLE_REDUCE_TRACTION(my_vehicle, CVModifiers.Traction)
+        -- if PAD.IS_CONTROL_JUST_PRESSED(2, 82) then
+        --     AUDIO.SET_USER_RADIO_CONTROL_ENABLED(false)
+        --     Indicators.Left = not Indicators.Left
+        --     VEHICLE.SET_VEHICLE_INDICATOR_LIGHTS(my_vehicle, 1, Indicators.Left)
+        --     util.yield()
+        --     AUDIO.SET_USER_RADIO_CONTROL_ENABLED(true)
+        -- elseif PAD.IS_CONTROL_JUST_PRESSED(2, 81) then
+        --     AUDIO.SET_USER_RADIO_CONTROL_ENABLED(false)
+        --     Indicators.Right = not Indicators.Right
+        --     VEHICLE.SET_VEHICLE_INDICATOR_LIGHTS(my_vehicle, 0, Indicators.Right)
+        --     util.yield()
+        --     AUDIO.SET_USER_RADIO_CONTROL_ENABLED(true)
+        -- end
     end
     if autodriveDriver > 0 and autodriveOnlyWhenOntop then
         local selfOntop = PED.IS_PED_ON_VEHICLE(my_ped)

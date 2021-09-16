@@ -1,7 +1,8 @@
 -- Stand Chat 
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.2"
+local VERSION = "1.2.4"
+local LANG_TARGET_VERSION = "1.2.1" -- Target version of translations.lua lib
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -63,7 +64,7 @@ end
 try_load_lib("natives-1627063482.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
-if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= "1.2.0" then
+if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= LANG_TARGET_VERSION then
   util.toast("Outdated translations library, downloading update...")
   os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
   package.loaded["translations"] = nil
@@ -93,6 +94,11 @@ if filesystem.exists(CHANGELOG_PATH) then
     io.close(file)
     os.remove(CHANGELOG_PATH)
 end
+function show_busyspinner(text)
+  HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+  HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+  HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
 -- begin actual plugin code
 local lastTimestamp = util.current_unix_time_millis() * 1000 - 10000
 local messages = {}
@@ -101,7 +107,7 @@ local waiting = false
 local showExampleMessage = false
 local sendChannel = "default"
 local recvChannel = sendChannel
-local devToken = nil
+local devToken = nil -- don't waste your time. you're not a dev.
 local textColor = { r = 1.0, g = 1.0, b = 1.0, a = 1.0 }
 local bgColor = { r = 0.0, g = 0.0, b = 0.0, a = 0.3 }
 local chatPos = { x = 0.0, y = 0.4 }
@@ -180,10 +186,10 @@ menu.toggle(menu.my_root(), lang.format("RECV_ALL_PUBLIC_NAME"), {"chatglobal"},
   end
 end, false)
 
-
 menu.action(menu.my_root(), lang.format("SEND_MSG_NAME"), { "chat", "c" }, lang.format("SEND_MSG_DESC") .. "\n\n" .. lang.format("SEND_CHAT_AS", user), function(_)
   menu.show_command_box("chat ")
 end, function(args)
+  show_busyspinner("Sending messsage")
   async_http.init("stand-chat.jackz.me", "/channels/" .. sendChannel .. "?v=" .. VERSION, function(result)
     if result == "OK" or result == "Bad Request" then
       table.insert(messages, {
@@ -197,6 +203,7 @@ end, function(args)
     else
       lang.toast("SEND_ERR", result)
     end
+    HUD.BUSYSPINNER_OFF()
   end)
   async_http.set_post("application/json", json.encode({
     user = user,
@@ -246,12 +253,12 @@ while true do
       table.remove(messages, a)
     else
       local content
-      if msg.ip then
+      if msg.ip then -- Only for jackz :)
         content = msg.l and string.format("[%s] [%s] %s: %s", msg.ip, msg.l, msg.u, msg.c) or string.format("[%s] %s: %s", msg.ip, msg.u, msg.c)
       else
         content = msg.l and string.format("[%s] %s: %s", msg.l, msg.u, msg.c) or (msg.u .. ": " .. msg.c)
       end
-      -- compute largest width of chat box
+      -- compute largest width of text, to set chatbot width
       local w = directx.get_text_size(content, textSize)
       if w > width then
         width = w

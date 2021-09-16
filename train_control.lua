@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.1.0"
+local VERSION = "1.1.1"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -34,7 +34,11 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
     end
 end)
 async_http.dispatch()
-
+function show_busyspinner(text)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
 local WaitingLibsDownload = false
 function try_load_lib(lib)
     local status = pcall(require, lib)
@@ -85,12 +89,14 @@ local last_train_menu = 0
 local globalTrainSpeed = 15
 local globalTrainSpeedControlEnabled = false
 
+show_busyspinner("Loading Train Models")
 for _, model in ipairs(models) do
     STREAMING.REQUEST_MODEL(model)
     while not STREAMING.HAS_MODEL_LOADED(model) do
         util.yield()
     end
 end
+HUD.BUSYSPINNER_OFF()
 
 local spawnedMenu = menu.list(menu.my_root(), "Spawned Train Management", {}, "")
 local function spawn_train(variation, pos, direction) 
@@ -249,7 +255,7 @@ menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains 
     end
 end, false)
 
-util.on_stop(function(a)
+util.on_stop(function(_)
     for _, model in ipairs(models) do
         STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
     end

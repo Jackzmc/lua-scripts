@@ -21,6 +21,42 @@ local textc_w = { r = 1, g = 1, b = 1, a = 1 }
 local textc_b = { r = 8 / 255, g = 159 / 255, b = 246, a = 1}
 local textc_g = { r = 0.7, g = 1, b = 0.7, a = 1 }
 local textc_r = { r = 1, g = 0.6, b = 0.6, a = 1 }
+local scaleform = 0
+menu.action(menu.my_root(), "text", {}, "", function(_)
+    if scaleform > 0 then
+        GRAPHICS.SET_SCALEFORM_MOVIE_AS_NO_LONGER_NEEDED(scaleform)
+    end
+    local scaleForm = GRAPHICS.REQUEST_SCALEFORM_MOVIE("breaking_news")
+    while not GRAPHICS.HAS_SCALEFORM_MOVIE_LOADED(scaleForm) do
+        util.yield()
+    end
+    GRAPHICS.BEGIN_SCALEFORM_MOVIE_METHOD(scaleForm, "SET_SCROLL_TEXT")
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 1)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 1)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING("BREAKING NEWS")
+	GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
+
+    GRAPHICS.BEGIN_SCALEFORM_MOVIE_METHOD(scaleForm, "SET_SCROLL_TEXT")
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 0)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 0)
+	GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING("RAGING CANADIAN ON AN OPPRESSOR TERRORIZING THE STREETS")
+	GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
+
+    GRAPHICS.BEGIN_SCALEFORM_MOVIE_METHOD(scaleForm, "DISPLAY_SCROLL_TEXT")
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 0)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 0)
+    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(scaleForm, 2)
+	GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
+    scaleform = scaleForm
+   
+end)
+
+util.create_tick_handler(function(_)
+    if scaleform > 0 then
+        GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(scaleform, 255, 255, 255, 0)
+    end
+    return true
+end)
 
 -- function get_business_stat(business, offset)
 --     local global = memory.script_global()
@@ -156,6 +192,9 @@ util.on_stop(function()
     for _, e in ipairs(pending_delete) do
         util.delete_entity(e)
     end
+    if scaleform > 0 then
+        GRAPHICS.SET_SCALEFORM_MOVIE_AS_NO_LONGER_NEEDED(scaleform)
+    end
 end)
 
 menu.action(menu.my_root(), "Clear Nearby Peds", {}, "", function(on_click)
@@ -179,6 +218,7 @@ end)
 
 menu.action(menu.my_root(), "Clear Nearby Vehicles", {}, "", function(on_click)
     local vehicles = util.get_all_vehicles()
+    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
     local count = 0
@@ -443,8 +483,6 @@ local is_last_valid = false
 -- util.trigger_script_event(int session_player_bitflags, table<any, int> data)
 local tick = 0
 while true do
-    local vehicle = util.get_vehicle()
-    VEHICLE.SET_VEHICLE_INDICATOR_LIGHTS(vehicle, tick, true)
     if active_target > 0 then
         local pos = ENTITY.GET_ENTITY_COORDS(active_target, 1)
         local vel = ENTITY.GET_ENTITY_VELOCITY(active_target)
@@ -508,7 +546,7 @@ while true do
                 if pair.dist < 100 or pair.offset.y < 5 and pair.offset.y > -60.0 and math.abs(pair.offset.z) <= 20 and math.abs(pair.offset.x) <= 4 and (pair.vel.x ~= 0.0 or pair.vel.y ~= 0.0) then
                     
                     if pair.status > 1 then
-                        directx.draw_text(0.2, 0.4 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [active]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
+                        directx.draw_text(0.3, 0.7 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [active]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
                         util.create_thread(function() 
                             if pair.has_safe_spot then
                                 TASK.TASK_VEHICLE_TEMP_ACTION(pair.ped, pair.vehicle, 26, 400)
@@ -519,22 +557,22 @@ while true do
                         end)
                         
                     elseif pair.has_safe_spot then
-                        directx.draw_text(0.2, 0.4 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [safe spot]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
+                        directx.draw_text(0.3, 0.7 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [safe spot]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
                     else
-                        directx.draw_text(0.2, 0.4 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
+                        directx.draw_text(0.3, 0.7 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d     %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_g, false)
                     end
                 elseif pair.dist <= 10000 then
                     if pair.vel.x == 0 and pair.vel.y == 0 then
-                        directx.draw_text(0.2, 0.4 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d    %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [stopped]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_r, false)
+                        directx.draw_text(0.3, 0.7 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d    %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f [stopped]", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_r, false)
                     else
-                        directx.draw_text(0.2, 0.4 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d    %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_r, false)
+                        directx.draw_text(0.3, 0.7 + (0.02*i), string.format("ped %2d - %8.0f m^2 - %2d    %2.1f OFFSET %2.1f %2.1f %2.1f zdiff %2.1f", pair.a, pair.dist, pair.status, pair.heading, pair.offset.x, pair.offset.y, pair.offset.z, pair.zdiff), 0, 0.5, textc_r, false)
                     end
                 end
             end
             tick = 0
         end
         tick = tick + 1
-        directx.draw_text(0.93, 0.85, string.format("src (%.1f, %.1f, %.1f)\ndest (%.1f, %.1f, %.1f)", src.x, src.y, src.z, dest.x, dest.y, dest.z), 1, 0.5, textc_w, false)
+        -- directx.draw_text(0.93, 0.85, string.format("src (%.1f, %.1f, %.1f)\ndest (%.1f, %.1f, %.1f)", src.x, src.y, src.z, dest.x, dest.y, dest.z), 1, 0.5, textc_w, false)
         util.yield()
     end
     local player = players.user()

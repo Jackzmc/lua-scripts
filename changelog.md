@@ -174,9 +174,9 @@ v3.0.0
 
 * Added complete translation support. All text elements (within reason) are pulled from a translations file.
 * This took me like 5 hours
-* (3.1.1) Fixed spawning errroing
-* (3.1.2) Refactored a LOT of code
-* (3.1.2) Automatically update translations library to latest
+* (3.0.1) Fixed spawning errroing
+* (3.0.2) Refactored a LOT of code
+* (3.0.2) Automatically update translations library to latest
 
 v3.1.0
 
@@ -198,6 +198,8 @@ v3.2.0
 * (3.2.1) Moved Set License Plate into Los Santos Customs
 * (3.2.1) Fix spawnvehicle conflicting with official stand saving
 * (3.2.1) Fixed extras not spawning on saved
+* (3.2.2) Add text to loading indicators for cloud section
+* (3.2.3) Add option to enable multipliers
 
 # actions (v1.7.1)
 
@@ -236,6 +238,7 @@ v1.6
 * (1.7.0) Allow you to set the interval that voice lines are repeated
   * Best: Duration 0 for constant repeat at 500ms with kiflom or insult :)
 * (1.7.6) Fixed 'controllable' not activating on first load
+* (1.7.7) Improved loading time slightly
 
 # jackz chat (v1)
 
@@ -253,6 +256,7 @@ V1.2.0
 * Added translation support
 * (1.2.1) Added a 'Language' selector
 * (1.2.2) Fixed not auto updating translation lib
+* (1.2.3) Updated translations lib target version
 
 # train control (v1)
 
@@ -263,3 +267,4 @@ V1.1.0
 * Fix delete last spawned train not working
 * Fix deleting vehicle in spawned list not deleting
 * Properly spawn in metro train
+* Added loading indicator when models are first being loaded

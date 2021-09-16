@@ -5,7 +5,7 @@
 -- See the return { } table at bottom for public methods
 -- See jackz_chat or jackz_vehicles for examples (jackz_vehicles: line 73)
 
-local LIB_VERSION = "1.2.0"
+local LIB_VERSION = "1.2.1"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -153,18 +153,26 @@ end
 -- Attempt to load the specified translation file, returns language if successful or false if none found
 -- Needs to be called or all text will return translated ERR_NO_TRANSLATION_FILE_LOADED
 -- filePrefix: filename to load. Do not put extension.
+-- Will append active language to filename (filePrefix = "jackz_vehicles") results in "jackz_vehicles_en-US.txt" being loaded
 function load_translation_file(filePrefix)
     if parse_translations_from_file(filePrefix .. "_" .. lang) then
         translationAvailable = true
         return lang
     elseif autodownload.domain ~= nil then
+        -- Attempt to download language file for preferred language:
         download_translation_file(autodownload.domain, autodownload.uri, filePrefix .. "_" .. lang)
         while autodownload.active do
             util.yield()
         end
+
         if translationAvailable then
             return lang
-        elseif parse_translations_from_file(filePrefix .. "_" .. "en-US") then -- Could not find any file to auto download, fall back to english
+        end
+        -- Don't fallback to en-US if there is no en-US
+        if lang == "en_US" then
+            return false
+        end
+        if parse_translations_from_file(filePrefix .. "_" .. "en-US") then -- Could not find any file to auto download, fall back to english
             translationAvailable = true
             lang = "en-US"
             return lang
@@ -227,8 +235,11 @@ end
 function get_language_id()
     return lang
 end
-
-
+-- Returns the raw translation text for an id
+-- Similar to .format(id) except returns nil if id does not exist
+function get_raw_string(translationID)
+    return translations[string.upper(translationID)]
+end
 -- Formats the specified localized text entry with optional arguments. Calls string.format if arguments provided
 -- Returns an error message if no translation file was loaded.
 -- Returns translation id if translation was not found.
@@ -249,7 +260,7 @@ end
 -- Formats the specified localized text entry with optional arguments. Calls string.format if arguments provided
 -- Toasts an error message if no translation file was loaded.
 -- Toasts translation id if translation was not found.
--- Runs the format function and also toasts the value
+-- Shortcut to util.toast(lang.format(...))
 function toast(translationID, ...)
     if not translationAvailable then
         util.toast(get_internal_message("ERR_NO_TRANSLATION_FILE_LOADED"))
@@ -283,12 +294,12 @@ return {
     get_language_id = get_language_id,
     format = format,
     toast = toast,
-    translations = translations, -- List of [TRANSLATION_KEY]: Message, can mutate but not best practice
+    get_raw_string = get_raw_string,
     GAME_LANGUAGE_IDS = GAME_LANGUAGE_IDS, -- Return table of lang iso's - don't mutate
     LANGUAGE_NAMES = LANGUAGE_NAMES, -- Returns table of language english names - don't mutate
     -- Implement implementations of stand menu items w/ nicer translation support.
     -- Lang keys inputted (translationKey) will automatically be suffixed with _NAME and _DESC
-    -- MY_TRANSL_KEY -> MY_TRANSL_KEY_NAME && MY_TRANSL_KEY_DESC
+    -- MY_TRANSL_KEY -> MY_TRANSL_KEY_NAME as command name && MY_TRANSL_KEY_DESC as command description
     menus = {
         -- Creates a menu.list() with translation prefix
         list = function(root, translationKey, commands)

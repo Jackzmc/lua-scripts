@@ -33,7 +33,15 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
     end
 end)
 async_http.dispatch()
-function try_load_lib(lib, globalName)
+function show_busyspinner(text)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
+function try_load_lib(lib, globalName, loadingText)
+    if loadingText then
+        show_busyspinner(loadingText)
+    end
     local status, f = pcall(require, string.sub(lib, 0, #lib - 4))
     if not status then
         local downloading = true
@@ -56,15 +64,18 @@ function try_load_lib(lib, globalName)
         while downloading do
             util.yield()
         end
+        HUD.BUSYSPINNER_OFF()
     elseif globalName then
         _G[globalName] = f
+        HUD.BUSYSPINNER_OFF()
     end
 end
 try_load_lib("natives-1627063482.lua")
-try_load_lib("animations.lua")
 try_load_lib("translations.lua", "lang")
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+show_busyspinner("Checking for translations...")
 lang.load_translation_file(SCRIPT)
+HUD.BUSYSPINNER_OFF()
 -- Check if there is any changelogs (just auto-updated)
 if filesystem.exists(CHANGELOG_PATH) then
     local file = io.open(CHANGELOG_PATH, "r")
@@ -76,8 +87,11 @@ if filesystem.exists(CHANGELOG_PATH) then
     -- Update translations
     lang.update_translation_file(SCRIPT)
 end
+try_load_lib("animations.lua", nil, "Loading Animations File")
+
 -- Check if animations library is incorrect
 if ANIMATIONS_INDEX_VERSION ~= "3.0" then
+    show_busyspinner("Updating animations lib")
     util.async_http_get("jackz.me", "/stand/lua/libs/animations.lua", function(result)
         local file = io.open(filesystem.scripts_dir() .. "/lib/animations.lua", "w")
         io.output(file)
@@ -85,6 +99,7 @@ if ANIMATIONS_INDEX_VERSION ~= "3.0" then
         io.close(file)
         require(filesystem.scripts_dir() .. "/lib/animations.lua")
         util.log(SCRIPT .. ": Updated animations.lua library file successfully")
+        HUD.BUSYSPINNER_OFF()
     end, function(e)
         util.toast(SCRIPT .. ": Failed to automatically update animations library file. Please download latest file manually.")
         util.stop_script()
@@ -348,6 +363,7 @@ local menus = {
     subheaders = {}
 }
 menu.divider(animationsMenu, "Animations")
+show_busyspinner("Loading Menus...")
 for _, header in ipairs(ANIMATIONS_HEADINGS) do
     if not menus[header] then
         menus.headers[header] = menu.list(animationsMenu, header)
@@ -396,6 +412,7 @@ for group, scenarios in pairs(SCENARIOS) do
         end)
     end
 end
+HUD.BUSYSPINNER_OFF()
 -----------------------
 -- Speeches
 ----------------------
@@ -612,6 +629,7 @@ function create_self_speech_ped()
     NETWORK._NETWORK_SET_ENTITY_INVISIBLE_TO_NETWORK(ped, true)
     selfSpeechPed.entity = ped
     selfSpeechPed.lastUsed = util.current_unix_time_millis()
+    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
 end
 -----------------------
 -- Animation Functions
