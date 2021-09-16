@@ -16,7 +16,7 @@ local SCALEFORM_TYPES = { -- List of valid scaleform movie types
 }
 
 function show_busyspinner(text)
-    
+    HUD.
 end
 
 function hide_busyspinner()
@@ -108,22 +108,37 @@ end
 
 -- 0: Normal, 1: Interactive, 2: Fullscreen
 -- Possibly use this to specify type for .activate() ?
-function set_display_mode(mode) end
+function set_display_mode(mode) error("Not Implemented") end
 
 
 -- Needs to be called everyframe
-function display(--[[ scaleformHandle --]] scaleform, mode)
-
+function display(--[[ scaleformHandle --]] scaleform, pos, size, color)
+    GRAPHICS.DRAW_SCALEFORM_MOVIE(scaleform, pos.x, pos.y, size.w, size.h, color.r, color.g, color.b, color.a)
 end
 
-function display_interactive(--[[ scaleformHandle --]] scaleform)
-
+function display_3D(--[[ scaleformHandle --]] scaleform)
+    error("Not implemented")
 end
 
-function display_fullscreen(--[[ scaleformHandle --]] scaleform)
-
+function display_fullscreen(--[[ scaleformHandle --]] scaleform, --[[ Color --]] color)
+    GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(scaleform, color.r, color.g, color.b, color.a)
 end
 
 return {
+    show_busyspinner = show_busyspinner,
+    hide_busyspinner = hide_busyspinner,
+    create_new_scaleform = create_new_scaleform,
+    destroy = destroy,
+    set_method_to_text = set_method_to_text,
+    add_text = add_text,
+    add_bool = add_bool,
+    add_float = add_float,
+    add_int = add_int,
+    finish_method = finish_method,
+    activate = activate,
+    deactivate = deactivate,
+    clear_all_displayed = clear_all_displayed,
+    display = display,
+    display_fullscreen = display_fullscreen,
     -- TODO: Add pub methods
 }
