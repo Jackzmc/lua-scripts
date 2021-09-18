@@ -6,7 +6,8 @@ local Scaleform = {
     LIB_VERSION = "1.0.0",
 
     displayTickThreadActive = false,
-    displayedInstances = {}
+    displayedInstances = {},
+    phone = {}
 }
 Scaleform.__index = Scaleform
 
@@ -14,16 +15,20 @@ function Scaleform.libVersion()
     return Scaleform.LIB_VERSION
 end
 
+-- Shows a loading indicator on the bottom right with whatever text
+-- text is required, type is optional
 function Scaleform.ShowLoadingIndicator(text, type)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(type or 2)
 end
 
+-- Stops loading indicator
 function Scaleform.EndLoadingIndicator()
     HUD.BUSYSPINNER_OFF()
 end
 
+-- I don't actually know if this finds existing ones, or technically creates a new one. But it works the same as :create(). shrug.
 function Scaleform:findInstance(sfName)
     if not sfName then
         return error("Scaleform name is required")
@@ -37,6 +42,7 @@ function Scaleform:findInstance(sfName)
     return this
 end
 
+-- Creates a new scaleform, waits for it to load and returns its instance
 function Scaleform:create(sfName)
     if not sfName then
         return error("Scaleform name is required")
@@ -53,6 +59,7 @@ function Scaleform:create(sfName)
     return this
 end
 
+-- Creates a new scaleform for the front end, waits for it to load and returns its instance
 function Scaleform:createFrontend(sfName)
     if not sfName then
         return error("Scaleform name is required")
@@ -69,6 +76,7 @@ function Scaleform:createFrontend(sfName)
     return this
 end
 
+-- Creates a new scaleform for the front end header, waits for it to load and returns its instance
 function Scaleform:createFrontendHeader(sfName)
     if not sfName then
         return error("Scaleform name is required")
@@ -84,21 +92,30 @@ function Scaleform:createFrontendHeader(sfName)
     return this
 end
 
+-- Will cleanup scaleform, needs to be called manually
+function Scaleform:destroy()
+    self:deactivate()
+    GRAPHICS.SET_SCALEFORM_MOVIE_AS_NO_LONGER_NEEDED(self.handle)
+    self = nil
+end
+
+-- Shortcut to Scaleform.createMethod(), Scaleform.addXXX(), Scaleform.endMethod(). Will automatically parse the correct data types.
+-- Example: Scaleform:run("SET_TEXT", title, desc) -- Used in BREAKING_NEWS
 function Scaleform:run(methodName, ...)
-    startMethod(self.handle, methodName)
+    Scaleform.startMethod(self, methodName)
     for i, param in ipairs({...}) do
         if type(param) == "string" then
-            addString(param)
+            Scaleform.addString(param)
         elseif type(param) == "boolean" then
-            addBool(param)
+            Scaleform.addBool(param)
         elseif type(param) == "number" then
-            addInt(param)
+            Scaleform.addInt(param)
         else
-            endMethod()
+            Scaleform.endMethod()
             return error("Invalid parameter type (" .. type(param) .. ") for arg #" .. i + 2)
         end
     end
-    endMethod()
+    Scaleform.endMethod()
 end
 
 function Scaleform:displayFullscreen()
@@ -109,16 +126,24 @@ function Scaleform:display(x, y, width, height, color)
 end
 
 function Scaleform:display3D(pos, rot, scale, sharpness)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D(self.handle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x or 1.0, scale.y or 1.0, scale.z or 1.0, 0)
+    if not scale then
+        scale = {x = 1.0, y = 1.0, z = 1.0}
+    end
+    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D(self.handle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x, scale.y, scale.z, 0)
 end
 function Scaleform:display3DSolid(pos, rot, scale, sharpness)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D_SOLID(self.handle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x or 1.0, scale.y or 1.0, scale.z or 1.0, 0)
+    if not scale then
+        scale = {x = 1.0, y = 1.0, z = 1.0}
+    end
+    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D_SOLID(self.handle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x, scale.y, scale.z, 0)
 end
 
-function Scaleform:displayFullscreenMasked(--[[ scaleformHandle --]] scaleform2, r, g, b, a)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(self.handle, scaleform2, r or 0, g or 0, b or 0, a or 255)
+-- scaleformMask: The scaleform to mask on top of this
+function Scaleform:displayFullscreenMasked(scaleformMask, r, g, b, a)
+    GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(self.handle, scaleformMask.handle, r or 0, g or 0, b or 0, a or 255)
 end
 
+-- Starts the running of a new method input, shared with all other scaleforms. You MUST call Scaleform.endMethod before you can use this again
 function Scaleform.startMethod(sf, methodName)
     if Scaleform.activeMethod then error("Call Scaleform.endMethod before starting new method") end
     Scaleform.activeMethod = {
@@ -145,9 +170,29 @@ function Scaleform.endMethod()
     Scaleform.activeMethod = nil
     GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
 end
+local function _get_return()
+    activeMethod = nil
+    local returnHandle = GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE()
+    while not GRAPHICS.IS_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_READY(returnHandle) do
+        util.yield()
+    end
+    return returnHandle
+end
+-- Same as endMethod but gets the return value if its an int
+function Scaleform.endMethodGetInt()
+    return GRAPHICS.GET_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_INT(_get_return())
+end
+-- Same as endMethod but gets the return value if its an bool
+function Scaleform.endMethodGetBool()
+    return GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_BOOL(_get_return())
+end
+-- Same as endMethod but gets the return value if its an string
+function Scaleform.endMethodGetString()
+    return GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_STRING(_get_return())
+end
 
--- Will internally call .display_fullscreen(), until duration runs out.
--- If duration is nil, will run forever. Call deactivate(scaleform) to stop
+-- Will display automatically for upto given amount of time. 
+-- If ms is nil, will run until :deactivate() or Scaleform.clearAllDisplayed() is called
 function Scaleform:activate(ms)
     self.duration = ms or -1
     self.active = true
@@ -162,7 +207,7 @@ function Scaleform:activate(ms)
                 len = len + 1
                 if sfInstance.duration ~= -1 then
                     sfInstance.duration = sfInstance.duration - 10
-                    util.draw_debug_text(sfInstance.name .. ": " .. sfInstance.duration)
+                    -- util.draw_debug_text(sfInstance.name .. ": " .. sfInstance.duration)
                     if sfInstance.duration <= 0 then
                         sfInstance.active = false
                         table.remove(Scaleform.displayedInstances, i)
@@ -178,10 +223,12 @@ function Scaleform:activate(ms)
     end
 end
 
+-- Is the scaleform being rendered (automatically)
 function Scaleform:isActive()
     return self.isActive
 end
 
+-- Stops automatically rendering the scaleform
 function Scaleform:deactivate()
     self.isActive = false
     for i, sfInstance in ipairs(Scaleform.displayedInstances) do
@@ -192,105 +239,10 @@ function Scaleform:deactivate()
     end
 end
 
+-- Clears all actively automtically rendered scaleforms
 function Scaleform.clearAllDisplayed()
     Scaleform.displayedInstances = {}
     Scaleform.displayTickThreadActive = false -- Kill tick handler
-end
-
--- creates a new scaleform and returns its handle
--- See list of scaleforms (left nav bar) here: https://vespura.com/fivem/scaleform/
-function create(sfName)
-    local handle = GRAPHICS.REQUEST_SCALEFORM_MOVIE(sfName)
-    while not GRAPHICS.HAS_SCALEFORM_MOVIE_LOADED(handle) do
-        util.yield()
-    end
-    return handle
-end
-
--- creates a new scaleform on the frontend and returns its handle
--- See list of scaleforms (left nav bar) here: https://vespura.com/fivem/scaleform/
-function createFrontend(sfName)
-    local handle = GRAPHICS.REQUEST_SCALEFORM_MOVIE_ON_FRONTEND(sfName)
-    while not GRAPHICS.HAS_SCALEFORM_MOVIE_LOADED(handle) do
-        util.yield()
-    end
-    return handle
-end
-
-function createFrontendHeader(sfName)
-    local handle = GRAPHICS.REQUEST_SCALEFORM_MOVIE_ON_FRONTEND_HEADER(sfName)
-    while not GRAPHICS.HAS_SCALEFORM_MOVIE_LOADED(handle) do
-        util.yield()
-    end
-    return handle
-end
-
-function startMethod(--[[ scaleformHandle --]] scaleform, methodName)
-    if activeMethod then error("Call endMethod before starting new method") end
-    activeMethod = {
-        type = methodName,
-        handle = scaleform
-    }
-    GRAPHICS.BEGIN_SCALEFORM_MOVIE_METHOD(scaleform, activeMethod.type)
-end
-
--- Will run in one line, StartMethod, parameters, EndMethod
-function runMethod(--[[ scaleformHandle --]] scaleform, methodName, ...)
-    startMethod(scaleform, methodName)
-    local params = {...}
-    for i, param in ipairs(params) do
-        if type(param) == "string" then
-            addString(param)
-        elseif type(param) == "boolean" then
-            addBool(param)
-        elseif type(param) == "number" then
-            addInt(param)
-        else
-            endMethod()
-            return error("Invalid parameter type (" .. type(param) .. ") for arg #" .. i + 2)
-        end
-    end
-    endMethod()
-end
-
--- Adds text
-function addString(str)
-    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING(str)
-end
-function addBool(bool)
-    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_BOOL(bool)
-end
-function addInt(int)
-    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(int)
-end
-function addFloat(float)
-    GRAPHICS.SCALEFORM_MOVIE_METHOD_ADD_PARAM_INT(float)
-end
--- Ends the method building and fires the method
-function endMethod()
-    activeMethod = nil
-    GRAPHICS.END_SCALEFORM_MOVIE_METHOD()
-end
-
-local function _get_return()
-    activeMethod = nil
-    local returnHandle = GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE()
-    while not GRAPHICS.IS_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_READY(returnHandle) do
-        util.yield()
-    end
-    return returnHandle
-end
--- Same as endMethod but gets the return value if its an int
-function endMethodGetInt()
-    return GRAPHICS.GET_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_INT(_get_return())
-end
--- Same as endMethod but gets the return value if its an bool
-function endMethodGetBool()
-    return GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_BOOL(_get_return())
-end
--- Same as endMethod but gets the return value if its an string
-function endMethodGetString()
-    return GRAPHICS.END_SCALEFORM_MOVIE_METHOD_RETURN_VALUE_STRING(_get_return())
 end
 
 -- CALL SECTIONS
@@ -341,78 +293,11 @@ function call_method_with_strings(--[[ scaleformHandle --]] scaleform, methodNam
     native_invoker.end_call("51BC1ED3CC44E8F7")
 end
 
-function _create_displayer()
-    if not displayTickThreadActive then
-        displayTickThreadActive = true
-        util.create_tick_handler(function(_)
-            for handle, msLeft in pairs(displayedSFDurationLeft) do
-                displayFullscreen(handle)
-                -- If there is a duration attached, tick it downwards:
-                if msLeft ~= -1 then
-                    displayedSFDurationLeft[handle] = msLeft - 10
-                    if displayedSFDurationLeft[handle] <= 0 then --Call deactivate, will destroy this tick handler if empty
-                        deactivate(handle)
-                    end
-                end
-            end
-            return displayTickThreadActive
-        end)
-    end
-end
-
--- Will internally call .display_fullscreen(), until duration runs out.
--- If duration is nil, will run forever. Call deactivate(scaleform) to stop
-function activate(--[[ scaleformHandle --]] scaleform, ms)
-    displayedSFDurationLeft[scaleform] = ms or -1
-    _create_displayer()
-end
-
-function isActive(--[[ scaleformHandle --]] scaleform)
-    return displayedSFDurationLeft[scaleform] ~= nil
-end
-
-function deactivate(--[[ scaleformHandle --]] scaleform)
-    displayedSFDurationLeft[scaleform] = nil
-    local len = #displayedSFDurationLeft
-    if len == 0 then
-        displayTickThreadActive = false
-    end
-end
-
-function clearAllDisplayed()
-    displayedScaleforms = {}
-    displayTickThreadActive = false -- Kill tick handler
-end
-
--- 0: Normal, 1: Interactive, 2: Fullscreen
--- Possibly use this to specify type for .activate() ?
-function set_display_mode(mode) error("Not Implemented") end
-
-
--- Needs to be called everyframe
-function display(--[[ scaleformHandle --]] scaleform, x, y, width, height, color)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE(scaleform, x, y, width ,height, color.r, color.g, color.b, color.a)
-end
-
-function display3D(--[[ scaleformHandle --]] scaleform, pos, rot, scale, sharpness)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D(scaleform, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x or 1.0, scale.y or 1.0, scale.z or 1.0, 0)
-end
-function display3DSolid(--[[ scaleformHandle --]] scaleform, pos, rot, scale, sharpness)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_3D_SOLID(scaleform, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, 0.0, sharpness or 1.0, 0.0, scale.x or 1.0, scale.y or 1.0, scale.z or 1.0, 0)
-end
-
-function displayFullscreen(--[[ scaleformHandle --]] scaleform, r, g, b, a)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(scaleform, r or 255, g or 255, b or 255, a or 255)
-end
-function displayFullscreenMasked(--[[ scaleformHandle --]] scaleform, --[[ scaleformHandle --]] scaleform2, r, g, b, a)
-    GRAPHICS.DRAW_SCALEFORM_MOVIE_FULLSCREEN(scaleform, scaleform2, r or 0, g or 0, b or 0, a or 255)
-end
--- Specific scaleforms (borrowed from https://github.com/unknowndeira/es_extended/blob/master/client/modules/scaleform.lua)
+-- Specific scaleforms (borrowed & modified from https://github.com/unknowndeira/es_extended/blob/master/client/modules/scaleform.lua)
 
 -- Shows a freemode banner on top of screen (ex: Business Battles / Yacht Defense)
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
-local builtin = {}
-function builtin.showFreemodeMessageTop(title, msg, ms)
+function Scaleform.showFreemodeMessageTop(title, msg, ms)
     local sf = Scaleform:create('MP_BIG_MESSAGE_FREEMODE')
     sf:run("RESET_MOVIE")
     sf:run('SHOW_SHARD_CENTERED_TOP_MP_MESSAGE', title, msg)
@@ -422,7 +307,7 @@ end
 
 -- Shows a freemode banner in middle of screen (ex: WASTED)
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
-function builtin.showFreemodeDeathMessage(title, msg, ms)
+function Scaleform.showFreemodeCenterMessage(title, msg, ms)
     local sf = Scaleform:create('MP_BIG_MESSAGE_FREEMODE')
     sf:run('SHOW_SHARD_WASTED_MP_MESSAGE', title, msg)
 
@@ -432,7 +317,7 @@ end
 
 -- Shows a weazel news breaking news banner
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
-function builtin.showBreakingNews(title, msg, bottom, ms)
+function Scaleform.showBreakingNews(title, msg, bottom, ms)
     local sf = Scaleform:create('BREAKING_NEWS')
     sf:run('SET_TEXT', msg, bottom)
     sf:run('SET_SCROLL_TEXT', 0, 0, title)
@@ -445,7 +330,7 @@ end
 -- Creates a breaking news text that can scroll between lines
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
 -- scrollSpeedMs(optional): How many seconds per switching to the next line
-function builtin.showBreakingNewsScrolling(title, topLines, bottomLines, ms, scrollSpeedMs)
+function Scaleform.showBreakingNewsScrolling(title, topLines, bottomLines, ms, scrollSpeedMs)
     local sf = Scaleform:create('BREAKING_NEWS')
     sf:run('SET_TEXT', title, "")
     for i, line in ipairs(topLines) do
@@ -484,7 +369,7 @@ end
 -- Shows a hacking message (lester hack screen)
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
 -- r,g,b: 0-255 RGB value, optional, defaults to 255
-function builtin.showHackingMessage(title, msg, ms, r, g, b)
+function Scaleform.showHackingMessage(title, msg, ms, r, g, b)
     local sf = Scaleform:create('HACKING_MESSAGE')
     sf:run("SET_DISPLAY", 3, title, msg, r or 255, g or 255, b or 255, true)
 
@@ -518,7 +403,7 @@ end
 -- Warning: Shitty, 'J' doesn't work, expects default keybinds, and will activate anything else that the key does
 -- Returns: string (the text they entered), bool (true if input timed out)
 -- String will be nil if text box was cancelled
-function builtin.showTextPrompt(prompt, prefill, multiline, ms)
+function Scaleform.showTextPrompt(prompt, prefill, multiline, ms)
     local sf = Scaleform:create('TEXT_INPUT_BOX')
     sf:run("CLEANUP")
     sf:run("SET_MULTI_LINE", multiline or false)
@@ -549,7 +434,7 @@ end
 
 -- Shows a popup warning
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
-function builtin.showPopupWarning(title, msg, bottom, ms, altText, hideBg)
+function Scaleform.showPopupWarning(title, msg, bottom, ms, altText, hideBg)
     local sf = Scaleform:create('POPUP_WARNING')
     sf:run("SHOW_POPUP_WARNING", ms, title, msg, bottom, not hideBg, 0, altText)
 
@@ -557,7 +442,7 @@ function builtin.showPopupWarning(title, msg, bottom, ms, altText, hideBg)
     return sf
 end
 
-function builtin.showFullscreenPopup(title, msg, bottom, ms, altText, hideBg)
+function Scaleform.showFullscreenPopup(title, msg, bottom, ms, altText, hideBg)
     local sf = Scaleform:create('POPUP_WARNING')
     sf:run("SHOW_POPUP_WARNING", ms, title, msg, bottom, not hideBg, 1, altText)
 
@@ -565,7 +450,7 @@ function builtin.showFullscreenPopup(title, msg, bottom, ms, altText, hideBg)
     return sf
 end
 
-function builtin.clearAlerts()
+function Scaleform.clearAlerts()
     local sf = Scaleform:findInstance("CELLPHONE_ALERT_POPUP")
     sf:run("CLEAR_ALL")
 end
@@ -573,7 +458,7 @@ end
 -- Shows an message with an icon
 -- x,y: position of icon, no clue what units, ~200 seems max. Default to 0 if nil
 -- Icons: Email=1, Clock=3, @=4, Empty=5, AddFriend=11, Checkbox=12, Phone=26, EmailSwap=31, Poop=32, Radar=55, RadarFlash=60, PhoneWifi=53, PhoneReply=52
-function builtin.showAlert(type, content, ms, x, y)
+function Scaleform.showAlert(type, content, ms, x, y)
     local sf = Scaleform:create("CELLPHONE_ALERT_POPUP")
     sf:run("CREATE_ALERT", type, x or 0, y or 0, content)
     sf:activate(ms)
@@ -582,7 +467,7 @@ end
 
 -- Shows the los santos traffic UI from singleplayer
 -- ms: Amount of milliseconds to display or nil for forever (call Deactivate(returnValue) to stop)
-function builtin.showTrafficMovie(ms)
+function Scaleform.showTrafficMovie(ms)
     local sf = Scaleform:create('TRAFFIC_CAM')
     sf:run("PLAY_CAM_MOVIE")
     sf:activate(ms)
@@ -592,13 +477,13 @@ end
 -- Shows a countdown indicator used in racing, stating directions
 -- Symbols:
 -- 1=Forward, 2=Left, 3=Right, 4=U-Turn, 5=Up, 6=Down, 7=Stop
-function builtin.showDirection(direction, r, g, b, ms)
+function Scaleform.showDirection(direction, r, g, b, ms)
     local sf = Scaleform:create("COUNTDOWN")
     sf:run("SET_DIRECTION", direction, r, g, b)
     sf:activate(ms)
 end
 
-function show5SecondCountdown()
+function Scaleform.showFiveSecondCountdown()
     local sf = Scaleform:create("COUNTDOWN")
     sf:activate(5000)
     -- runMethod(sc, "OVERRIDE_FADE_DURATION", 0)
@@ -609,90 +494,57 @@ function show5SecondCountdown()
     sf:run("SET_MESSAGE", "STOP!", 255, 0, 255, true)
 end
 
-builtin.phoneInstance = Scaleform.findInstance("CELLPHONE_IFRUIT")
--- Built in methods to change a user's phone. These methods should be called every frame, or a user's phone will update and wipe them
-builtin.phone = {
-    getInstance = function() return builtin.phoneInstance end,
+-- Built in methods to change a user's phone. These methods should be called every *mostly* frame, or a user's phone will update and wipe them
+Scaleform.phone = {
+    instance = Scaleform:findInstance("CELLPHONE_IFRUIT"),
     -- Sets the header bar under the time's text (shows current selected app)
-    setHeader = function(text)
-        builtin.phoneInstance:run("SET_HEADER", text)
+    setHeaderText = function(text)
+        Scaleform.phone.instance:run("SET_HEADER", text)
     end,
     -- Sets the color theme of the phone.
     -- 1=Blue, 2=Dark Green, 3=Red, 4=Orange, 5=Dark Gray, 6=Purple, 7=Pink, 8=Pink
     setTheme = function(themeIndex)
-        builtin.phoneInstance:run("SET_THEME", themeIndex)
+        Scaleform.phone.instance:run("SET_THEME", themeIndex)
     end,
     -- Toggles sleep mode off the phone. Needs to be turned off if rendering brand new phone, or phone needs to be activated
     setSleepmode = function(on)
-        builtin.phoneInstance:run("SET_SLEEPMODE", on)
+        Scaleform.phone.instance:run("SET_SLEEPMODE", on)
     end,
     -- Sets the current time and displayed day. Day is a string
     setTime = function(hour, min, dayStr)
-        builtin.phoneInstance:run("SET_TITLEBAR_TIME", hour, min, dayStr)
+        Scaleform.phone.instance:run("SET_TITLEBAR_TIME", hour, min, dayStr)
     end,
     -- Sets the background.
-    setBackgroundIndex = function(imageIndex)
-        builtin.phoneInstance:run("SET_BACKGROUND_IMAGE", imageIndex)
+    setBackground = function(imageIndex)
+        Scaleform.phone.instance:run("SET_BACKGROUND_IMAGE", imageIndex)
     end,
     -- signal: Value of 1 to 4. Any higher will just display as max
     -- provider(optional): Either 0 or 1 (default)
     setSignal = function(signal, provider)
         if provider then
-            builtin.phoneInstance:run("SET_PROVIDER_ICON", provider, signal)
+            Scaleform.phone.instance:run("SET_PROVIDER_ICON", provider, signal)
         else
-            builtin.phoneInstance:run("SET_SIGNAL_STRENGTH", signal)
+            Scaleform.phone.instance:run("SET_SIGNAL_STRENGTH", signal)
         end
     end,
     -- Wipes the phone to a blank screen
     clear = function(_)
-        builtin.phoneInstance:run("SHUTDOWN_MOVIE")
+        Scaleform.phone.instance:run("SHUTDOWN_MOVIE")
     end,
     -- Gets the current selected item entry.
     -- On homepage: 0=Emaill, 1=Texts, 2=Contacts, 3=Quick Job, 4=Job List, 5=Settings, 6=Snapmatic, 7=Browser, 8=SecuroServ
     -- Contacts: Lester=12, Mechanic=12, MerryWeather=17, MorsMutual=18, Pegasus=22, Cab=6, 911=7, Lamar=10
     getCurrentSelection = function(_)
-        builtin.phoneInstance:run("GET_CURRENT_SELECTION")
-        return endMethodGetInt()
+        Scaleform.phone.instance:run("GET_CURRENT_SELECTION")
+        return Scaleform.endMethodGetInt()
     end,
-    up = function(_) builtin.phoneInstance:run("SET_INPUT_EVENT", 1) end,
-    left = function(_) builtin.phoneInstance:run("SET_INPUT_EVENT", 4) end,
-    right = function(_) builtin.phoneInstance:run("SET_INPUT_EVENT", 2) end,
-    down = function(_) builtin.phoneInstance:run("SET_INPUT_EVENT", 3) end,
-    press = function(_) builtin.phoneInstance:run("SET_INPUT_EVENT", 1) end,
+    up = function(_) Scaleform.phone.instance:run("SET_INPUT_EVENT", 1) end,
+    left = function(_) Scaleform.phone.instance:run("SET_INPUT_EVENT", 4) end,
+    right = function(_) Scaleform.phone.instance:run("SET_INPUT_EVENT", 2) end,
+    down = function(_) Scaleform.phone.instance:run("SET_INPUT_EVENT", 3) end,
+    press = function(_) Scaleform.phone.instance:run("SET_INPUT_EVENT", 1) end,
     -- Enters a raw input. Directional inputs are: .up(), .down(), .left(), .right()
-    rawInput = function(input) builtin.phoneInstance:run("SET_INPUT_EVENT", input) end
+    rawInput = function(input) Scaleform.phone.instance:run("SET_INPUT_EVENT", input) end
 }
 
-return {
-    LIB_VERSION = LIB_VERSION,
-    Scaleform = Scaleform,
-    showBusySpinner = show_busyspinner,
-    hideBusySpinner = hide_busyspinner,
-    findInstance = findInstance,
-    create = create,
-    createFrontend = createFrontend,
-    createFrontendHeader = createFrontendHeader,
-    runMethod = runMethod,
-    startMethod = startMethod,
-    addString = addString,
-    addInt = addInt,
-    addFloat = addFloat,
-    addBool = addBool,
-    endMethod = endMethod,
-    endMethodGetInt = endMethodGetInt,
-    endMethodGetBool = endMethodGetBool,
-    endMethodGetString = endMethodGetString,
-    call_method = call_method,
-    call_method_with_numbers = call_method_with_numbers,
-    call_method_with_mixed = call_method_with_mixed,
-    call_method_with_strings = call_method_with_strings,
-    activate = activate,
-    isActive = isActive,
-    deactivate = deactivate,
-    clearAllDisplayed = clearAllDisplayed,
-    display = display,
-    display3D = display3D,
-    display3DSolid = display3DSolid,
-    displayFullscreen = displayFullscreen,
-    builtin
-}
+return Scaleform

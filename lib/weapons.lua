@@ -1,4 +1,4 @@
-WEAPON_HASHES = {
+return {
     MELEE = {
         dagger = 0x92A27487,
         bat = 0x958A4A8F,
@@ -108,7 +108,7 @@ WEAPON_HASHES = {
         pipebomb = 0xBA45E8B8,
         ball = 0x23C9F95C
     },
-    misc = {
+    MISC = {
         petrolcan = 0x34A67B97,
         fireextinguisher = 0x60EC506,
         parachute = 0xFBAB5776,
