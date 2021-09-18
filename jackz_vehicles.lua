@@ -1,7 +1,7 @@
 -- Vehicle Options
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.2.3"
+local VERSION = "3.3.0"
 local LANG_TARGET_VERSION = "1.2.1" -- Target version of translations.lua lib
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
@@ -966,7 +966,7 @@ function setup_action_for(pid)
             TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
             PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
             VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-            PED.SET_PED_AS_ENEMY(ped, true)
+            TASK.TASK_ENTER_VEHICLE(ped, vehicle, -1, -1, 1.0, 24)
             if hijackLevel == 1 then
                 util.yield(20)
                 VEHICLE.SET_VEHICLE_DOORS_LOCKED_FOR_ALL_PLAYERS(vehicle, true)
@@ -989,7 +989,8 @@ function setup_action_for(pid)
                 TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                 PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
                 VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
-                PED.SET_PED_AS_ENEMY(ped, true)
+                TASK.TASK_ENTER_VEHICLE(ped, vehicle, -1, -1, 1.0, 24)
+
                 local model = ENTITY.GET_ENTITY_MODEL(vehicle)
                 --TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
                 local loops = 10
@@ -1893,6 +1894,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, la
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
         PED.SET_PED_AS_ENEMY(ped, true)
+        TASK.TASK_ENTER_VEHICLE(ped, vehicle, -1, -1, 1.0, 24)
         TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, 100.0, 2883621)
         TASK.SET_PED_KEEP_TASK(ped, true)
     end
@@ -2263,7 +2265,14 @@ end)
 -- Root Menu Cont.
 ----------------------------
 
-
+local cruiseControl = {
+    enabled = false,
+    currentVel = -1
+}
+lang.menus.toggle(menu.my_root(), "CRUISE_CONTROL", {"cruisecontrol"}, function(on)
+    cruiseControl.enabled = on
+    cruiseControl.currentVel = -1
+end, cruiseControl.enabled)
 
 util.on_stop(function()
     local ped, vehicle = get_my_driver()
@@ -2321,6 +2330,20 @@ while true do
         if not selfOntop and my_vehicle ~= autodriveVehicle then
             -- VEHICLE.BRING_VEHICLE_TO_HALT(autodriveVehicle, 2.0, 20, false)
             ENTITY.SET_ENTITY_VELOCITY(autodriveVehicle, 0.0, 0.0, 0.0)
+        end
+    elseif cruiseControl.enabled then
+        if my_vehicle > 0 then -- Taken from gtav chaos mod (https://github.com/gta-chaos-mod/ChaosModV/blob/b6422130c4dc27496d5711a5880b783649384950/ChaosMod/Effects/db/Vehs/VehsCruiseControl.cpp)
+            if VEHICLE.IS_VEHICLE_ON_ALL_WHEELS(my_vehicle) then
+                local speed = ENTITY.GET_ENTITY_SPEED(my_vehicle)
+                if speed > cruiseControl.currentVel or speed < cruiseControl.currentVel / 2 or speed < 1 then
+                    cruiseControl.currentVel = speed
+                elseif speed < cruiseControl.currentVel then
+                    local isReversing = ENTITY.GET_ENTITY_SPEED_VECTOR(my_vehicle, true).y < 0
+                    VEHICLE.SET_VEHICLE_FORWARD_SPEED(my_vehicle, isReversing and -cruiseControl.currentVel or cruiseControl.currentVel);
+                end
+            end
+        else
+            cruiseControl.currentVel = -1
         end
     end
     if spinningCars then

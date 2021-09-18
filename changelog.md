@@ -200,6 +200,9 @@ v3.2.0
 * (3.2.1) Fixed extras not spawning on saved
 * (3.2.2) Add text to loading indicators for cloud section
 * (3.2.3) Add option to enable multipliers
+  
+v3.2.1
+* Added autodrive
 
 # actions (v1.7.1)
 

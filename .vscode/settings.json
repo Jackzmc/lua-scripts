@@ -75,7 +75,8 @@
         "ANIMATIONS_INDEX_VERSION",
         "ANIMATIONS_HEADINGS",
         "ANIMATIONS_SUBHEADINGS",
-        "json"
+        "json",
+        "native_invoker"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"
@@ -86,5 +87,13 @@
     "spellright.documentTypes": [
         "latex",
         "plaintext"
-    ]
+    ],
+    "Lua.diagnostics.neededFileStatus": {
+        "Choice": "Opened"
+    },
+    "Lua.workspace.checkThirdParty": false,
+    "Lua.window.statusBar": false,
+    "Lua.diagnostics.severity": {
+        "undefined-global": "Error"
+    }
 }
