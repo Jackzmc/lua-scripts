@@ -11,15 +11,18 @@
 !test.lua
 !jackz_vehicles.lua
 !jackz_chat.lua
+!jackz_vehicle_builder.lua
 
 !lib/
 !lib/natives-1627063482.lua
+!lib/natives-1639742232.lua
 !lib/animations.lua
 !lib/vehicles.lua
 !lib/weapons.lua
 !lib/json.lua
 !lib/translations.lua
 !lib/scaleforms.lua
+!lib/jackzvehiclelib.lua
 
 !.vscode/
 !.vscode/settings.json
