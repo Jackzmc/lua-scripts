@@ -76,7 +76,12 @@
         "ANIMATIONS_HEADINGS",
         "ANIMATIONS_SUBHEADINGS",
         "json",
-        "native_invoker"
+        "native_invoker",
+        "entities",
+        "SCRIPT_FILENAME",
+        "SCRIPT_NAME",
+        "SCRIPT_RELPATH",
+        "SCRIPT_MANUAL_START"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"
@@ -85,8 +90,7 @@
         "en"
     ],
     "spellright.documentTypes": [
-        "latex",
-        "plaintext"
+        "latex"
     ],
     "Lua.diagnostics.neededFileStatus": {
         "Choice": "Opened"

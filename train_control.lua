@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.1.1"
+local VERSION = "1.1.5"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update: 
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -59,7 +59,7 @@ function try_load_lib(lib)
         async_http.dispatch()
     end
 end
-try_load_lib("natives-1627063482")
+try_load_lib("natives-1639742232")
 
 while WaitingLibsDownload do
     util.yield()
@@ -78,10 +78,6 @@ end
 local models = {
     util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcar2"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
 }
-local variations = {
-    "Variation 1", "Variation 2", "Variation 3", "Variation 4", "Variation 5", "Variation 6", "Variation 7", "Variation 8", "Variation 9", "Variation 10", "Variation 11", "Variation 12", "Variation 13", "Variation 14", "Variation 15", "Variation 16", "Variation 17", "Variation 18", "Variation 19", "Variation 20", "Variation 21", "Variation 22"
-}
-
 local last_train = 0
 local last_metro_f = 0
 local last_metro_b = 0
@@ -127,12 +123,12 @@ local function spawn_train(variation, pos, direction)
     end, false)
 
     menu.action(submenu, "Delete Engine", {"deleteengine" .. last_train}, "Deletes the spawned train's engine", function(v)
-        util.delete_entity(train)
+        entities.delete(train)
     end)
 
     menu.action(submenu, "Delete", {"deletetrain" .. last_train}, "Deletes the spawned train", function(v)
         for _, cart in ipairs(carts) do
-            util.delete_entity(cart)
+            entities.delete(cart)
         end
         menu.delete(submenu)
     end)
@@ -181,11 +177,11 @@ menu.action(menu.my_root(), "Delete Last Spawned Train", {"delltrain"}, "Deletes
     if last_train > 0 then
         if last_train == last_metro_f then
             if last_metro_f > 0 then
-                util.delete_entity(last_metro_f)
+                entities.delete(last_metro_f)
                 last_metro_f = 0
             end
             if last_metro_b > 0 then
-                util.delete_entity(last_metro_b)
+                entities.delete(last_metro_b)
                 last_metro_b = 0
             end
             return
@@ -204,9 +200,9 @@ menu.action(menu.my_root(), "Delete Last Spawned Train", {"delltrain"}, "Deletes
             end
             table.insert(carts, cart)
         end
-        util.delete_entity(last_train)
+        entities.delete(last_train)
         for _, cart in ipairs(carts) do
-            util.delete_entity(cart)
+            entities.delete(cart)
         end
         menu.delete(last_train_menu)
         last_train = 0
@@ -226,7 +222,7 @@ menu.slider(menu.my_root(), "Global Train Speed", {"settrainspeed", "trainspeed"
 end)
 
 menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all trains in the game", function(v)
-    local vehicles = util.get_all_vehicles()
+    local vehicles = util.get_all_vehicles_as_handles()
     local count = 0
     for _, vehicle in pairs(vehicles) do
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -234,7 +230,7 @@ menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all 
             -- Check if the vehicle is a train
             if model == vehicleModel then
                 count = count + 1
-                util.delete_entity(vehicle)
+                entities.delete(vehicle)
                 break
             end
         end
@@ -243,7 +239,7 @@ menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all 
 end)
 
 menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains render as derailed", function(on)
-    local vehicles = util.get_all_vehicles()
+    local vehicles = util.get_all_vehicles_as_handles()
     for _, vehicle in pairs(vehicles) do 
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
         for _, model in ipairs(models) do
@@ -288,15 +284,15 @@ while true do
             elseif speed >= 80.0 or speed <= -80.0 then
                 increment = -increment
             end
-            local vehicles = util.get_all_vehicles()
-            for k, vehicle in pairs(vehicles) do 
+            local vehicles = util.get_all_vehicles_as_handles()
+            for k, vehicle in pairs(vehicles) do
                 VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, speed)
                 VEHICLE.SET_TRAIN_SPEED(vehicle, speed)
             end
             tick = 0
         end
     elseif globalTrainSpeedControlEnabled then
-        for _, vehicle in pairs(util.get_all_vehicles()) do
+        for _, vehicle in pairs(util.get_all_vehicles_as_handles()) do
             local model = ENTITY.GET_ENTITY_MODEL(vehicle)
             if model == models[1] or model == models[2] then --Only need to set speed for engine
                 local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)

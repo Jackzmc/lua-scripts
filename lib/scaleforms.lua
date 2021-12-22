@@ -2,6 +2,10 @@
 -- created by Jackz
 -- Requires natives file to be loaded before required
 -- Supposedly finds an existing instance and returns its handle
+
+-- If you wish to view example lua scripts for my libs:
+-- https://jackz.me/stand/get-lib-zip
+
 local Scaleform = {
     LIB_VERSION = "1.0.0",
 

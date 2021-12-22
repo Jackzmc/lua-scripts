@@ -5,7 +5,10 @@
 -- See the return { } table at bottom for public methods
 -- See jackz_chat or jackz_vehicles for examples (jackz_vehicles: line 73)
 
-local LIB_VERSION = "1.2.1"
+-- If you wish to view example lua scripts for my libs:
+-- https://jackz.me/stand/get-lib-zip
+
+local LIB_VERSION = "1.2.2"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -15,19 +18,17 @@ local autodownload = {
 }
 
 local GAME_LANGUAGE_IDS = {
-    [1] = "en-US",
-    [2] = "fr-FR",
-    [3] = "de-DE",
-    [4] = "it-IT",
-    [5] = "es-ES",
-    [6] = "pt-BR",
-    [7] = "pl-PL",
-    [8] = "ru-RU",
-    [9] = "ko-KR",
-    [10] = "zh-TW",
-    [11] = "ja-JP",
-    [12] = "es-MX",
-    [13] = "zh-CN",
+    ["en"] = "en-US",
+    ["fr"] = "fr-FR",
+    ["de"] = "de-DE",
+    ["it"] = "it-IT",
+    ["es"] = "es-ES",
+    ["pt"] = "pt-BR",
+    ["pl"] = "pl-PL",
+    ["ru"] = "ru-RU",
+    ["ko"] = "ko-KR",
+    ["zh"] = "zh-TW",
+    ["ja"] = "ja-JP",
 }
 local LANGUAGE_NAMES = {
     ["en-US"] = "English",
@@ -44,7 +45,13 @@ local LANGUAGE_NAMES = {
     ["es-MX"] = "Spanish (Mexican)",
     ["zh-CN"] = "Chinese (Simplified)"
 }
-local lang = GAME_LANGUAGE_IDS[LOCALIZATION.GET_CURRENT_LANGUAGE() + 1]
+local lang = GAME_LANGUAGE_IDS["en"]
+if GAME_LANGUAGE_IDS[menu.get_language()] then
+    lang = GAME_LANGUAGE_IDS[menu.get_language()]
+    util.log("lib/translations.lua: Using stand language '" .. lang .. '"')
+else
+    util.log("lib/translations.lua: Stand Language '" .. menu.get_language() .. "' not found, defaulting to en-US")
+end
 local HARDCODED_TRANSLATIONS = {
     ["en-US"] = {
         ["ERR_NO_TRANSLATION_KEY"] = "Unknown translation ",
@@ -65,15 +72,17 @@ local function get_internal_message(key)
         return "_NO_TRANSLATION_AVAILABLE_"
     end
 end
+local TRANSL_FOLDER = filesystem.resources_dir() .. "/Translations/"
+filesystem.mkdirs(TRANSL_FOLDER)
 -- Loaded a user's preferred language iso.
-local PREF_FILE = filesystem.stand_dir() .. "/Translations/Preferred Language.txt"
+local PREF_FILE = TRANSL_FOLDER .. "Preferred Language.txt"
 if filesystem.exists(PREF_FILE) then
     local file = io.open(PREF_FILE, "r")
     io.input(file)
     local value = io.read("*all")
     io.close(file)
     local valid = false
-    for _, language in ipairs(GAME_LANGUAGE_IDS) do
+    for _, language in pairs(GAME_LANGUAGE_IDS) do
         if value == language then
             lang = value
             valid = true
@@ -87,7 +96,7 @@ if filesystem.exists(PREF_FILE) then
 end
 -- Main function that parses the translation .txt file.
 local function parse_translations_from_file(file)
-    local path = filesystem.stand_dir() .. "Translations/" .. file .. ".txt"
+    local path = TRANSL_FOLDER .. file .. ".txt"
     if not filesystem.exists(path) then
         return false
     end
@@ -132,7 +141,7 @@ end
 -- Set the saved language preference. Returns true on success, returns false on invalid language
 -- prefLang: Valid ISO Code (see GAME_LANGUAGE_IDS)
 function set_language_preference(prefLang)
-    for _, language in ipairs(GAME_LANGUAGE_IDS) do
+    for _, language in pairs(GAME_LANGUAGE_IDS) do
         if prefLang == language then
             local file = io.open(PREF_FILE, "w")
             io.output(file)
@@ -197,14 +206,13 @@ end
 -- saveAsName: The name to save the file as on disk (and is added onto uri if serverFileName is nil)
 -- serverFileName(optional): The filename to append to uri, incase you downloading from a crappy webhost
 function download_translation_file(domain, uri, saveAsName, serverFileName)
-    filesystem.mkdir(filesystem.stand_dir() .. "Translations")
     local dlPart = serverFileName or saveAsName 
     async_http.init(domain, uri .. dlPart .. ".txt" , function(result)
         if result:sub(1, 1) ~= "#" then -- IS HTML
             autodownload.active = false
             return
         end
-        local file = io.open(filesystem.stand_dir() .. "/Translations/" .. saveAsName .. ".txt", "w")
+        local file = io.open(TRANSL_FOLDER .. saveAsName .. ".txt", "w")
         io.output(file)
         io.write(result:gsub("\r", "") .. "\n")
         io.flush() -- redudant, probably?
@@ -273,7 +281,7 @@ end
 -- Selection will set their preferred language for all scripts that use this library.
 function add_language_selector_to_menu(root)
     local list = menu.list(root, "Language", {}, "Sets your preferred language.\nCurrent language: " .. get_language_name() .. " (" .. lang .. ")")
-    for _, iso in ipairs(GAME_LANGUAGE_IDS) do
+    for _, iso in pairs(GAME_LANGUAGE_IDS) do
         menu.action(list, LANGUAGE_NAMES[iso], {}, iso, function(_)
             set_language_preference(iso)
             util.toast(get_internal_message("LANG_PREF_CHANGED"))

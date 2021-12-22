@@ -1,8 +1,10 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.7.6"
+local VERSION = "1.9.2"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
+local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
+local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
@@ -20,7 +22,7 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         end)
         async_http.dispatch()
         async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
+            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT_FILENAME .. ".lua", "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             io.close(file)
@@ -42,7 +44,8 @@ function try_load_lib(lib, globalName, loadingText)
     if loadingText then
         show_busyspinner(loadingText)
     end
-    local status, f = pcall(require, string.sub(lib, 0, #lib - 4))
+    local filename = string.sub(lib, 0, #lib - 4) --strip ext
+    local status, f = pcall(require, filename)
     if not status then
         local downloading = true
         async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
@@ -53,7 +56,7 @@ function try_load_lib(lib, globalName, loadingText)
             io.close(file)
             util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. "'")
             if globalName then
-                _G[globalName] = require(string.sub(lib, 0, #lib - 4))
+                _G[globalName] = require(filename)
             end
             downloading = false
         end, function(e)
@@ -70,8 +73,12 @@ function try_load_lib(lib, globalName, loadingText)
         HUD.BUSYSPINNER_OFF()
     end
 end
-try_load_lib("natives-1627063482.lua")
-try_load_lib("translations.lua", "lang")
+try_load_lib("natives-1639742232.lua")
+try_load_lib("translations.lua", "lang", "Downloading translations lib")
+-- TODO: Remove migration later
+if filesystem.exists(filesystem.scripts_dir() .. "lib/animations.lua") then
+    os.remove(filesystem.scripts_dir() .. "lib/animations.lua")
+end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 show_busyspinner("Checking for translations...")
 lang.load_translation_file(SCRIPT)
@@ -87,24 +94,10 @@ if filesystem.exists(CHANGELOG_PATH) then
     -- Update translations
     lang.update_translation_file(SCRIPT)
 end
-try_load_lib("animations.lua", nil, "Loading Animations File")
+
 
 -- Check if animations library is incorrect
-if ANIMATIONS_INDEX_VERSION ~= "3.0" then
-    show_busyspinner("Updating animations lib")
-    util.async_http_get("jackz.me", "/stand/lua/libs/animations.lua", function(result)
-        local file = io.open(filesystem.scripts_dir() .. "/lib/animations.lua", "w")
-        io.output(file)
-        io.write(result:gsub("\r", ""))
-        io.close(file)
-        require(filesystem.scripts_dir() .. "/lib/animations.lua")
-        util.log(SCRIPT .. ": Updated animations.lua library file successfully")
-        HUD.BUSYSPINNER_OFF()
-    end, function(e)
-        util.toast(SCRIPT .. ": Failed to automatically update animations library file. Please download latest file manually.")
-        util.stop_script()
-    end)
-end
+
 -- START Scenario Data
 local SCENARIOS = {
     HUMAN = {
@@ -280,7 +273,7 @@ menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
     if affectType > 0 then
-        local peds = util.get_all_peds()
+        local peds = entities.get_all_peds_as_handles()
         for _, npc in ipairs(peds) do
             if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
                 NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
@@ -297,7 +290,7 @@ end, clearActionImmediately)
 menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
     affectType = value
 end)
-
+menu.divider(menu.my_root(), "Stuff")
 local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
 menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", function(on)
     if on then
@@ -310,43 +303,211 @@ end, allowControl)
 -----------------------
 -- ANIMATIONS
 ----------------------
+local animLoaded = false
+local animMenuData = {}
 local resultMenus = {}
+local cloudFavoritesMenu = menu.list(animationsMenu, "Cloud Favorites", {}, "View categorized saved favorites from other users, or store your own.")
 local favoritesMenu = menu.list(animationsMenu, "Favorites", {}, "List of all your favorited animations. Hold SHIFT to add or remove from favorites.")
+local cloudFavoritesUploadMenu = menu.list(cloudFavoritesMenu, "Upload", {}, "Add your own cloud animation favorites. BETA.")
+    local cloudUploadFromFavorites = menu.list(cloudFavoritesUploadMenu, "From Favorites", {}, "Browse your favorite played animations to upload them", function() populate_cloud_list(true) end)
+    local cloudUploadFromRecent = menu.list(cloudFavoritesUploadMenu, "From Recent", {}, "Browse your recently played animations to upload them",  function() populate_cloud_list(false) end)
+local cloudFavoritesBrowseMenu = menu.list(cloudFavoritesMenu, "Browse", {}, "Browse all uploaded cloud animation favorites")
+
+local cloudUsers = {} -- Record<user, { menu, categories = Record<dictionary, { menu, animations = {} }>}
+local cloud_loading = false
+function cloudvehicle_fetch_error(code)
+    return function()
+        cloud_loading = false
+        util.toast("An error occurred fetching cloud data. Code: " .. code, TOAST_ALL)
+        HUD.BUSYSPINNER_OFF()
+    end
+end
+local cloud_list = {}
+function upload_animation(group, animation, alias)
+    show_busyspinner("Uploading animation")
+    async_http.init('jackz.me',
+        string.format(
+            '/stand/actions/manage?scname=%s&hash=%d&alias=%s&dict=%s&anim=%s',
+            SOCIALCLUB._SC_GET_NICKNAME(),
+            menu.get_activation_key_hash(),
+            alias or '',
+            group,
+            animation
+        ),
+        function(body)
+            if body == "OK" then
+                util.toast("Upload successful for " .. group .. "/" .. animation)
+            elseif body == "Conflict" then
+                util.toast("Animation already uploaded")
+            else
+                util.toast("Upload failed for " .. group .. "/" .. animation .. ": " .. body)
+            end
+            HUD.BUSYSPINNER_OFF()
+        end
+    )
+    async_http.set_post('text/plain', '')
+    async_http.dispatch()
+end
+function populate_cloud_list(useFavorites)
+    local listMenu = useFavorites and cloudUploadFromFavorites or cloudUploadFromRecent
+    local tuple = useFavorites and favorites or recents
+    for _, m in ipairs(cloud_list) do
+        menu.delete(m)
+    end
+    cloud_list = {}
+    for _, favorite in ipairs(tuple) do
+        local name = favorite[2]
+        -- if favorite[3] then
+        --     name = favorite[3] .. " (" .. favorite[2] .. ")"
+        -- end
+        local action = menu.action(listMenu, name, {}, "Upload the " .. favorite[2] .. " from group " .. favorite[1] .. " to the cloud", function(v)
+            upload_animation(favorite[1], favorite[2], nil)
+        end)
+        table.insert(cloud_list, action)
+    end
+end
+function populate_user_dict(user, dictionary)
+    show_busyspinner("Fetching animations for " .. dictionary)
+    while cloud_loading do
+        util.yield()
+    end
+    cloud_loading = true
+    async_http.init('jackz.me', '/stand/actions/list?method=actions&scname=' .. user .. "&dict=" .. dictionary, function(body)
+        cloud_loading = false
+        if body:sub(1, 1) == "<" then
+            util.toast("Ratelimited, try again in a few seconds.")
+            menu.divider(cloudUsers[user].categories[dictionary].menu, "Ratelimited, try again in a few seconds")
+            return
+        end
+        for _, animation in ipairs(cloudUsers[user].categories[dictionary].animations) do
+            pcall(menu.delete, animation)
+        end
+        cloudUsers[user].categories[dictionary].animations = {}
+        local count = 0
+        for animation in string.gmatch(body, "[^\r\n]+") do
+            count = count + 1
+            local action = menu.action(cloudUsers[user].categories[dictionary].menu, animation, {}, dictionary .. " " .. animation, function(_)
+                play_animation(dictionary, animation)
+            end)
+            table.insert(cloudUsers[user].categories[dictionary].animations, action)
+        end
+        menu.set_menu_name(cloudUsers[user].categories[dictionary].menu, dictionary .. " (" .. count .. ")")
+        HUD.BUSYSPINNER_OFF()
+    end, cloudvehicle_fetch_error("FETCH_USER_ANIMS"))
+    async_http.dispatch()
+end
+menu.on_focus(cloudFavoritesBrowseMenu, function()
+    show_busyspinner("Fetching users")
+    while cloud_loading do
+        util.yield()
+    end
+    cloud_loading = true
+    async_http.init('jackz.me', '/stand/actions/list?method=users', function(body)
+        cloud_loading = false
+        if body:sub(1, 1) == "<" then
+            cloudvehicle_fetch_error("RATELIMITED")
+            return
+        end
+        for user, udata in pairs(cloudUsers) do
+            pcall(menu.delete, udata.menu)
+            for dictionary, cdata in pairs(udata.categories) do
+                pcall(menu.delete, cdata.menu)
+                for _, animation in ipairs(cdata.animations) do
+                    menu.delete(animation)
+                end
+            end
+        end
+        cloudUsers = {}
+        for user in string.gmatch(body, "[^\r\n]+") do
+            local userMenu = menu.list(cloudFavoritesBrowseMenu, user, {}, "All action categories favorited by " .. user)
+            cloudUsers[user] = {
+                menu = userMenu,
+                categories = {}
+            }
+            -- TODO: Move from on_focus to on click
+            menu.on_focus(userMenu, function(_)
+                show_busyspinner("Fetching dictionaries for " .. user)
+                while cloud_loading do
+                    util.yield()
+                end
+                cloud_loading = true
+                async_http.init('jackz.me', '/stand/actions/list?method=dicts&scname=' .. user, function(body)
+                    cloud_loading = false
+                    if body:sub(1, 1) == "<" then
+                        cloudvehicle_fetch_error("RATELIMITED")
+                        return
+                    end
+                    for dictionary, cdata in pairs(cloudUsers[user].categories) do
+                        pcall(menu.delete, cdata.menu)
+                        for animation in ipairs(cdata.animations) do
+                            pcall(menu.delete, animation)
+                        end
+                    end
+                    cloudUsers[user].categories = {}
+                    local count = 0
+                    for dictionary in string.gmatch(body, "[^\r\n]+") do
+                        count = count + 1
+                        local dictMenu = menu.list(userMenu, dictionary, {}, "All actions in " .. dictionary .. " favorited by " .. user, function() populate_user_dict(user, dictionary) end)
+                        cloudUsers[user].categories[dictionary] = {
+                            menu = dictMenu,
+                            animations = {}
+                        }
+                    end
+                    menu.set_menu_name(userMenu, user .. " (" .. count .. ")")
+                    HUD.BUSYSPINNER_OFF()
+                end, cloudvehicle_fetch_error("FETCH_USER_CATEGORIES"))
+                async_http.dispatch()
+            end)
+        end
+        HUD.BUSYSPINNER_OFF()
+    end, cloudvehicle_fetch_error("FETCH_USERS"))
+    async_http.dispatch()
+end)
 local recentsMenu = menu.list(animationsMenu, "Recents", {}, "List of all your recently played animations")
+menu.divider(animationsMenu, "Raw Animations")
 local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
 menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
     menu.show_command_box("searchanim ")
 end, function(args)
     -- Delete existing results
     for _, m in ipairs(resultMenus) do
-        menu.delete(m)
+        pcall(menu.delete, m)
     end
     resultMenus = {}
     -- Find all possible groups
     local results = {}
     -- loop ANIMATIONS by heading then subheading then insert based on result
-    for _, result in ipairs(ANIMATIONS) do
-        local res = string.find(result[1], args)
-        if res then
-            table.insert(results, {
-                result[1], result[2]
-            })
-        end
+    if not filesystem.exists(ANIMATIONS_DATA_FILE) then
+        download_animation_data()
     end
-    for _, header in ipairs(ANIMATIONS_HEADINGS) do
-        for _, subheader in pairs(ANIMATIONS_SUBHEADINGS[header]) do
-            for _, section in ipairs(ANIMATIONS[header][subheader]) do
-                local res = string.find(section[1], args)
-                if res then
-                    table.insert(results, {
-                        section[1], section[2]
-                    })
+    -- Parse the file
+    local isHeaderRead = false
+    -- Possibly recurse down categories splitting on _ and @
+    for line in io.lines(ANIMATIONS_DATA_FILE) do
+        if isHeaderRead then
+            
+            local i, j = line:find(args)
+            if i then
+                chunks = {} -- [ category, anim ]
+                for substring in string.gmatch(line, "%S+") do
+                    table.insert(chunks, substring)
                 end
+                -- Add the distance:
+                chunks[3] = j - i
+                table.insert(results, chunks)
             end
+            -- TODO: Add back organization to list
+        else
+            local version = line:sub(2)
+            if version ~= ANIMATIONS_DATA_FILE_VERSION then
+                util.toast("Animation data out of date, updating...")
+                download_animation_data()
+            end
+            isHeaderRead = true
         end
     end
-    -- Sort by ascending start Index
-    table.sort(results, function(a, b) return a[2] < b[2] end)
+    -- Sort by distance
+    table.sort(results, function(a, b) return a[3] > b[3] end)
     -- Messy, but no way to call a list group, so recreate all animations in a sublist:
     for i = 1, 201 do
         if results[i] then
@@ -358,28 +519,16 @@ end, function(args)
         end
     end
 end)
-local menus = {
-    headers = {},
-    subheaders = {}
-}
-menu.divider(animationsMenu, "Animations")
+local browseMenu = menu.list(animationsMenu, "Browse Animations", {}, "WARNING: Will cause a freeze when exiting, stand does not like unloading 15,000 animations. Use search if your pc cannot handle.", function() setup_animation_list() end)
+menu.on_focus(browseMenu, function()
+    if animLoaded then
+        util.toast("WARN: Unloading animation browse list, prepare for lag.")
+        util.yield(100)
+        destroy_animations_data()
+    end
+end)
 show_busyspinner("Loading Menus...")
-for _, header in ipairs(ANIMATIONS_HEADINGS) do
-    if not menus[header] then
-        menus.headers[header] = menu.list(animationsMenu, header)
-    end
-    for _, subheader in pairs(ANIMATIONS_SUBHEADINGS[header]) do
-        if not menus.subheaders[header .. subheader] then
-            menus.subheaders[header .. subheader] = menu.list(menus.headers[header], subheader, {}, "")
-        end
-        for _, section in ipairs(ANIMATIONS[header][subheader]) do
-            animationCount = animationCount + 1
-            menu.action(menus.subheaders[header .. subheader], section[2], {"animate" .. section[1] .. " " .. section[2]}, "Plays the " .. section[2] .. " animation from group " .. section[1], function(v)
-                play_animation(section[1], section[2], false)
-            end)
-        end
-    end
-end
+
 
 local scenariosMenu = menu.list(menu.my_root(), "Scenarios", {}, "List of scenarios you can play\nSome scenarios only work on certain genders, example AA Coffee only works on male peds.")
 for group, scenarios in pairs(SCENARIOS) do
@@ -391,7 +540,7 @@ for group, scenarios in pairs(SCENARIOS) do
             
             -- Play scenario on all npcs if enabled:
             if affectType > 0 then
-                local peds = util.get_all_peds()
+                local peds = entities.get_all_peds_as_handles()
                 for _, npc in ipairs(peds) do
                     if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
                         NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
@@ -503,7 +652,7 @@ for _, pair in ipairs(SPEECHES) do
         -- Play single duration for peds
         if affectType > 0 then
             if duration > 0 then
-                for _, ped in ipairs(util.get_all_peds()) do
+                for _, ped in ipairs(entities.get_all_peds_as_handles()) do
                     if not PED.IS_PED_A_PLAYER(ped) then
                         if duration > 1 then
                             util.create_thread(function()
@@ -547,7 +696,7 @@ for _, pair in ipairs(SPEECHES) do
                 end
                 util.create_tick_handler(function(a)
                     if affectType > 0 then
-                        for _, ped in ipairs(util.get_all_peds()) do
+                        for _, ped in ipairs(entities.get_all_peds_as_handles()) do
                             NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(ped)
                             AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, activeSpeech, speechParam)
                         end
@@ -574,7 +723,7 @@ menu.divider(selfModelVoice, "Female Peds")
 for _, model in ipairs(VOICE_MODELS.FEMALE) do
     menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
-            util.delete_entity(selfSpeechPed.entity)
+            entities.delete(selfSpeechPed.entity)
             selfSpeechPed.entity = 0
         end
         selfSpeechPed.model = util.joaat(model)
@@ -584,7 +733,7 @@ menu.divider(selfModelVoice, "Male Peds")
 for _, model in ipairs(VOICE_MODELS.MALE) do
     menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
-            util.delete_entity(selfSpeechPed.entity)
+            entities.delete(selfSpeechPed.entity)
             selfSpeechPed.entity = 0
         end
         selfSpeechPed.model = util.joaat(model)
@@ -598,12 +747,12 @@ menu.slider(ambientSpeechMenu, "Speech Interval", {"speechinterval"}, "How many 
     speechDelay = value
 end)
 menu.action(ambientSpeechMenu, "Stop Active Speech", {"stopspeeches"}, "Stops any active ambient speeches", function(a)
-    for _, ped in ipairs(util.get_all_peds()) do
+    for _, ped in ipairs(entities.get_all_peds_as_handles()) do
         AUDIO.STOP_CURRENT_PLAYING_AMBIENT_SPEECH(ped)
     end
     -- reuse code cause why not its 11:57 pm I don't care now
     if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
-        util.delete_entity(selfSpeechPed.entity)
+        entities.delete(selfSpeechPed.entity)
     end
     selfSpeechPed.entity = 0
     repeatEnabled = false
@@ -623,7 +772,7 @@ function create_self_speech_ped()
     end
     -- Finally, spawn it & attach
     local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
-    local ped = util.create_ped(1, model, pos, 0)
+    local ped = entities.create_ped(1, model, pos, 0)
     ENTITY._ATTACH_ENTITY_BONE_TO_ENTITY_BONE(ped, my_ped, 0, 0, 0, 0)
     ENTITY.SET_ENTITY_VISIBLE(ped, false, 0)
     NETWORK._NETWORK_SET_ENTITY_INVISIBLE_TO_NETWORK(ped, true)
@@ -672,6 +821,92 @@ function add_anim_to_recent(group, anim)
     table.insert(recents, { group, anim, action })
 end
 
+function download_animation_data()
+    local loading = true
+    show_busyspinner("Downloading animation data")
+    async_http.init("jackz.me", "/stand/resources/jackz_actions/animations.txt", function(result)
+        local file = io.open(ANIMATIONS_DATA_FILE, "w")
+        io.output(file)
+        io.write(result:gsub("\r", ""))
+        io.close(file)
+        util.log(SCRIPT .. ": Downloaded resource file successfully")
+        HUD.BUSYSPINNER_OFF()
+        loading = false
+    end, function()
+        util.toast(SCRIPT .. ": Failed to automatically download animations data file. Please download latest file manually.")
+        util.stop_script()
+        loading = false
+    end)
+    async_http.dispatch()
+    while loading do
+        util.yield()
+    end
+    HUD.BUSYSPINNER_OFF()
+end
+function destroy_animations_data()
+    for category, data in pairs(animMenuData) do
+        pcall(menu.delete, data.list)
+    end
+    animMenuData = {}
+    animLoaded = false
+end
+function setup_category_animations(category)
+    animMenuData[category].menus = {}
+    for _, animation in ipairs(animMenuData[category].animations) do
+        local action = menu.action(animMenuData[category].list, animation, {"animate" .. category .. " " .. animation}, "Plays the " .. animation .. " animation from group " .. category, function(v)
+            play_animation(category, animation, false)
+        end)
+        table.insert(animMenuData[category].menus, action)
+    end
+end
+function setup_animation_list()
+    if animLoaded then
+        return
+    end
+    -- Download animation file if does not exist
+    if not filesystem.exists(ANIMATIONS_DATA_FILE) then
+        download_animation_data()
+    end
+    -- Parse the file
+    local isHeaderRead = false
+    -- Possibly recurse down categories splitting on _ and @
+    for line in io.lines(ANIMATIONS_DATA_FILE) do
+        if isHeaderRead then
+            chunks = {} -- [ category, anim ]
+            for substring in string.gmatch(line, "%S+") do
+                table.insert(chunks, substring)
+            end
+            if #chunks == 2 then
+                local category = chunks[1]
+                if animMenuData[category] == nil then
+                    animMenuData[category] = {
+                        animations = {},
+                    }
+                    local list = menu.list(browseMenu, category, {}, "", function() setup_category_animations(category) end
+                    , function()
+                        if animMenuData[category].menus then
+                            for _, m in ipairs(animMenuData[category].menus) do
+                                pcall(menu.delete, m)
+                            end
+                            animMenuData[category].menus = nil
+                        end
+                    end)
+                    animMenuData[category].list = list
+                end
+                table.insert(animMenuData[chunks[1]].animations, chunks[2])
+            end
+        else
+            local version = line:sub(2)
+            if version ~= ANIMATIONS_DATA_FILE_VERSION then
+                util.toast("Animation data out of date, updating...")
+                download_animation_data()
+            end
+            isHeaderRead = true
+        end
+    end
+    animLoaded = true
+end
+
 function play_animation(group, anim, ignore)
     if PAD.IS_CONTROL_PRESSED(2, 209) then
         for i, favorite in ipairs(favorites) do
@@ -701,7 +936,7 @@ function play_animation(group, anim, ignore)
 
         -- Play animation on all npcs if enabled:
         if affectType > 0 then
-            local peds = util.get_all_peds()
+            local peds = entities.get_all_peds_as_handles()
             for _, npc in ipairs(peds) do
                 if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
                     if clearActionImmediately then
@@ -758,18 +993,23 @@ function save_favorites()
 end
 -----------------------
 util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)
-util.toast(string.format("Ped Actions Script %s by Jackz. Loaded %d scenarios, %d animations, and %d favories", VERSION, scenarioCount, animationCount, #favorites), 2)
+util.toast(string.format("Ped Actions Script %s by Jackz.", VERSION), 2)
 
-util.on_stop(function(a)
+util.on_stop(function(_)
     if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
-        util.delete_entity(selfSpeechPed.entity)
+        entities.delete(selfSpeechPed.entity)
+    end
+    ANIMATIONS = {}
+    if animLoaded then
+        util.toast("WARN: Unloading animation browse list, prepare for lag.")
+        destroy_animations_data()
     end
 end)
 
 while true do
     if selfSpeechPed.entity > 0 and util.current_unix_time_millis() - selfSpeechPed.lastUsed > 20 then
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
-            util.delete_entity(selfSpeechPed.entity)
+            entities.delete(selfSpeechPed.entity)
         end
         selfSpeechPed.entity = 0
     end

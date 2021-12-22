@@ -36,10 +36,33 @@ function draw_text(x, y, text, opts)
     end
     --   directx.draw_text(chatPos.x, chatPos.y + (textOffsetSize * i), content, ALIGN_CENTRE_LEFT, textSize, textColor, true)
 end
+local drunk = false
+menu.toggle(menu.my_root(), "drunk", {}, "", function(on)
+    local my_ped = PLAYER.PLAYER_PED_ID()
+    drunk = on
+    if on then
+        if not STREAMING.HAS_ANIM_SET_LOADED("move_m@drunk@moderatedrunk") then
+            STREAMING.REQUEST_ANIM_SET("move_m@drunk@moderatedrunk")
+        end
+        PED._SET_FACIAL_CLIPSET_OVERRIDE(my_ped, "facials@gen_female@base")
+        PED.SET_PED_MOVEMENT_CLIPSET(my_ped, "move_m@drunk@moderatedrunk", 1.0)
+        -- CAM.SET_GAMEPLAY_CAM_SHAKE_AMPLITUDE(155.0)
+        CAM.SHAKE_GAMEPLAY_CAM("DRUNK_SHAKE", 5.0)
+        util.create_tick_handler(function(_)
+            local my_ped = PLAYER.PLAYER_PED_ID()
+            AUDIO.SET_PED_IS_DRUNK(my_ped, on)
+            PED.SET_PED_MOVE_RATE_OVERRIDE(my_ped, 0.75)
+            return drunk
+        end)
+    else
+        AUDIO.SET_PED_IS_DRUNK(my_ped, false)
+        PED.RESET_PED_MOVEMENT_CLIPSET(my_ped, 12.0)
+    end
+end, false)
 menu.action(menu.my_root(), "reproession", {}, "", function(_)
     local simeonModel = load_model("ig_siemonyetarian")
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local vehicle = util.get_vehicle()
+    local vehicle = entities.get_user_vehicle_as_handle()()
     local relationshipGroup = memory.alloc(8)
     PED.ADD_RELATIONSHIP_GROUP("_WHEEL_FRANKLIN", relationshipGroup);
     local group = memory.read_int(relationshipGroup)
@@ -49,7 +72,7 @@ menu.action(menu.my_root(), "reproession", {}, "", function(_)
     PED.SET_PED_INTO_VEHICLE(my_ped, vehicle, -2)
 
     local pos = ENTITY.GET_ENTITY_COORDS(vehicle, true)
-    local simeon = util.create_ped(0, simeonModel, pos, 0)
+    local simeon = entities.create_ped(0, simeonModel, pos, 0)
     PED.SET_PED_INTO_VEHICLE(simeon, vehicle, -1)
     PED.SET_PED_RELATIONSHIP_GROUP_HASH(simeon, group)
 
@@ -140,7 +163,7 @@ local min = memory.alloc(24)
 local max = memory.alloc(24)
 menu.action(menu.my_root(), "witness protection", {}, "", function(_)
     for _, e in ipairs(fibs) do
-        util.delete_entity(e)
+        entities.delete(e)
     end
     fibs = {}
     running = false
@@ -148,7 +171,7 @@ menu.action(menu.my_root(), "witness protection", {}, "", function(_)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, true)
     for i = 0, 20 do
-        local fib = util.create_ped(0, FIB_MODEL, my_pos, 0)
+        local fib = entities.create_ped(0, FIB_MODEL, my_pos, 0)
         PED.SET_PED_GRAVITY(fib, false)
         PED.SET_PED_CAN_RAGDOLL(fib, false)
         ENTITY.SET_ENTITY_COLLISION(fib, false, true)
@@ -182,7 +205,7 @@ menu.action(menu.my_root(), "clear witness protection", {}, "", function(_)
     memory.free(min)
     memory.free(max)
     for _, e in ipairs(fibs) do
-        util.delete_entity(e[1])
+        entities.delete(e[1])
     end
     fibs = {}
     running = false
@@ -219,10 +242,10 @@ menu.action(menu.my_root(), "spawn upside down world", {}, "", function(a)
 end)
 util.on_stop(function()
     for _, struct in pairs(objs) do
-        util.delete_entity(struct)
+        entities.delete(struct)
     end
     for _, e in ipairs(pending_delete) do
-        util.delete_entity(e)
+        entities.delete(e)
     end
     if scaleform > 0 then
         GRAPHICS.SET_SCALEFORM_MOVIE_AS_NO_LONGER_NEEDED(scaleform)
@@ -240,7 +263,7 @@ menu.action(menu.my_root(), "Clear Nearby Peds", {}, "", function(on_click)
             local pos2 = ENTITY.GET_ENTITY_COORDS(peds[i], 1)
             local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
             if dist <= 100.0 then
-                util.delete_entity(peds[i])
+                entities.delete(peds[i])
                 count = count + 1
             end
         end
@@ -258,7 +281,7 @@ menu.action(menu.my_root(), "Clear Nearby Vehicles", {}, "", function(on_click)
         local pos2 = ENTITY.GET_ENTITY_COORDS(vehicles, 1)
         local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
         if dist <= 100.0 then
-            util.delete_entity(vehicle)
+            entities.delete(vehicle)
             count = count + 1
         end
     end
@@ -273,7 +296,7 @@ menu.action(menu.my_root(), "Clear Nearby Objects", {}, "", function(on_click)
     for _, object in pairs(util.get_all_objects()) do
         local pos2 = ENTITY.GET_ENTITY_COORDS(object, 1)
         local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-        util.delete_entity(object)
+        entities.delete(object)
     end
     util.toast("Deleted " .. count .. " objects")
 end)
@@ -283,7 +306,7 @@ menu.action(menu.my_root(), "stop veh", {}, "", function(on_click)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
-    local vehicle = util.get_vehicle()
+    local vehicle = entities.get_user_vehicle_as_handle()()
     ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
 end)
 
@@ -427,7 +450,7 @@ end, false)
 
 menu.action(menu.my_root(), "yeet new car", {}, "", function(on_click)
     local my_pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
-    local jesus = util.create_vehicle(veh_model, launchFromSrc and src or my_pos, 0)
+    local jesus = entities.create_vehicle(veh_model, launchFromSrc and src or my_pos, 0)
 
     ENTITY.SET_ENTITY_VELOCITY(jesus, 0.0, 0.0, 200.0)
     local v = get_velocity_to_vector({
@@ -445,9 +468,9 @@ end)
 
 menu.action(menu.my_root(), "yeet my car", {}, "", function(on_click)
     local my_pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
-    local jesus = util.get_vehicle()
+    local jesus = entities.get_user_vehicle_as_handle()()
     ENTITY.SET_ENTITY_COORDS(jesus, src.x, src.y, src.z)
-    -- local jesus = util.create_ped(1, model, pos, 0)
+    -- local jesus = entities.create_ped(1, model, pos, 0)
 
     -- local pos = ENTITY.GET_ENTITY_COORDS(jesus, 1)
     ENTITY.SET_ENTITY_VELOCITY(jesus, 0.0, 0.0, 200.0)
@@ -466,7 +489,7 @@ end)
 
 menu.action(menu.my_root(), "yeet jesus", {}, "", function(on_click)
     local my_pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
-    local jesus = util.create_ped(1, model, launchFromSrc and src or my_pos, 0)
+    local jesus = entities.create_ped(1, model, launchFromSrc and src or my_pos, 0)
 
     ENTITY.SET_ENTITY_VELOCITY(jesus, 0.0, 0.0, 100.0)
     local v = get_velocity_to_vector({
@@ -526,7 +549,7 @@ while true do
             VEHICLE.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME(1)
             local me = PLAYER.PLAYER_PED_ID()
             local my_pos = ENTITY.GET_ENTITY_COORDS(me)
-            local my_heading = ENTITY.GET_ENTITY_HEADING(util.get_vehicle())
+            local my_heading = ENTITY.GET_ENTITY_HEADING(entities.get_user_vehicle_as_handle()())
             local peds = util.get_all_peds()
             local dists = {}
             local min = my_heading - 15.0
@@ -648,7 +671,7 @@ while true do
     --
 
     --GRAPHICS.DRAW_MARKER(21, src.x, src.y, src.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 255, 0, 0, 200, true, true, 2, true, "NULL", "NULL", true)
-    -- local vehicle = util.get_vehicle()
+    -- local vehicle = entities.get_user_vehicle_as_handle()()
     -- if last_vehicle == vehicle then
     --     if is_last_valid then
     --         local heading = ENTITY.GET_ENTITY_HEADING(vehicle)

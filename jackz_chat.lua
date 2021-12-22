@@ -1,8 +1,8 @@
 -- Stand Chat 
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.4"
-local LANG_TARGET_VERSION = "1.2.1" -- Target version of translations.lua lib
+local VERSION = "1.2.7"
+local LANG_TARGET_VERSION = "1.2.2" -- Target version of translations.lua lib
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
@@ -21,7 +21,7 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         end)
         async_http.dispatch()
         async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
+            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT_FILENAME .. ".lua", "w")
             io.output(file)
             io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             io.close(file)
@@ -61,7 +61,7 @@ function try_load_lib(lib, globalName)
         _G[globalName] = f
     end
 end
-try_load_lib("natives-1627063482.lua")
+try_load_lib("natives-1639742232.lua")
 try_load_lib("json.lua", "json")
 try_load_lib("translations.lua", "lang")
 if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= LANG_TARGET_VERSION then
@@ -186,9 +186,7 @@ menu.toggle(menu.my_root(), lang.format("RECV_ALL_PUBLIC_NAME"), {"chatglobal"},
   end
 end, false)
 
-menu.action(menu.my_root(), lang.format("SEND_MSG_NAME"), { "chat", "c" }, lang.format("SEND_MSG_DESC") .. "\n\n" .. lang.format("SEND_CHAT_AS", user), function(_)
-  menu.show_command_box("chat ")
-end, function(args)
+menu.text_input(menu.my_root(), lang.format("SEND_MSG_NAME"), { "chat", "c" }, lang.format("SEND_MSG_DESC") .. "\n\n" .. lang.format("SEND_CHAT_AS", user), function(args, clickType)
   show_busyspinner("Sending messsage")
   async_http.init("stand-chat.jackz.me", "/channels/" .. sendChannel .. "?v=" .. VERSION, function(result)
     if result == "OK" or result == "Bad Request" then
@@ -208,7 +206,8 @@ end, function(args)
   async_http.set_post("application/json", json.encode({
     user = user,
     content = args,
-    hash = keyhash
+    hash = keyhash,
+    rid = players.get_rockstar_id(players.user())
   }))
   async_http.dispatch()
 end)

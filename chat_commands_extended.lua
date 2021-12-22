@@ -25,7 +25,7 @@ local function spawn_ped_on_player(model, player)
         while not STREAMING.HAS_MODEL_LOADED(model) do
             util.yield()
         end
-        util.create_ped(1, model, pos, 0)
+        entities.create_ped(1, model, pos, 0)
         STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
     end
 end
