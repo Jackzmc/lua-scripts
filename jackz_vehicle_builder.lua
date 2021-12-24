@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "0.1.0"
+local VERSION = "1.1.0"
 local LANG_TARGET_VERSION = "1.2.2" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.0.0"
 local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
@@ -87,19 +87,23 @@ end
 
 -- [ Begin actual script ]--
 local BUILDER_VERSION = "Jackz Custom Vehicle 1.0.0" -- For version diff warnings
-local builder = { -- All data needed for builder
-    base = {
-        handle = nil,
-        invisible = false
-        -- other metadta
-    },
-    entities = {},
-    entitiesMenuList = nil,
-    propSpawner = {
-        root = nil,
-        menus = {}
+local builder = nil
+function new_builder(baseHandle)
+    return { -- All data needed for builder
+        base = {
+            handle = baseHandle,
+            invisible = false
+            -- other metadta
+        },
+        entities = {},
+        entitiesMenuList = nil,
+        propSpawner = {
+            root = nil,
+            menus = {},
+            has_loaded = false
+        }
     }
-}
+end
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
     id = nil
@@ -107,8 +111,32 @@ local preview = { -- Handles preview tracking and clearing
 local highlightedHandle = nil -- Will highlight the handle with this ID
 local mainMenu -- TODO: Rename to better name
 
-local POS_CHANGE_AMOUNT = 1 -- TODO: Change to menu slider
-local ROT_CHANGE_AMOUNT = 5 -- TODO: Change to menu slider
+local POS_SENSITIVITY = 1
+local ROT_SENSITIVITY = 5
+
+local CURATED_PROPS = {
+    "prop_logpile_06b",
+    "prop_barriercrash_04",
+    "prop_barier_conc_01a",
+    "prop_barier_conc_01b",
+    "prop_barier_conc_03a",
+    "prop_barier_conc_02c",
+    "prop_mc_conc_barrier_01",
+    "prop_barier_conc_05b",
+    "prop_metal_plates01",
+    "prop_metal_plates02",
+    "prop_woodpile_01a",
+    "prop_weed_pallet",
+    "prop_cs_dildo_01",
+    "prop_water_ramp_03",
+    "prop_water_ramp_02",
+    "prop_mp_ramp_02",
+    "prop_mp_ramp_01_tu",
+    "prop_roadcone02a",
+    "prop_beer_neon_01",
+    "prop_sign_road_03b",
+    "prop_prlg_snowpile"
+}
 
 local PROPS_PATH = filesystem.resources_dir() .. "/objects.txt"
 local SAVE_DIRECTORY = filesystem.stand_dir() .. "/Vehicles/Custom"
@@ -118,11 +146,8 @@ if not filesystem.exists(PROPS_PATH) then
 end
 
 --[[ TODO: 
-    * Menu sliders for (dec)inc for pos/rot [REQUIRES SETTINGS, PIA]
-    * Edit feature
     * Vehicle Attachments
         * Attach current (~= base) to base
-    * Search props
 ]]--
 
 --[ SAVED VEHICLES LIST ]
@@ -155,13 +180,12 @@ end
                 util.toast("Warn: Vehicle data is version: " .. data.version .. "\ncurrent verison: " .. BUILDER_VERSION .. "\nVehicle may spawn incorrectly or fail")
             end
             local m = menu.action(parentList, "Spawn", {}, "", function()
-                util.toast("Spawning:")
-                spawn_vehicle(data)
+                spawn_custom_vehicle(data)
             end)
             table.insert(optionsMenuHandles, m)
 
             m = menu.action(parentList, "Edit", {}, "", function()
-                import_vehicle_to_builder(data)
+                import_vehicle_to_builder(data, filename:sub(1, -6))
             end)
             table.insert(optionsMenuHandles, m)
         else
@@ -182,9 +206,9 @@ function setup_pre_menu()
         menu.delete(mainMenu)
     end
     mainMenu = menu.action(menu.my_root(), "Set current vehicle as base", {}, "", function()
-        local vehicle = util.get_vehicle()
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
         if vehicle > 0 then
-            builder.base.handle = vehicle
+            builder = new_builder(vehicle)
             setup_builder_menus()
         else
             util.toast("You are not in a vehicle.")
@@ -192,17 +216,31 @@ function setup_pre_menu()
     end)
 end
 
-function setup_builder_menus()
+function setup_builder_menus(name)
     menu.delete(mainMenu)
     mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() end, _destroy_prop_previewer)
-    menu.text_input(mainMenu, "Save", {"savevehiclename" .. builder.base.handle}, "Save the custom vehicle to disk", function(name)
+    menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Save the custom vehicle to disk", function(name)
         save_vehicle(name)
         util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
-    end)
+    end, name or "")
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "")
-    builder.propSpawner.root = menu.list(mainMenu, "Spawn Props", {"spawnprops"}, "Browse props to spawn to attach to a vehicle",
-        _load_prop_previewer
-    )
+    builder.propSpawner.root = menu.list(mainMenu, "Spawn Props", {"spawnprops"}, "Browse props to spawn to attach to a vehicle", function() end, _destroy_prop_browse_menus)
+    if not builder.base.handle or builder.prop_list_active then
+        return
+    end
+    local searchList = menu.list(builder.propSpawner.root, "Search Props")
+    menu.text_input(searchList, "Search", {"searchprops"}, "Enter a prop name to search for", function(query)
+        create_search_results(searchList, query, 20)
+    end)
+    local curatedList = menu.list(builder.propSpawner.root, "Curated", {}, "Contains a list of props that work well with custom vehicles")
+    for _, prop in ipairs(CURATED_PROPS) do
+        add_prop_menu(curatedList, prop)
+    end
+    local browseList
+    browseList = menu.list(builder.propSpawner.root, "Browse", {}, "", function()
+        _load_prop_browse_menus(browseList)
+    end)
+    builder.prop_list_active = true
     menu.action(mainMenu, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
         for handle, data in pairs(builder.entities) do
             menu.delete(data.list)
@@ -220,47 +258,112 @@ function setup_builder_menus()
             end
         end
     end)
+    menu.action(mainMenu, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
+        if vehicle > 0 then
+            if vehicle == builder.base.handle then
+                util.toast("This vehicle is already the base vehicle.")
+            else
+                log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
+                builder.base.handle = vehicle
+                for handle, dat in pairs(builder.entities) do
+                    attach_entity(vehicle, handle, dat.pos, dat.rot)
+                end
+            end
+        else
+            util.toast("You are not in a vehicle.")
+        end
+    end)
 end
 
+local searchResults = {}
 -- [ "Spawn Props" Menu Logic ]
-function _load_prop_previewer()
-    if not builder.base.handle then
-        return
+function create_search_results(parent, query, max)
+    for _, result in ipairs(searchResults) do
+        pcall(menu.delete, result)
     end
-    show_busyspinner("Loading props...")
-    local searchList = menu.list(builder.propSpawner.root, "Search Props")
-    local curatedList = menu.list(builder.propSpawner.root, "Curated", {}, "Contains a list of props that work well with custom vehicles")
-    menu.divider(builder.propSpawner.root, "Props")
+    searchResults = {}
+    local results = {}
     for prop in io.lines(PROPS_PATH) do
-        local menuHandle = menu.action(builder.propSpawner.root, prop, {}, "", function()
+        local i, j = prop:find(query)
+        if i then
+            -- Add the distance:
+            table.insert(results, {
+                prop = prop,
+                distance = j - i
+            })
+        end
+    end
+    table.sort(results, function(a, b) return a.distance > b.distance end)
+    for i = 1, max do
+        if results[i] then
+            table.insert(searchResults, add_prop_menu(parent, results[i].prop))
+        end
+    end
+end
+    
+
+function _load_prop_browse_menus(parent)
+    if not builder.propSpawner.has_loaded then
+        show_busyspinner("Loading browse menu...")
+        builder.propSpawner.has_loaded = true
+        for prop in io.lines(PROPS_PATH) do
+            table.insert(builder.propSpawner.menus, add_prop_menu(parent, prop))
+        end
+        HUD.BUSYSPINNER_OFF()
+    end
+end
+function _destroy_prop_browse_menus()
+    show_busyspinner("Clearing browse menu... May lag")
+    util.create_thread(function()
+        for _, m in ipairs(builder.propSpawner.menus) do
+            menu.delete(m)
+        end
+    end)
+    builder.propSpawner.has_loaded = false
+    builder.propSpawner.menus = {}
+    HUD.BUSYSPINNER_OFF()
+end
+
+function add_prop_menu(parent, propName)
+    local menuHandle = menu.action(parent, propName, {}, "", function()
+        if preview.entity > 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
+            entities.delete(preview.entity)
+            preview.entity = 0
+            preview.id = nil
+        end
+        local hash = util.joaat(propName)
+        local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+        local entity = entities.create_object(hash, pos)
+        add_entity_to_list(builder.entitiesMenuList, entity, propName)
+        highlightedHandle = entity
+    end)
+    menu.on_focus(menuHandle, function()
+        if preview.id == nil or preview.id ~= propName then -- Focus seems to be re-called everytime an menu item is added
             if preview.entity > 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
                 entities.delete(preview.entity)
-                preview.entity = 0
-                preview.id = nil
             end
-            local hash = util.joaat(prop)
-            local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+            local hash = util.joaat(propName)
+            preview.id = propName
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+            STREAMING.REQUEST_MODEL(hash)
+            while not STREAMING.HAS_MODEL_LOADED(hash) do
+                util.yield()
+            end
+            if preview.id ~= propName then return end
             local entity = entities.create_object(hash, pos)
-            add_entity_to_list(builder.entitiesMenuList, entity, prop)
-            highlightedHandle = entity
-        end)
-        menu.on_focus(menuHandle, function()
-            if preview.id == nil or preview.id ~= prop then -- Focus seems to be called for every menu item added
-                if preview.entity > 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
-                    entities.delete(preview.entity)
-                end
-                local hash = util.joaat(prop)
-                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-                preview.entity = entities.create_object(hash, pos)
-                preview.id = prop
-                ENTITY.SET_ENTITY_ALPHA(preview.entity, 150)
-                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(preview.entity, false, false)
-                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            if entity == 0 then
+                log("Could not create preview for " .. propName .. "(" .. hash .. ")")
+                return
             end
-        end)
-        table.insert(builder.propSpawner.menus, menuHandle)
-    end
-    HUD.BUSYSPINNER_OFF()
+            ENTITY.SET_ENTITY_ALPHA(entity, 150)
+            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
+            preview.entity = entity
+            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+        end
+    end)
+    return menuHandle
+    
 end
 
 function _destroy_prop_previewer()
@@ -275,20 +378,20 @@ function _destroy_prop_previewer()
     end
     builder.propSpawner.menus = {}
     HUD.BUSYSPINNER_OFF()
+    builder.prop_list_active = false
 end
 
 -- [ ENTITY EDITING HANDLING ]
-function add_entity_to_list(list, handle, name)
-    ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
+function add_entity_to_list(list, handle, name, pos, rot)
+    -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
 
-    
     builder.entities[handle] = {
         name = name or "(no name)",
         model = ENTITY.GET_ENTITY_MODEL(handle),
         list = nil,
-        pos = { x = 0.0, y = 0.0, z = 0.0 },
-        rot = { x = 0.0, y = 0.0, z = 0.0 },
+        pos = pos or { x = 0.0, y = 0.0, z = 0.0 },
+        rot = rot or { x = 0.0, y = 0.0, z = 0.0 },
     }
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot)
     builder.entities[handle].list = create_entity_section(list, handle)
@@ -296,7 +399,7 @@ end
 
 function create_entity_section(parent, handle)
     if not ENTITY.DOES_ENTITY_EXIST(handle) then
-        util.log("create_entity_section: Entity (" .. handle .. ") vanished, deleting")
+        log("Entity (" .. handle .. ") vanished, deleting", "create_entity_section")
         menu.delete(builder.entities[handle])
         builder.entities[handle] = nil
         return
@@ -311,31 +414,31 @@ function create_entity_section(parent, handle)
 
     --[ POSITION ]--
     menu.divider(entityroot, "Position")
-    menu.slider(entityroot, "X", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x), POS_CHANGE_AMOUNT, function (x)
+    menu.slider(entityroot, "X / Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x), POS_SENSITIVITY, function (x)
         pos.x = x / 100
         attach_entity(builder.base.handle, handle, pos, rot)
         -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
     end)
-    menu.slider(entityroot, "Y", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y), POS_CHANGE_AMOUNT, function (y)
+    menu.slider(entityroot, "Y / Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y), POS_SENSITIVITY, function (y)
         pos.y = y / 100
         attach_entity(builder.base.handle, handle, pos, rot)
     end)
-    menu.slider(entityroot, "Z", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z), POS_CHANGE_AMOUNT, function (z)
+    menu.slider(entityroot, "Z / Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z), POS_SENSITIVITY, function (z)
         pos.z = z / 100
         attach_entity(builder.base.handle, handle, pos, rot)
     end)
 
     --[ ROTATION ]--
     menu.divider(entityroot, "Rotation")
-    menu.slider(entityroot, "X", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_CHANGE_AMOUNT, function (x)
+    menu.slider(entityroot, "X / Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
         rot.x = x
         attach_entity(builder.base.handle, handle, pos, rot)
     end)
-    menu.slider(entityroot, "Y", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_CHANGE_AMOUNT, function (y)
+    menu.slider(entityroot, "Y / Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
         rot.y = y
         attach_entity(builder.base.handle, handle, pos, rot)
     end)
-    menu.slider(entityroot, "Z", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_CHANGE_AMOUNT, function (z)
+    menu.slider(entityroot, "Z / Horizontal", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
         attach_entity(builder.base.handle, handle, pos, rot)
     end)
@@ -357,7 +460,6 @@ end
 
 --[ Save Data ]
 function save_vehicle(name)
-    -- TODO: Check for valid filename
     filesystem.mkdirs(SAVE_DIRECTORY)
     local file = io.open(SAVE_DIRECTORY .. "/" .. name .. ".json", "w")
     if file then
@@ -400,7 +502,6 @@ function builder_to_json()
         version = BUILDER_VERSION,
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
-            -- TODO: Merge other base options
             invisible = builder.base.invisible,
             savedata = vehiclelib.Serialize(builder.base.handle)
         },
@@ -409,34 +510,64 @@ function builder_to_json()
 end
 
 --[ Savedata Options ]--
-function import_vehicle_to_builder(data)
-    util.toast("Feature not implemented")
-    -- TODO: Stub
+function import_vehicle_to_builder(data, name)
+    local baseHandle, pos = spawn_vehicle(data.base)
+    builder = new_builder(baseHandle)
+    setup_builder_menus(name)
+    local handles = {}
+    for _, entityData in ipairs(data.objects) do
+        local handle = entities.create_object(entityData.model, pos)
+        for _, handle2 in ipairs(handles) do
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+        end
+        table.insert(handles, handle)
+        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
+    end
 end
-
-function spawn_vehicle(data)
-    STREAMING.REQUEST_MODEL(data.base.model)
-    while not STREAMING.HAS_MODEL_LOADED(data.base.model) do
+function spawn_vehicle(vehicleData)
+    STREAMING.REQUEST_MODEL(vehicleData.model)
+    while not STREAMING.HAS_MODEL_LOADED(vehicleData.model) do
         util.yield()
     end
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 1.0)
     local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
-    local baseHandle = entities.create_vehicle(data.base.model, pos, heading)
+    local baseHandle = entities.create_vehicle(vehicleData.model, pos, heading)
     TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+    if vehicleData.saveData then
+        vehiclelib.ApplyToVehicle(baseHandle, vehicleData.savedata)
+    end
+    return baseHandle, pos
+end
+
+function spawn_custom_vehicle(data)
+    local baseHandle, pos = spawn_vehicle(data.base)
+    local handles = {}
     for _, entityData in ipairs(data.objects) do
         local handle = entities.create_object(entityData.model, pos)
+        for _, handle2 in ipairs(handles) do
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+        end
+        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
+        table.insert(handles, handle)
         attach_entity(baseHandle, handle, entityData.offset, entityData.rotation)
     end
-    vehiclelib.ApplyToVehicle(baseHandle, data.base.savedata)
+    return baseHandle
 end
 
 -- [ UTILS ]--
+function log(str, mod)
+    if mod then
+        util.log("jackz_vehicle_builder/" .. mod .. ": " .. str)
+    else
+        util.log("jackz_vehicle_builder: " .. str)
+    end
+end
 function attach_entity(parent, handle, pos, rot)
     ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, 0,
         pos.x, pos.y, pos.z,
         rot.x, rot.y, rot.z,
-        false, true, false, false, 2, true
+        false, true, true, false, 2, true
     )
 end
 function show_busyspinner(text)

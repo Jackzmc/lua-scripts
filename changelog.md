@@ -324,3 +324,10 @@ V1.1.0
 * Added loading indicator when models are first being loaded
 * (1.1.1) Upgraded apis to new stand apis
 * (1.1.2) Use updated natives
+
+# jackz_vehicle_builder (v1)
+
+V1.1.0
+
+* Added swapping base vehicle
+* Auto populate name when editing saved

@@ -1,6 +1,6 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
-    FORMAT_VERSION = "JSTAND 1.2",
+    FORMAT_VERSION = "JSTAND 1.3",
     LIB_VERSION = "1.0.0",
     MOD_NAMES = {
         [1] = "Spoilers",
