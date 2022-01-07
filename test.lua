@@ -253,17 +253,17 @@ util.on_stop(function()
 end)
 
 menu.action(menu.my_root(), "Clear Nearby Peds", {}, "", function(on_click)
-    local peds = util.get_all_peds()
-    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
+    local peds = entities.get_all_peds_as_handles()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local pos = ENTITY.GET_ENTITY_COORDS(my_ped, 1)
 
     local count = 0
-    for i = 1, #peds do
-        if not PED.IS_PED_A_PLAYER(peds[i]) then
-            local pos2 = ENTITY.GET_ENTITY_COORDS(peds[i], 1)
-            local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-            if dist <= 100.0 then
-                entities.delete(peds[i])
+    for _, ped in ipairs(peds) do
+        if not PED.IS_PED_A_PLAYER(ped) then
+            local pos2 = ENTITY.GET_ENTITY_COORDS(ped, 1)
+            local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
+            if dist <= 10000.0 then
+                entities.delete_by_handle(ped)
                 count = count + 1
             end
         end
@@ -272,7 +272,7 @@ menu.action(menu.my_root(), "Clear Nearby Peds", {}, "", function(on_click)
 end)
 
 menu.action(menu.my_root(), "Clear Nearby Vehicles", {}, "", function(on_click)
-    local vehicles = util.get_all_vehicles()
+    local vehicles = entities.get_all_vehicles_as_handles()
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -280,25 +280,21 @@ menu.action(menu.my_root(), "Clear Nearby Vehicles", {}, "", function(on_click)
     for _, vehicle in ipairs(vehicles) do
         local pos2 = ENTITY.GET_ENTITY_COORDS(vehicles, 1)
         local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-        if dist <= 100.0 then
-            entities.delete(vehicle)
+        if dist <= 6000.0 then
+            util.toast(vehicle .. " " .. dist)
+            entities.delete_by_handle(vehicle)
             count = count + 1
         end
     end
     util.toast("Deleted " .. count .. " vehicles")
 end)
 
-menu.action(menu.my_root(), "Clear Nearby Objects", {}, "", function(on_click)
-    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
-
-    local count = 0
-    for _, object in pairs(util.get_all_objects()) do
-        local pos2 = ENTITY.GET_ENTITY_COORDS(object, 1)
-        local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-        entities.delete(object)
+menu.action(menu.my_root(), "Clear All Objects", {}, "", function(on_click)
+    local p = entities.get_all_objects_as_handles()
+    for _, object in ipairs(p) do
+        entities.delete_by_handle(object)
     end
-    util.toast("Deleted " .. count .. " objects")
+    util.toast("Deleted " .. #p .. " objects")
 end)
 
 menu.action(menu.my_root(), "stop veh", {}, "", function(on_click)

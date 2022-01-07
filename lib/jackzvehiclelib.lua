@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.3",
-    LIB_VERSION = "1.0.0",
+    LIB_VERSION = "1.1.0",
     MOD_NAMES = {
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -76,9 +76,9 @@ function vehiclelib.Serialize(vehicle)
     }
     -- Declare pointers
     local Color = {
-        r = memory.alloc(8),
-        g = memory.alloc(8),
-        b = memory.alloc(8),
+        r = memory.alloc(4),
+        g = memory.alloc(4),
+        b = memory.alloc(4),
     }
 
     if Primary.Custom then
@@ -131,8 +131,6 @@ function vehiclelib.Serialize(vehicle)
         Front = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2),
         Back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3),
     }
-    Color.r = memory.alloc(8)
-    Color.b = memory.alloc(8)
     VEHICLE._GET_VEHICLE_DASHBOARD_COLOR(vehicle, Color.r)
     VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.b)
     local DashboardColor = memory.read_int(Color.r)
@@ -266,6 +264,36 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
+end
+
+function vehiclelib.ConvertXML(xmlStr)
+    if not json then
+        _G['json'] = require('json')
+    end
+
+    local loading = true
+    local result = {
+        data = nil,
+        error = nil
+    }
+    async_http.init("jackz.me", "/stand/convert-api", function(body)
+        local status, json = pcall(json.decode, body)
+        if status then
+            result.data = json.data
+            result.error = json.error
+        else
+            result.error = "Invalid Server Response"
+        end
+        loading = false
+    end, function() end)
+    async_http.set_post("text/plain", xmlStr)
+    async_http.add_header("vehiclelib-version",vehiclelib.LIB_VERSION)
+    async_http.add_header("vehiclelib-format",vehiclelib.FORMAT_VERSION)
+    async_http.dispatch()
+    while loading do
+        util.yield()
+    end
+    return result
 end
 
 return vehiclelib

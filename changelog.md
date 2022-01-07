@@ -1,175 +1,5 @@
 # jackz vehicles (v3)
 
-V1.2
-
-* Fixed bugs, added 'Set License Plate'
-
-V1.3
-
-* Fix teleport far not returning self to vehicle
-* (Untested) Support spectating other players. Should work with Teleport Vehicle
-
-V1.4
-
-* Added door controls
-* Rearranged menu options
-  
-V1.5
-
-* Added painting car
-* Added spawning any vehicle infront of a player
-* Removed teleport far distance (normal teleport now works smarter)
-* Made getting control of players that are too far auto spectate.
-* 1.5.1: Changed hard 3s auto-spectate to soft 3s wait
-* 1.5.2: Fixed auto-spectating activating when already spectating
-* 1.5.2: Fixed auto-spectating not properly waiting
-
-V1.6
-
-* Added new Customization submenu:
-  * Xenon Headlights Paint Type
-  * Neon Lights (individual toggles and color)
-  * Moved paint options to this menu
-* Added Door Locking to doors submenu
-* Added Landing Gear State (Retracted or Open) to doors submenu as well
-
-V1.7
-
-* Upgraded the 'Customization' menu (renamed to 'Los Santos Customs') and added:
-  * Vehicle Mods - Contains the all 31 upgrades (wheel design, engine, transmission, etc.)
-  * Upgrade
-  * Performance Upgrade
-
-V1.8
-
-* Added saving of any vehicle to a json file
-* Clone any player's vehicle
-* Spawn any saved vehicles
-* (1.8.1) Added option to apply to pre-existing vehicle
-* (1.8.3) Allow restoring vehicle mods to stock (-1)
-* (1.8.3) Fixed spawning saved vehicle erroring
-Saved vehicles are stored in `%appdata%\Stand\Vehicles`. Format is not compatible with any other menu, but its similar to Paragon's.
-
-V1.9
-
-* Fixed following mods from not saving correctly: Xenon Headlights, Turbo, and Tire Smoke.
-  * A new saved vehicle will need to be created, was not stored properly
-* Added saving engine state
-* Added some vehicle info to spawn saved vehicle list (vehicle manufacturer, name, and type, and format version)
-
-V1.10
-
-* Added Movement > Tow Options >
-  * Tow (Wander) - Spawns a random tow truck infront, that will drive randomly
-  * Tow (Waypoint) - Spawns a random tow truck, heading to your waypoint
-  * Detatch Tow
-* Added Flip Vehicle 180
-* Added Hijack Vehicle - Makes a random npc hijack their vehicle and stops the vehicle instantly.
-* Added under lua scripts:
-  * Tow All Nearby Vehicles
-  * Clear All Nearby Tows
-
-V1.11
-
-* Renamed Movement > Tow Options to Movement > Attachments
-* Added Cargobob (Cargobob to Mt. Chiliad, Ocean, Waypoint)
-* Added Trailer (Drive around, Take to Waypoint)
-* Added Free Vehicle (Teleports vehicle upwards to escape trailers or cages)
-
-V1.12
-
-* Added Clean Vehicle
-* Improved Hijacking Success
-* Added Delete Vehicle
-* Improved Cargo All Nearby Vehicles (Makes them have no collision at beginning)
-* Fix spawn saved vehicles being named "Spawn"
-* Switch Tow trucks to "Avoid Traffic" driving style
-
-V1.13
-
-* Added preview vehicle for spawning saved vehicles
-* (1.13.1) Added more checks for saved vehicles for invalid or missing entries
-* (1.13.1) Delete spawn preview on spawn
-
-V1.14
-
-* Added Clear All Nearby Vehicles
-* Added Hijack All Nearby Vehicles
-* Removed Activate on Last Vehicle (Automatic now)
-* Added 'Honk' and 'honkall' commands
-* Re-organized nearby actions to submenu ("Nearby Vehicles")
-* Added "Cargobob to Them"
-* Added "Towtruck to Them"
-
-V1.15.0
-
-* Replaced x To Them with "X to Player"
-* Added "Hijack & Drive To Player" option
-* Fixed tow to player actually not working
-* Remove cargobobs automatically when told to detach
-* Improved 'Upgrade'
-* (1.15.1) Fixed cargobob to player just following itself
-* (1.15.2) Fix tow to player hijacking vehicle instead
-* (1.15.3) Fix tow all nearby towing farthest instead
-* (1.15.4) Automatically flip vehicle upright for more efficient cargobobing
-
-V1.16.0
-
-* Added "Titan" attachments: (circles around destination)
-  * Fly to Mt. Chiliad
-  * Fly to Waypoint
-  * Fly to Player
-* Added "All Vehicles" menu:
-  * Nearby Only (on by default, off will auto spectate all far vehicles one by one)
-  * Clean Vehicle
-  * Repair Vehicle
-  * Toggle Godmode
-  * Set License Plate
-* Added "Use Magnet" to cargobob attachments
-* Added Nearby Vehicles -> "Cargobob Nearby Cars (Magnet)"
-* (1.16.1) Lots of bug fixes & improvements
-* (1.16.1) Also merged vehicle_autodrive into script
-* (1.16.4) Fix color not applying to some stock vehicles
-* (1.16.5) Possible fix for apply spawning new vehicles instead
-* (1.16.6) Remove old named version (vehicle_options.lua)
-* (1.16.7) Add "Upgrade Performance" and "Upgrade" to All Vehicles
-
-V2.1.0
-
-* Added a CLOUD VEHICLES system! Download, spawn, and upload custom vehicles between each other.
-* 2.0.0 skipped because I accidently released 2.0.0 early with no changes
-* (2.1.1) Fixed some users not generating cloud id
-* (2.1.2) Fix vehicle folder not being created
-* (2.1.3) Fix cloudID not being set on first-generation
-* (2.1.4) Fix preview vehicle not vanishing when backing out of menu
-* (2.1.5) Fix lauhttp lib not installing correctly
-* (2.1.6) Fixed libs not downloading correctly. Again.
-* (2.1.7) Fix error when hovering over 'upload' if lib was downloaded
-* (2.1.8) Remove auto downloading luahttp due to corruption
-* (2.1.9) Fixed 'hijack & drive to player'
-* (2.1.9) Fix set license plate clearing on personal vehicles
-* (2.1.10) Improved auto-spectating for all players
-
-v2.2.0
-
-* Added Autodrive > Chauffeur - A ped that will drive for you with full control
-* Fix some search results being invalid
-
-v2.3.0
-
-* Added Spinning Cars
-* Made uploaded vehicle account be unspoofed socialclub name
-* (2.3.1) Improved loading of luahttp
-* (2.3.2) Fix spawning saved vehicles not clearing preview
-* (2.3.3) Made chauffeurs not flee when gunshots occur
-* (2.3.3) Automatically warp player into passenger seat instead of hijacking
-* (2.3.4) Used built in menu async_http instead of luahttp for uploading
-
-v2.4.0
-
-* Made nearby vehicles -> explode random. That's all. It's fun.
-* (2.4.1) Add minor ui updates to cloud vehicles (show vehicle count & vehicle info on vehicle name)
-
 v3.0.0
 
 * Added complete translation support. All text elements (within reason) are pulled from a translations file.
@@ -229,6 +59,19 @@ v3.6.0
 * Use custom jackzvehiclelib file
 * Fix some inconsistencies when saving vehicle colors
 * Use latest natives
+* (3.6.1) Reflect Stand API Change
+* (3.6.2) Remove auto updated dupe files
+* (3.6.5) Update cloud code to new database system
+* (3.6.5) Improved cloud browse & search code as well
+* (3.6.6) Fix cloud vehicle browsing failing to load some users
+* (3.6.7) Update jackzvehiclelib
+* (3.6.8) Bug fix
+  
+v3.7.0
+
+* Support subfolders in vehicle list
+* Rename "Current Vehicle Multiplers" to "Current Vehicle Settings"
+* Add Always Keep Upright to above list
 
 # actions (v1)
 
@@ -291,6 +134,10 @@ v1.9.0
 * Minor re-organizing of animation menus
 * (1.9.1) Fix outdated stand api usage, thanks aaronlink127 for catching
 * (1.9.2) Use updated natives
+* (1.9.3) Don't load translations as too lazy to set that up
+* (1.9.4) Remove auto updated dupe files
+* (1.9.6) "Fix" race error on cloud fetch
+* (1.9.7) Update cloud url
 
 # jackz chat (v1)
 
@@ -311,6 +158,8 @@ V1.2.0
 * (1.2.3) Updated translations lib target version
 * (1.2.4) Upgraded apis to new stand apis
 * (1.2.5) Use updated natives
+* (1.2.6) Remove auto updated dupe files
+* (1.2.11) Use updated lang
 
 # train control (v1)
 
@@ -324,10 +173,61 @@ V1.1.0
 * Added loading indicator when models are first being loaded
 * (1.1.1) Upgraded apis to new stand apis
 * (1.1.2) Use updated natives
+* (1.1.3) Remove auto updated dupe files
 
-# jackz_vehicle_builder (v1)
+# jackz vehicle builder (v1)
 
 V1.1.0
 
 * Added swapping base vehicle
 * Auto populate name when editing saved
+* (1.1.1) Reflect Stand API Change
+
+V1.2.0
+
+* Added previews for saved custom vehicles
+
+V1.3.0
+
+* Add ability to mark objects and base vehicle as invisible
+* Made previews non-networked, less buggy hopefully
+* (1.3.1) Hopefully fix some loading issues
+* (1.3.2) Fix vehicle savedata not being loaded
+* (1.3.3) Actually make previews non networked
+* (1.3.4) Fix previews spawning incorrectly
+* (1.3.4) Remove auto updated dupe files
+
+V1.4.0
+
+* Added spawning in vehicles (Manual Input for now)
+* Minor bug fixes
+
+V1.5.0
+
+* Added in browse, search, and curated vehicle spawning
+* Added entity position slider sensitivity slider
+
+V1.6.0
+
+* Add recents menu for both spawner menus
+* (1.6.1) Fix error when spawning curated
+* (1.6.1) Fix prop browse list being empty
+* (1.6.4) Fix prop spawn error
+
+V1.7.0
+
+* Add 'Spawn Vehicles -> Clone Current Vehicle'
+
+V1.8.0
+
+* Add built in XML converter
+* Fixed objects in old formats (or converted) being invisible
+* Minor fixes and improvements
+
+V1.9.0
+
+* Add free edit (View Entities -> Free Edit option for info)
+* Fix inconsistencies with entity offset menu
+* Some other fixes
+* (1.9.3) Add warning when vehicle does not save
+* (1.9.3) Whoops: Fixed saving custom vehicles

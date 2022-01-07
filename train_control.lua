@@ -2,8 +2,9 @@
 -- Created By Jackz
 local SCRIPT = "train_control"
 local VERSION = "1.1.5"
-local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
--- Check for updates & auto-update: 
+
+--#P:MANUAL_ONLY
+-- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
     chunks = {}
@@ -11,22 +12,13 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-31) to disable auto updates
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
-            local file = io.open(CHANGELOG_PATH, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-        end)
-        async_http.dispatch()
-        async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT .. ".lua", "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-
+        -- Remove this block (lines 15-32) to disable auto updates
+        async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
+            local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
+            file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            file:close()
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function(e)
+        end, function()
             util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
             util.stop_script()
         end)
@@ -34,45 +26,80 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
     end
 end)
 async_http.dispatch()
+
+function download_lib_update(lib)
+    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+        file:write(result:gsub("\r", "") .. "\n")
+        file:close()
+        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
+    end, function(e)
+        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+        util.stop_script()
+    end)
+    async_http.dispatch()
+end
+--#P:END
+
+----------------------------------------------------------------
+-- Version Check
+function get_version_info(version)
+    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
+    return {
+        major = tonumber(major),
+        minor = tonumber(minor),
+        patch = tonumber(patch)
+    }
+end
+function compare_version(a, b)
+    local av = get_version_info(a)
+    local bv = get_version_info(b)
+    if av.major > bv.major then return 1
+    elseif av.major < bv.major then return -1
+    elseif av.minor > bv.minor then return 1
+    elseif av.minor < bv.minor then return -1
+    elseif av.patch > bv.patch then return 1
+    elseif av.patch < bv.patch then return -1
+    else return 0 end
+end
+local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
+if not filesystem.exists(VERSION_FILE_PATH) then
+    local versionFile = io.open(VERSION_FILE_PATH, "w")
+    versionFile:close()
+end
+local versionFile = io.open(VERSION_FILE_PATH, "r+")
+
+local versions = {}
+for line in versionFile:lines("l") do
+    local script, version = line:match("(%g+): (%g+)")
+    if script then
+        versions[script] = version
+    end
+end
+if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
+    if versions[SCRIPT] ~= nil then
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
+            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
+        end, function() util.log(SCRIPT ..": Could not get changelog") end)
+        async_http.dispatch()
+    end
+    versions[SCRIPT] = VERSION
+    versionFile:seek("set", 0)
+    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+    for script, version in pairs(versions) do
+        versionFile:write(script .. ": " .. version .. "\n")
+    end
+end
+versionFile:close()
+-- END Version Check
+------------------------------------------------------------------
+
 function show_busyspinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
-local WaitingLibsDownload = false
-function try_load_lib(lib)
-    local status = pcall(require, lib)
-    if not status then
-        WaitingLibsDownload = true
-        async_http.init("jackz.me", "/stand/libs/" .. lib .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib .. ".lua", "w")
-            io.output(file)
-            io.write(result)
-            io.close(file)
-            WaitingLibsDownload = false
-            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. ".lua'")
-            require(lib)
-        end, function(e)
-            util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-    end
-end
-try_load_lib("natives-1639742232")
-
-while WaitingLibsDownload do
-    util.yield()
-end
--- Check if there is any changelogs (just auto-updated)
-if filesystem.exists(CHANGELOG_PATH) then
-    local file = io.open(CHANGELOG_PATH, "r")
-    io.input(file)
-    local text = io.read("*all")
-    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
-    io.close(file)
-    os.remove(CHANGELOG_PATH)
-end
+require("natives-1627063482")
 
 -- Models[1] && Models[2] are engines
 local models = {

@@ -81,7 +81,8 @@
         "SCRIPT_FILENAME",
         "SCRIPT_NAME",
         "SCRIPT_RELPATH",
-        "SCRIPT_MANUAL_START"
+        "SCRIPT_MANUAL_START",
+        "SCRIPT_SOURCE"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"

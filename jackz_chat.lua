@@ -1,99 +1,133 @@
--- Stand Chat 
+-- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.7"
-local LANG_TARGET_VERSION = "1.2.2" -- Target version of translations.lua lib
-local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
+local VERSION = "1.2.14"
+local LANG_TARGET_VERSION = "1.3.0" -- Target version of translations.lua lib
+
+--#P:MANUAL_ONLY
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
-    chunks = {}
-    for substring in string.gmatch(result, "%S+") do
-        table.insert(chunks, substring)
-    end
-    if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-31) to disable auto updates
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
-            local file = io.open(CHANGELOG_PATH, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-        end)
-        async_http.dispatch()
-        async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT_FILENAME .. ".lua", "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function(e)
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-    end
+  chunks = {}
+  for substring in string.gmatch(result, "%S+") do
+      table.insert(chunks, substring)
+  end
+  if chunks[1] == "OUTDATED" then
+      -- Remove this block (lines 15-32) to disable auto updates
+      async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
+          local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
+          file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+          file:close()
+          util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
+      end, function()
+          util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+          util.stop_script()
+      end)
+      async_http.dispatch()
+  end
 end)
 async_http.dispatch()
-function try_load_lib(lib, globalName)
-    local status, f = pcall(require, string.sub(lib, 0, #lib - 4))
-    if not status then
-        local downloading = true
-        async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n")
-            io.flush() -- redudant, probably?
-            io.close(file)
-            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. "'")
-            if globalName then
-                _G[globalName] = require(string.sub(lib, 0, #lib - 4))
-            end
-            downloading = false
-        end, function(e)
-            util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-        while downloading do
-            util.yield()
-        end
-    elseif globalName then
-        _G[globalName] = f
-    end
+
+function download_lib_update(lib)
+    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+        file:write(result:gsub("\r", "") .. "\n")
+        file:close()
+        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
+    end, function(e)
+        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+        util.stop_script()
+    end)
+    async_http.dispatch()
 end
-try_load_lib("natives-1639742232.lua")
-try_load_lib("json.lua", "json")
-try_load_lib("translations.lua", "lang")
+--#P:END
+
+----------------------------------------------------------------
+-- Version Check
+function get_version_info(version)
+  local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
+  return {
+      major = tonumber(major),
+      minor = tonumber(minor),
+      patch = tonumber(patch)
+  }
+end
+function compare_version(a, b)
+  local av = get_version_info(a)
+  local bv = get_version_info(b)
+  if av.major > bv.major then return 1
+  elseif av.major < bv.major then return -1
+  elseif av.minor > bv.minor then return 1
+  elseif av.minor < bv.minor then return -1
+  elseif av.patch > bv.patch then return 1
+  elseif av.patch < bv.patch then return -1
+  else return 0 end
+end
+local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
+if not filesystem.exists(VERSION_FILE_PATH) then
+    local versionFile = io.open(VERSION_FILE_PATH, "w")
+    versionFile:close()
+end
+local wasUpdated = false
+local versionFile = io.open(VERSION_FILE_PATH, "r+")
+local versions = {}
+for line in versionFile:lines("l") do
+  local script, version = line:match("(%g+): (%g+)")
+  if script then
+      versions[script] = version
+  end
+end
+if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
+  if versions[SCRIPT] ~= nil then
+      async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
+          util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
+      end, function() util.log(SCRIPT ..": Could not get changelog") end)
+      async_http.dispatch()
+      wasUpdated = true
+  end
+  versions[SCRIPT] = VERSION
+  versionFile:seek("set", 0)
+  versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+  for script, version in pairs(versions) do
+      versionFile:write(script .. ": " .. version .. "\n")
+  end
+end
+versionFile:close()
+-- END Version Check
+------------------------------------------------------------------
+
+require("natives-1627063482")
+
+local json = require("json")
+local lang = require("translations")
 if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= LANG_TARGET_VERSION then
+  --#P:MANUAL_ONLY
   util.toast("Outdated translations library, downloading update...")
   os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
   package.loaded["translations"] = nil
   _G["translations"] = nil
-  try_load_lib("translations.lua", "lang")
+  download_lib_update("translations.lua")
+  lang = require("translations")
+  --#P:ELSE
+  util.toast("Outdated lib: 'translations'")
+  --#P:END
+
 end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
-lang.add_language_selector_to_menu(menu.my_root())
--- Check if there is any changelogs (just auto-updated)
-if filesystem.exists(CHANGELOG_PATH) then
-    local file = io.open(CHANGELOG_PATH, "r")
-    io.input(file)
-    local text = io.read("*all")
-    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
-    io.close(file)
-    os.remove(CHANGELOG_PATH)
-    -- Update translations
-    lang.update_translation_file(SCRIPT)
+if wasUpdated then
+  update_translation_file(SCRIPT)
 end
--- Check if there is any changelogs (just auto-updated)
-if filesystem.exists(CHANGELOG_PATH) then
-    local file = io.open(CHANGELOG_PATH, "r")
-    io.input(file)
-    local text = io.read("*all")
-    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
-    io.close(file)
-    os.remove(CHANGELOG_PATH)
+
+local metaList = menu.list(menu.my_root(), "Script Meta")
+menu.divider(metaList, SCRIPT .. " V" .. VERSION)
+menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/271932")
+menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+if lang ~= nil then
+    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
+    lang.add_language_selector_to_menu(metaList)
 end
+
 function show_busyspinner(text)
   HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
   HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
@@ -115,6 +149,54 @@ local textOffsetSize = 0.02
 local textSize = 0.5
 local textTime = 40000
 local keyhash = menu.get_activation_key_hash()
+
+
+local autoTranslate = {
+  incomingLang = "en",
+  outgoingLang = "en",
+  loaded = false,
+  active = false
+}
+-- local translateMenu
+-- translateMenu = lang.menus.list(menu.my_root(), "AUTO_TRANSLATE_LIST", {}, function()
+--   if autoTranslate.loaded then return end
+--   autoTranslate.loaded = true
+--   lang.menus.toggle(menu.my_root(), "AUTO_TRANSLATE_TOGGLE", {"autotranslate"}, function(value)
+--     autoTranslate.active = value
+--   end, autoTranslate.active)
+--   local incomingLangList = menu.list(menu.my_root(), "AUTO_TRANSLATE_INCOMING")
+--   local outgoingLangList = menu.list(menu.my_root(), "AUTO_TRANSLATE_OUTGOING")
+--   async_http.init("fuck-python.jackz.me", "/languages", function(response)
+--     local json = json.decode(response)
+--     for _, node in ipairs(json) do
+--       menu.action(incomingLangList, node.name .. " (" .. node.code .. ")", {"incomingchat" .. node.code}, "Set all incoming chat messages to be translated to this language", function()
+--         autoTranslate.incomingLang = node.code
+--       end)
+--       menu.action(outgoingLangList, node.name .. " (" .. node.code .. ")", {"outgoingchat" .. node.code}, "Set all your outgoing messages to be translated to this language", function()
+--         autoTranslate.outgoingLang = node.code
+--       end)
+--     end
+--   end)
+-- end)
+
+chat.on_message(function(senderId, senderName, message, isTeamChat)
+  if autoTranslate.active and senderId ~= PLAYER.user() then
+    util.toast(translate_text('es', 'en', message))
+  end
+end)
+
+function translate_text(sourceLang, targetLang, text)
+  local output
+  async_http.init("fuck-python.jackz.me", "/translate?q=" .. text .. "&source=" .. sourceLang .. "&target=" .. targetLang, function(body)
+    local json = json.decode(body)
+    output = json.translatedText
+  end)
+  while output == nil do
+    util.yield()
+  end
+  return output
+end
+
 
 local optionsMenu = menu.list(menu.my_root(), lang.format("DESIGN_NAME"), {}, lang.format("DESIGN_TEXT"))
 menu.on_blur(optionsMenu, function(_)

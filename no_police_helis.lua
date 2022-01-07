@@ -2,7 +2,7 @@
 -- Removes all active police helicopters and their peds
 -- Created By Jackz
 
-require("natives-1639742232")
+require("natives-1627063482")
 
 local noHelis = true
 menu.toggle(menu.my_root(), "Delete Helicopters", {"antipoliceheli", "noheli"}, "Enables or disables removal of all active police helicopters", function(on)

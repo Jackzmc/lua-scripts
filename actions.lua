@@ -1,10 +1,11 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.9.2"
-local CHANGELOG_PATH = filesystem.stand_dir() .. "/Cache/changelog_" .. SCRIPT .. ".txt"
+local VERSION = "1.9.38"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
+
+--#P:MANUAL_ONLY
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
@@ -13,21 +14,13 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         table.insert(chunks, substring)
     end
     if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-31) to disable auto updates
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
-            local file = io.open(CHANGELOG_PATH, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
-        end)
-        async_http.dispatch()
-        async_http.init("jackz.me", "/stand/lua/" .. SCRIPT .. ".lua", function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT_FILENAME .. ".lua", "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            io.close(file)
+        -- Remove this block (lines 15-32) to disable auto updates
+        async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
+            local file = io.open(filesystem.scripts_dir() .. "/" .. SCRIPT_RELPATH, "w")
+            file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            file:close()
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function(e)
+        end, function()
             util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
             util.stop_script()
         end)
@@ -35,68 +28,91 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
     end
 end)
 async_http.dispatch()
+
+function download_lib_update(lib)
+    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+        file:write(result:gsub("\r", "") .. "\n")
+        file:close()
+        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
+    end, function(e)
+        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+        util.stop_script()
+    end)
+    async_http.dispatch()
+end
+--#P:END
+
+----------------------------------------------------------------
+-- Version Check
+function get_version_info(version)
+    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
+    return {
+        major = tonumber(major),
+        minor = tonumber(minor),
+        patch = tonumber(patch)
+    }
+end
+function compare_version(a, b)
+    local av = get_version_info(a)
+    local bv = get_version_info(b)
+    if av.major > bv.major then return 1
+    elseif av.major < bv.major then return -1
+    elseif av.minor > bv.minor then return 1
+    elseif av.minor < bv.minor then return -1
+    elseif av.patch > bv.patch then return 1
+    elseif av.patch < bv.patch then return -1
+    else return 0 end
+end
+local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
+if not filesystem.exists(VERSION_FILE_PATH) then
+    local versionFile = io.open(VERSION_FILE_PATH, "w")
+    versionFile:close()
+end
+local wasUpdated = false
+local versionFile = io.open(VERSION_FILE_PATH, "r+")
+local versions = {}
+for line in versionFile:lines("l") do
+    local script, version = line:match("(%g+): (%g+)")
+    if script then
+        versions[script] = version
+    end
+end
+if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
+    if versions[SCRIPT] ~= nil then
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. VERSION, function(result)
+            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
+        end, function() util.log(SCRIPT ..": Could not get changelog") end)
+        async_http.dispatch()
+        wasUpdated = true
+    end
+    versions[SCRIPT] = VERSION
+    versionFile:seek("set", 0)
+    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+    for script, version in pairs(versions) do
+        versionFile:write(script .. ": " .. version .. "\n")
+    end
+end
+versionFile:close()
+-- END Version Check
+------------------------------------------------------------------
+
 function show_busyspinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
-function try_load_lib(lib, globalName, loadingText)
-    if loadingText then
-        show_busyspinner(loadingText)
-    end
-    local filename = string.sub(lib, 0, #lib - 4) --strip ext
-    local status, f = pcall(require, filename)
-    if not status then
-        local downloading = true
-        async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-            local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-            io.output(file)
-            io.write(result:gsub("\r", "") .. "\n")
-            io.flush() -- redudant, probably?
-            io.close(file)
-            util.toast(SCRIPT .. ": Automatically downloaded missing lib '" .. lib .. "'")
-            if globalName then
-                _G[globalName] = require(filename)
-            end
-            downloading = false
-        end, function(e)
-            util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-        while downloading do
-            util.yield()
-        end
-        HUD.BUSYSPINNER_OFF()
-    elseif globalName then
-        _G[globalName] = f
-        HUD.BUSYSPINNER_OFF()
-    end
-end
-try_load_lib("natives-1639742232.lua")
-try_load_lib("translations.lua", "lang", "Downloading translations lib")
--- TODO: Remove migration later
-if filesystem.exists(filesystem.scripts_dir() .. "lib/animations.lua") then
-    os.remove(filesystem.scripts_dir() .. "lib/animations.lua")
-end
-lang.set_autodownload_uri("jackz.me", "/stand/translations/")
-show_busyspinner("Checking for translations...")
-lang.load_translation_file(SCRIPT)
-HUD.BUSYSPINNER_OFF()
--- Check if there is any changelogs (just auto-updated)
-if filesystem.exists(CHANGELOG_PATH) then
-    local file = io.open(CHANGELOG_PATH, "r")
-    io.input(file)
-    local text = io.read("*all")
-    util.toast("Changelog for " .. SCRIPT .. ": \n" .. text)
-    io.close(file)
-    os.remove(CHANGELOG_PATH)
-    -- Update translations
-    lang.update_translation_file(SCRIPT)
-end
 
+require("natives-1627063482")
 
--- Check if animations library is incorrect
+local metaList = menu.list(menu.my_root(), "Script Meta")
+menu.divider(metaList, SCRIPT .. " V" .. VERSION)
+menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
+menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+if lang ~= nil then
+    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
+    lang.add_language_selector_to_menu(metaList)
+end
 
 -- START Scenario Data
 local SCENARIOS = {
@@ -327,7 +343,7 @@ function upload_animation(group, animation, alias)
     show_busyspinner("Uploading animation")
     async_http.init('jackz.me',
         string.format(
-            '/stand/actions/manage?scname=%s&hash=%d&alias=%s&dict=%s&anim=%s',
+            '/stand/cloud/actions/manage?scname=%s&hash=%d&alias=%s&dict=%s&anim=%s',
             SOCIALCLUB._SC_GET_NICKNAME(),
             menu.get_activation_key_hash(),
             alias or '',
@@ -372,7 +388,7 @@ function populate_user_dict(user, dictionary)
         util.yield()
     end
     cloud_loading = true
-    async_http.init('jackz.me', '/stand/actions/list?method=actions&scname=' .. user .. "&dict=" .. dictionary, function(body)
+    async_http.init('jackz.me', '/stand/cloud/actions/list?method=actions&scname=' .. user .. "&dict=" .. dictionary, function(body)
         cloud_loading = false
         if body:sub(1, 1) == "<" then
             util.toast("Ratelimited, try again in a few seconds.")
@@ -402,7 +418,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
         util.yield()
     end
     cloud_loading = true
-    async_http.init('jackz.me', '/stand/actions/list?method=users', function(body)
+    async_http.init('jackz.me', '/stand/cloud/actions/list?method=users', function(body)
         cloud_loading = false
         if body:sub(1, 1) == "<" then
             cloudvehicle_fetch_error("RATELIMITED")
@@ -412,12 +428,14 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
             pcall(menu.delete, udata.menu)
             for dictionary, cdata in pairs(udata.categories) do
                 pcall(menu.delete, cdata.menu)
-                for _, animation in ipairs(cdata.animations) do
-                    menu.delete(animation)
+                for i, animation in ipairs(cdata.animations) do
+                    pcall(menu.delete, animation)
+                    cdata.animations[i] = nil
                 end
+                udata.categories[dictionary] = nil
             end
+            cloudUsers.menu[user] = nil
         end
-        cloudUsers = {}
         for user in string.gmatch(body, "[^\r\n]+") do
             local userMenu = menu.list(cloudFavoritesBrowseMenu, user, {}, "All action categories favorited by " .. user)
             cloudUsers[user] = {
@@ -500,8 +518,12 @@ end, function(args)
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                util.toast("Animation data out of date, updating...")
-                download_animation_data()
+                if SCRIPT_SOURCE == "MANUAL" then
+                    util.toast("Animation data out of date, updating...")
+                    download_animation_data()
+                else
+                    util.toast("animations.txt out of date. Please report this.")
+                end
             end
             isHeaderRead = true
         end
@@ -820,15 +842,14 @@ function add_anim_to_recent(group, anim)
     end)
     table.insert(recents, { group, anim, action })
 end
-
+--#P:MANUAl_ONLY
 function download_animation_data()
     local loading = true
     show_busyspinner("Downloading animation data")
     async_http.init("jackz.me", "/stand/resources/jackz_actions/animations.txt", function(result)
         local file = io.open(ANIMATIONS_DATA_FILE, "w")
-        io.output(file)
-        io.write(result:gsub("\r", ""))
-        io.close(file)
+        file:write(result:gsub("\r", ""))
+        file:close()
         util.log(SCRIPT .. ": Downloaded resource file successfully")
         HUD.BUSYSPINNER_OFF()
         loading = false
@@ -843,6 +864,7 @@ function download_animation_data()
     end
     HUD.BUSYSPINNER_OFF()
 end
+--#P:END
 function destroy_animations_data()
     for category, data in pairs(animMenuData) do
         pcall(menu.delete, data.list)
@@ -865,7 +887,12 @@ function setup_animation_list()
     end
     -- Download animation file if does not exist
     if not filesystem.exists(ANIMATIONS_DATA_FILE) then
-        download_animation_data()
+        if SCRIPT_SOURCE == "MANUAL" then
+            download_animation_data()
+        else
+            util.toast("Missing animations.txt")
+            util.stop_script()
+        end
     end
     -- Parse the file
     local isHeaderRead = false
@@ -898,8 +925,12 @@ function setup_animation_list()
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                util.toast("Animation data out of date, updating...")
-                download_animation_data()
+                if SCRIPT_SOURCE == "MANUAL" then
+                    util.toast("Animation data out of date, updating...")
+                    download_animation_data()
+                else
+                    util.toast("animations.txt out of date. Please report this.")
+                end
             end
             isHeaderRead = true
         end
@@ -980,16 +1011,15 @@ if filesystem.exists(path) then
 end
 function save_favorites()
     local file = io.open(path, "w")
-    io.output(file)
-    io.write("category\t\tanimation name\t\talias (no spaces)\n")
+    file:write("category\t\tanimation name\t\talias (no spaces)\n")
     for _, favorite in ipairs(favorites) do
         if favorite[3] then
-            io.write(string.format("%s %s %s\n", favorite[1], favorite[2], favorite[3]))
+            file:write(string.format("%s %s %s\n", favorite[1], favorite[2], favorite[3]))
         else
-            io.write(string.format("%s %s\n", favorite[1], favorite[2]))
+            file:write(string.format("%s %s\n", favorite[1], favorite[2]))
         end
     end
-    io.close(file)
+    file:close()
 end
 -----------------------
 util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)

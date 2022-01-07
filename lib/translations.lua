@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.2.2"
+local LIB_VERSION = "1.3.0"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -257,6 +257,7 @@ function format(translationID, ...)
     end
     local text = translations[string.upper(translationID)]
     if text == nil then
+        util.log("Missing translation for \"" .. translationID .. "\"")
         return string.upper(translationID)
     elseif ... ~= nil then
         return string.format(text, ...)
@@ -310,12 +311,12 @@ return {
     -- MY_TRANSL_KEY -> MY_TRANSL_KEY_NAME as command name && MY_TRANSL_KEY_DESC as command description
     menus = {
         -- Creates a menu.list() with translation prefix
-        list = function(root, translationKey, commands)
-            return menu.list(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"))
+        list = function(root, translationKey, commands, callback, callback2)
+            return menu.list(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), callback or no_op, callback2 or no_op)
         end,
         -- Creates a menu.action() with translation prefix
         action = function(root, translationKey, commands, callback, callback2, syntax)
-            return menu.action(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), callback, callback2 or no_op, syntax or no_op)
+            return menu.action(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), callback, callback2 or no_op, syntax or "")
         end,
         -- Creates a menu.divider() with translation prefix
         divider = function(root, translationKey)
