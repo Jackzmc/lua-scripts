@@ -72,6 +72,7 @@ v3.7.0
 * Support subfolders in vehicle list
 * Rename "Current Vehicle Multiplers" to "Current Vehicle Settings"
 * Add Always Keep Upright to above list
+* (3.7.2) Possibly fix cloud user's vehicles list being empty
 
 # actions (v1)
 
@@ -231,3 +232,6 @@ V1.9.0
 * Some other fixes
 * (1.9.3) Add warning when vehicle does not save
 * (1.9.3) Whoops: Fixed saving custom vehicles
+* (1.9.5) Sorry this took a while: Fix saved vehicle spawn failure
+* (1.9.5) Removed teleport into vehicle option for individual vehicle
+* (1.9.5) Add 'Spawn In Vehicle' for spawner

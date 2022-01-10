@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.3.0"
+local LIB_VERSION = "1.3.1"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -54,12 +54,11 @@ else
 end
 local HARDCODED_TRANSLATIONS = {
     ["en-US"] = {
-        ["ERR_NO_TRANSLATION_KEY"] = "Unknown translation ",
         ["ERR_NO_TRANSLATION_FILE"] = "No language translation is available.",
-        ["ERR_NO_TRANSLATION_FILE_LOADED"] = "Translation file was never loaded. Contact developer.",
+        ["ERR_NO_TRANSLATION_FILE_LOADED"] = "Translation file was never loaded. Contact the developer of this script",
         ["ERR_AUTODL_FAIL"] = "Could not automatically download translation files.",
         ["ERR_INVALID_STORED_LANGUAGE"] = "Ignoring unknown preferred language, falling back to en-US",
-        ["LANG_PREF_CHANGED"] = "Preferred language has been switched. Please restart scripts to use selected language."
+        ["LANG_PREF_CHANGED"] = "Preferred language has been switched. Please restart scripts to use the selected language."
     }
 }
 -- Automatically tries to find a internal message in their language, falls back to en-US or even hardcoded string
@@ -127,8 +126,11 @@ local function parse_translations_from_file(file)
             end
         end)
         -- If a valid line was parsed (such that a key and value exist), add to table
-        if isValueReady and isValueReady == 2 then
+        if isValueReady == 2 then
             translations[string.upper(key)] = value:gsub("\\([nt])", {n="\n", t="\t"})
+        elseif isValueReady == 1 then
+            -- Leave blank (for empty sections)
+            translations[string.upper(key)] = ""
         end
     end
     return true

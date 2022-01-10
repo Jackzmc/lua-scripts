@@ -2,7 +2,7 @@
 -- Removes all active police helicopters and their peds
 -- Created By Jackz
 
-require("natives-1627063482")
+util.require_natives(1627063482)
 
 local noHelis = true
 menu.toggle(menu.my_root(), "Delete Helicopters", {"antipoliceheli", "noheli"}, "Enables or disables removal of all active police helicopters", function(on)
@@ -20,7 +20,7 @@ while true do
             if VEHICLE.IS_VEHICLE_MODEL(vehicle, heli_hash) then
                 local isSafeToDelete = false
                 -- Get all the vehicle's passenger peds
-                for k = -1,seats do 
+                for k = -1,seats do
                     local ped = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, k)
                     if ped > 0 then
                         -- Vehicle has a player in it, ignore vehicle entirely

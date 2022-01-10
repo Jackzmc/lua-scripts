@@ -103,7 +103,7 @@ function show_busyspinner(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 
-require("natives-1627063482")
+util.require_natives(1627063482)
 
 local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)

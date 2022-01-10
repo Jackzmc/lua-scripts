@@ -1,8 +1,8 @@
 -- Jackz Vehicles
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.7.1"
-local LANG_TARGET_VERSION = "1.3.0" -- Target version of translations.lua lib
+local VERSION = "3.7.2"
+local LANG_TARGET_VERSION = "1.3.1" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.0"
 
 --#P:MANUAL_ONLY
@@ -97,7 +97,7 @@ versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
 
-require("natives-1627063482")
+util.require_natives(1627063482)
 local json = require("json")
 local lang = require("translations")
 local vehiclelib = require("jackzvehiclelib")
@@ -111,7 +111,8 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
      util.toast("Outdated vehiclelib library, downloading update...")
      download_lib_update("jackzvehiclelib.lua")
      vehiclelib = require("jackzvehiclelib")
---#P:ELSE
+--#P:END
+--#P:REPO_ONLY
      util.toast("Outdated lib: 'jackzvehiclelib'")
 --#P:END
 end
@@ -122,14 +123,15 @@ if lang.VERSION ~= LANG_TARGET_VERSION then
     _G["translations"] = nil
     download_lib_update("translations.lua")
     lang = require("translations")
---#P:ELSE
+--#P:END
+--#P:REPO_ONLY
     util.toast("Outdated lib: 'translations'")
 --#P:END
 end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
 if wasUpdated then
-    update_translation_file(SCRIPT)
+    lang.update_translation_file(SCRIPT)
 end
 
 local metaList = menu.list(menu.my_root(), "Script Meta")
@@ -1335,7 +1337,7 @@ function _load_cloud_user_vehs()
     end
     show_busyspinner("Loading cloud data...")
     waitForFetch = true
-    for _, m in ipairs(cloudUserMenus) do
+    for _, m in pairs(cloudUserMenus) do
         pcall(menu.delete, m)
     end
     cloudUserMenus = {}
@@ -1347,6 +1349,19 @@ function _load_cloud_user_vehs()
         end
     end)
 end
+function dump_table(o)
+    if type(o) == 'table' then
+       local s = '{ '
+       for k,v in pairs(o) do
+          if type(k) ~= 'number' then k = '"'..k..'"' end
+          s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+       end
+       return s .. '} '
+    else
+       return tostring(o)
+    end
+ end
+ 
 function _load_user_vehicle_list(creator)
     for _, m in ipairs(cloudUserVehicleMenus) do
         pcall(menu.delete, m)
@@ -1658,14 +1673,17 @@ menu.action(nearbyMenu, lang.format("NEARBY_TOW_ALL_NAME"), {}, lang.format("NEA
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped)
     local nearby_vehicles = {}
-    for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-        local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-        if model ~= TOW_TRUCK_MODEL_1 and model ~= TOW_TRUCK_MODEL_2 and VEHICLE.IS_THIS_MODEL_A_CAR(model) then
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 8, 0.1)
-            MISC.GET_GROUND_Z_FOR_3D_COORD(pos.x, pos.y, pos.z, pz, true)
-            pos.z = memory.read_float(pz)
-            local dist = SYSTEM.VDIST2(my_pos.x, my_pos.y, my_pos.z, pos.x, pos.y, pos.z)
-            table.insert(nearby_vehicles, { vehicle, dist, pos, model })
+    for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
+        local model = entities.get_model_hash(pVehicle)
+        if model ~= TOW_TRUCK_MODEL_1 and model ~= TOW_TRUCK_MODEL_2 then
+            local vehicle = entities.pointer_to_handle(pVehicle)
+            if VEHICLE.IS_THIS_MODEL_A_CAR(model) then
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, 0, 8, 0.1)
+                MISC.GET_GROUND_Z_FOR_3D_COORD(pos.x, pos.y, pos.z, pz, true)
+                pos.z = memory.read_float(pz)
+                local dist = SYSTEM.VDIST2(my_pos.x, my_pos.y, my_pos.z, pos.x, pos.y, pos.z)
+                table.insert(nearby_vehicles, { vehicle, dist, pos, model })
+            end
         end
     end
     memory.free(pz)
@@ -1690,10 +1708,10 @@ menu.action(nearbyMenu, lang.format("NEARBY_TOW_ALL_NAME"), {}, lang.format("NEA
     end
 end)
 menu.action(nearbyMenu, lang.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
-    local vehicles = entities.get_all_vehicles_as_handles()
-    for _, vehicle in ipairs(vehicles) do
-        local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-        if model == TOW_TRUCK_MODEL_1 or model == TOW_TRUCK_MODEL_2 then
+    for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
+        local model = entities.get_model_hash(pVehicle)
+        if model ~= TOW_TRUCK_MODEL_1 and model ~= TOW_TRUCK_MODEL_2 then
+            local vehicle = entities.pointer_to_handle(pVehicle)
             local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
             if driver > 0 and not PED.IS_PED_A_PLAYER(driver) then
                 entities.delete_by_handle(driver)

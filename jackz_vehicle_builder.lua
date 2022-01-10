@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.9.3"
+local VERSION = "1.9.5"
 local LANG_TARGET_VERSION = "1.3.0" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.0"
 ---@alias Handle number
@@ -96,23 +96,18 @@ end
 versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
-
-local status = pcall(require, "natives-1627063482")
-if not status then
-    util.toast("Missing lib: natives-1627063482 (" .. SCRIPT_SOURCE .. ")")
-    util.stop()
-end
+util.require_natives(1627063482)
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
 
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
-    --#P:MANUAL_ONLY
-    util.toast("Outdated vehiclelib library, downloading update...")
-    download_lib_update("jackzvehiclelib.lua")
-    vehiclelib = require("jackzvehiclelib")
-    --#P:ELSE
+    if SCRIPT_SOURCE == "MANUAL" then
+        util.toast("Outdated vehiclelib library, downloading update...")
+        download_lib_update("jackzvehiclelib.lua")
+        vehiclelib = require("jackzvehiclelib")
+    else
     util.toast("Outdated lib: 'jackzvehiclelib'")
-    --#P:END
+end
 end
 
 
@@ -137,7 +132,6 @@ function new_builder(baseHandle)
         base = {
             handle = baseHandle,
             visible = true,
-            teleport_into_on_spawn = true
             -- other metadta
         },
         ---@type table<Handle, table<string, any>>
@@ -269,7 +263,12 @@ local savedVehicleList = menu.list(menu.my_root(), "Saved Custom Vehicles", {}, 
     function() _destroy_saved_list() end
 )
 local xmlMenusHandles = {}
+local spawnInVehicle = true
+menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle", function(on)
+    spawnInVehicle = on
+end, spawnInVehicle)
 local xmlList = menu.list(savedVehicleList, "Convert XML Vehicles", {}, "Convert XML vehicle (including menyoo) to a compatible format")
+menu.divider(savedVehicleList, "Vehicles")
 local optionsMenuHandles = {}
 local optionParentMenus = {}
 function _load_saved_list()
@@ -295,20 +294,23 @@ function _load_saved_list()
                 end
 
                 optionParentMenus[name] = menu.list(savedVehicleList, name, {}, "Format Version: " .. versionDiff,
-                    function() end,
+                    function()
+                        clear_menu_table(optionsMenuHandles)
+                        local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
+                            remove_preview_custom()
+                            spawn_custom_vehicle(data, false)
+                        end)
+                        table.insert(optionsMenuHandles, m)
+            
+                        m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
+                            import_vehicle_to_builder(data, name:sub(1, -6))
+                            menu.focus(builder.entitiesMenuList)
+                        end)
+                        table.insert(optionsMenuHandles, m)
+                    end,
                     function() _destroy_options_menu() end
                 )
-                local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
-                    remove_preview_custom()
-                    spawn_custom_vehicle(data)
-                end)
-                table.insert(optionsMenuHandles, m)
-    
-                m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
-                    import_vehicle_to_builder(data, name:sub(1, -6))
-                end)
-                table.insert(optionsMenuHandles, m)
-
+                
                 -- Spawn custom vehicle handler
                 menu.on_focus(optionParentMenus[name], function()
                     if preview.id ~= name then
@@ -354,7 +356,6 @@ function convert_file(path, name, newPath)
     end
 end
 function _destroy_saved_list()
-    clear_menu_table(optionParentMenus)
 end
     --[ SUB: Destroy custom vehicle context menu ]--
     function _destroy_options_menu()
@@ -417,9 +418,6 @@ function setup_builder_menus(name)
 
     local baseList = menu.list(mainMenu, "Base Vehicle", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
-            menu.toggle(settingsList, "Teleport Into On Spawn", {}, "Should you be teleported into this vehicle when you spawn it.", function(value)
-                builder.base.teleport_into_on_spawn = value
-            end, builder.base.teleport_into_on_spawn)
             menu.toggle(settingsList, "Visible", {}, "Should the base vehicle be visible", function(value)
                 builder.base.visible = value
                 ENTITY.SET_ENTITY_ALPHA(builder.base.handle, value and 255 or 0, 0)
@@ -858,6 +856,7 @@ function add_entity_to_list(list, handle, name, pos, rot)
             ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
         end
     )
+    menu.focus(builder.entities[handle].list)
     create_entity_section(builder.entities[handle].list, handle)
 end
 
@@ -994,7 +993,6 @@ function builder_to_json()
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
             visible = builder.base.visible,
-            teleport_into_on_spawn = builder.base.teleport_into_on_spawn,
             savedata = vehiclelib.Serialize(builder.base.handle)
         },
         objects = objects,
@@ -1015,12 +1013,9 @@ end
 function import_vehicle_to_builder(data, name)
     local baseHandle = spawn_vehicle(data.base)
     builder = new_builder(baseHandle)
-    builder.base.teleport_into_on_spawn = data.base.teleport_into_on_spawn or builder.base.teleport_into_on_spawn
     builder.base.visible = data.base.visible or builder.base.visible
-    if builder.base.teleport_into_on_spawn then
-        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-        TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
-    end
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
     setup_builder_menus(name)
     add_attachments(baseHandle, data, true, false)
 end
@@ -1056,14 +1051,15 @@ end
 
 function spawn_custom_vehicle(data, isPreview)
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
-    if not data.base.visible then
+    if data.base.visible == false then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
-    if not isPreview and data.base.teleport_into_on_spawn then
+    add_attachments(baseHandle, data, false, isPreview)
+    if spawnInVehicle and not isPreview then
+        util.yield()
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
     end
-    add_attachments(baseHandle, data, false, isPreview)
     return baseHandle
 end
 
@@ -1094,6 +1090,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 end
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
                 table.insert(handles, handle)
+
                 if addToBuilder then
                     add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
                 else
@@ -1106,7 +1103,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
         for _, vehData in ipairs(data.vehicles) do
             local handle = spawn_vehicle(vehData, isPreview)
     
-            if not vehData.visible then
+            if vehData.visible == false then
                 ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
             end
             for _, handle2 in ipairs(handles) do
@@ -1114,6 +1111,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             end
             ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
             table.insert(handles, handle)
+
             if addToBuilder then
                 add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation)
             else

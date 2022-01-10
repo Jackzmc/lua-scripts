@@ -2,7 +2,7 @@
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
 local VERSION = "1.2.14"
-local LANG_TARGET_VERSION = "1.3.0" -- Target version of translations.lua lib
+local LANG_TARGET_VERSION = "1.3.1" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -96,7 +96,7 @@ versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
 
-require("natives-1627063482")
+util.require_natives(1627063482)
 
 local json = require("json")
 local lang = require("translations")
@@ -116,7 +116,7 @@ end
 lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 lang.load_translation_file(SCRIPT)
 if wasUpdated then
-  update_translation_file(SCRIPT)
+  lang.update_translation_file(SCRIPT)
 end
 
 local metaList = menu.list(menu.my_root(), "Script Meta")
@@ -209,7 +209,7 @@ end))
 table.insert(submenus, menu.colour(optionsMenu, lang.format("DESIGN_BACKGROUND_COLOR_NAME"), {"standchatbgcolor"}, lang.format("DESIGN_BACKGROUND_COLOR_DESC"), bgColor, true, function(color)
   bgColor = color
 end))
-table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_POS_NAME", "X"), {"standx"}, lang.format("DEISGN_POS_DESC", "X"), -32768, 32767, chatPos.x * 100, 1, function(x)
+table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_POS_NAME", "X"), {"standx"}, lang.format("DESIGN_POS_DESC", "X"), -32768, 32767, chatPos.x * 100, 1, function(x)
   chatPos.x = x / 100
 end))
 table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_POS_NAME", "Y"), {"standy"}, lang.format("DESIGN_POS_DESC", "Y"), -32768, 32767, chatPos.y * 100, 1, function(y)

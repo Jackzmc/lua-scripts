@@ -99,7 +99,7 @@ function show_busyspinner(text)
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
-require("natives-1627063482")
+util.require_natives(1627063482)
 
 -- Models[1] && Models[2] are engines
 local models = {
