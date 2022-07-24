@@ -1,7 +1,7 @@
 -- Actions
 -- Created By Jackz
 local SCRIPT = "actions"
-local VERSION = "1.9.38"
+local VERSION = "1.9.40"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 
@@ -109,10 +109,6 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-if lang ~= nil then
-    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    lang.add_language_selector_to_menu(metaList)
-end
 
 -- START Scenario Data
 local SCENARIOS = {
@@ -287,7 +283,11 @@ local affectType = 0
 
 menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current scenario or animation", function(v)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    if clearActionImmediately then
+        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    else
+        TASK.CLEAR_PED_TASKS(ped)
+    end
     if affectType > 0 then
         local peds = entities.get_all_peds_as_handles()
         for _, npc in ipairs(peds) do
@@ -295,6 +295,8 @@ menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current
                 NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
                 if clearActionImmediately then
                     TASK.CLEAR_PED_TASKS_IMMEDIATELY(npc)
+                else
+                    TASK.CLEAR_PED_TASKS(npc)
                 end
             end
         end

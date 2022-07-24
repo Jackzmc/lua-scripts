@@ -1,8 +1,8 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.14"
-local LANG_TARGET_VERSION = "1.3.1" -- Target version of translations.lua lib
+local VERSION = "1.2.18"
+local _lang_TARGET_VERSION = "1.3.2" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -99,33 +99,36 @@ versionFile:close()
 util.require_natives(1627063482)
 
 local json = require("json")
-local lang = require("translations")
-if lang.menus == nil or lang.VERSION == nil or lang.VERSION ~= LANG_TARGET_VERSION then
+local _lang = require("translations")
+if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= _lang_TARGET_VERSION then
   --#P:MANUAL_ONLY
   util.toast("Outdated translations library, downloading update...")
   os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
   package.loaded["translations"] = nil
   _G["translations"] = nil
   download_lib_update("translations.lua")
-  lang = require("translations")
+  _lang = require("translations")
   --#P:ELSE
   util.toast("Outdated lib: 'translations'")
   --#P:END
 
 end
-lang.set_autodownload_uri("jackz.me", "/stand/translations/")
-lang.load_translation_file(SCRIPT)
+_lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.load_translation_file(SCRIPT)
 if wasUpdated then
-  lang.update_translation_file(SCRIPT)
+  _lang.update_translation_file(SCRIPT)
 end
 
 local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/271932")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-if lang ~= nil then
+if _lang ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    lang.add_language_selector_to_menu(metaList)
+    _lang.add_language_selector_to_menu(metaList)
+    menu.divider(metaList, "--[[ Credits ]]--")
+    menu.divider(metaList, "Icedoomfist - Translator")
+
 end
 
 function show_busyspinner(text)
@@ -150,34 +153,34 @@ local textSize = 0.5
 local textTime = 40000
 local keyhash = menu.get_activation_key_hash()
 
-
+--[[
 local autoTranslate = {
-  incomingLang = "en",
-  outgoingLang = "en",
+  incoming_lang = "en",
+  outgoing_lang = "en",
   loaded = false,
   active = false
 }
--- local translateMenu
--- translateMenu = lang.menus.list(menu.my_root(), "AUTO_TRANSLATE_LIST", {}, function()
---   if autoTranslate.loaded then return end
---   autoTranslate.loaded = true
---   lang.menus.toggle(menu.my_root(), "AUTO_TRANSLATE_TOGGLE", {"autotranslate"}, function(value)
---     autoTranslate.active = value
---   end, autoTranslate.active)
---   local incomingLangList = menu.list(menu.my_root(), "AUTO_TRANSLATE_INCOMING")
---   local outgoingLangList = menu.list(menu.my_root(), "AUTO_TRANSLATE_OUTGOING")
---   async_http.init("fuck-python.jackz.me", "/languages", function(response)
---     local json = json.decode(response)
---     for _, node in ipairs(json) do
---       menu.action(incomingLangList, node.name .. " (" .. node.code .. ")", {"incomingchat" .. node.code}, "Set all incoming chat messages to be translated to this language", function()
---         autoTranslate.incomingLang = node.code
---       end)
---       menu.action(outgoingLangList, node.name .. " (" .. node.code .. ")", {"outgoingchat" .. node.code}, "Set all your outgoing messages to be translated to this language", function()
---         autoTranslate.outgoingLang = node.code
---       end)
---     end
---   end)
--- end)
+local translateMenu
+translateMenu = _lang.menus.list(menu.my_root(), "AUTO_TRANSLATE_LIST", {}, function()
+  if autoTranslate.loaded then return end
+  autoTranslate.loaded = true
+  _lang.menus.toggle(menu.my_root(), "AUTO_TRANSLATE_TOGGLE", {"autotranslate"}, function(value)
+    autoTranslate.active = value
+  end, autoTranslate.active)
+  local incoming_langList = menu.list(menu.my_root(), "AUTO_TRANSLATE_INCOMING")
+  local outgoing_langList = menu.list(menu.my_root(), "AUTO_TRANSLATE_OUTGOING")
+  async_http.init("fuck-python.jackz.me", "/_languages", function(response)
+    local json = json.decode(response)
+    for _, node in ipairs(json) do
+      menu.action(incoming_langList, node.name .. " (" .. node.code .. ")", {"incomingchat" .. node.code}, "Set all incoming chat messages to be translated to this _language", function()
+        autoTranslate.incoming_lang = node.code
+      end)
+      menu.action(outgoing_langList, node.name .. " (" .. node.code .. ")", {"outgoingchat" .. node.code}, "Set all your outgoing messages to be translated to this _language", function()
+        autoTranslate.outgoing_lang = node.code
+      end)
+    end
+  end)
+end)
 
 chat.on_message(function(senderId, senderName, message, isTeamChat)
   if autoTranslate.active and senderId ~= PLAYER.user() then
@@ -185,9 +188,9 @@ chat.on_message(function(senderId, senderName, message, isTeamChat)
   end
 end)
 
-function translate_text(sourceLang, targetLang, text)
+function translate_text(source_lang, target_lang, text)
   local output
-  async_http.init("fuck-python.jackz.me", "/translate?q=" .. text .. "&source=" .. sourceLang .. "&target=" .. targetLang, function(body)
+  async_http.init("fuck-python.jackz.me", "/translate?q=" .. text .. "&source=" .. source_lang .. "&target=" .. target_lang, function(body)
     local json = json.decode(body)
     output = json.translatedText
   end)
@@ -196,31 +199,32 @@ function translate_text(sourceLang, targetLang, text)
   end
   return output
 end
+--]]
 
 
-local optionsMenu = menu.list(menu.my_root(), lang.format("DESIGN_NAME"), {}, lang.format("DESIGN_TEXT"))
+local optionsMenu = menu.list(menu.my_root(), _lang.format("DESIGN_NAME"), {}, _lang.format("DESIGN_TEXT"))
 menu.on_blur(optionsMenu, function(_)
   showExampleMessage = false
 end)
 local submenus = { optionsMenu }
-table.insert(submenus, menu.colour(optionsMenu, lang.format("DESIGN_CHAT_COLOR_NAME"), {"standchatcolor"}, lang.format("DESIGN_CHAT_COLOR_DESC"), textColor, false, function(color)
+table.insert(submenus, menu.colour(optionsMenu, _lang.format("DESIGN_CHAT_COLOR_NAME"), {"standchatcolor"}, _lang.format("DESIGN_CHAT_COLOR_DESC"), textColor, false, function(color)
   textColor = color
 end))
-table.insert(submenus, menu.colour(optionsMenu, lang.format("DESIGN_BACKGROUND_COLOR_NAME"), {"standchatbgcolor"}, lang.format("DESIGN_BACKGROUND_COLOR_DESC"), bgColor, true, function(color)
+table.insert(submenus, menu.colour(optionsMenu, _lang.format("DESIGN_BACKGROUND_COLOR_NAME"), {"standchatbgcolor"}, _lang.format("DESIGN_BACKGROUND_COLOR_DESC"), bgColor, true, function(color)
   bgColor = color
 end))
-table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_POS_NAME", "X"), {"standx"}, lang.format("DESIGN_POS_DESC", "X"), -32768, 32767, chatPos.x * 100, 1, function(x)
+table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_POS_NAME", "X"), {"standx"}, _lang.format("DESIGN_POS_DESC", "X"), -32768, 32767, chatPos.x * 100, 1, function(x)
   chatPos.x = x / 100
 end))
-table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_POS_NAME", "Y"), {"standy"}, lang.format("DESIGN_POS_DESC", "Y"), -32768, 32767, chatPos.y * 100, 1, function(y)
+table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_POS_NAME", "Y"), {"standy"}, _lang.format("DESIGN_POS_DESC", "Y"), -32768, 32767, chatPos.y * 100, 1, function(y)
   chatPos.y = y / 100
 end))
-table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_TEXT_SIZE_NAME"), {"standchatsize"}, lang.format("DESIGN_TEXT_SIZE_DESC"), 20, 100, textSize * 100, 1, function(size)
+table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_TEXT_SIZE_NAME"), {"standchatsize"}, _lang.format("DESIGN_TEXT_SIZE_DESC"), 20, 100, textSize * 100, 1, function(size)
   textSize = size / 100
   local _, height = directx.get_text_size("Example", textSize)
   textOffsetSize = height
 end))
-table.insert(submenus, menu.slider(optionsMenu, lang.format("DESIGN_MESSAGE_DURATION_NAME"), {"standchatmsgtime"}, lang.format("DESIGN_MESSAGE_DURATION_DESC"), 15, 120, textTime / 1000, 1, function(time)
+table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_MESSAGE_DURATION_NAME"), {"standchatmsgtime"}, _lang.format("DESIGN_MESSAGE_DURATION_DESC"), 15, 120, textTime / 1000, 1, function(time)
   textTime = time * 1000
 end))
 for _, submenu in ipairs(submenus) do
@@ -228,39 +232,41 @@ for _, submenu in ipairs(submenus) do
     showExampleMessage = true
   end)
 end
-local channelList = menu.list(menu.my_root(), lang.format("CHANNELS_NAME"), {}, lang.format("CHANNELS_DESC") .. "\n\n" .. lang.format("CHANNELS_ACTIVE", "default"))
+local channelList = menu.list(menu.my_root(), _lang.format("CHANNELS_NAME"), {}, _lang.format("CHANNELS_DESC") .. "\n\n" .. _lang.format("CHANNELS_ACTIVE", "default"))
 function switchChannel(channel)
   sendChannel = channel
   recvChannel = sendChannel
-  menu.set_help_text(channelList, lang.format("CHANNELS_DESC") .. "\n\n" .. lang.format("CHANNELS_ACTIVE", channel))
-  lang.toast("CHANNELS_SWITCHED", channel)
+  menu.set_help_text(channelList, _lang.format("CHANNELS_DESC") .. "\n\n" .. _lang.format("CHANNELS_ACTIVE", channel))
+  _lang.toast("CHANNELS_SWITCHED", channel)
 end
 
-async_http.init("stand-chat.jackz.me", "/info", function(body)
+async_http.init("jackz.me", "/stand/chat/info", function(body)
   if body:sub(1, 1) == "{" then
     local data = json.decode(body)
-    for _, lang in ipairs(data.publicChannels) do
-      menu.action(channelList, lang, {"chatlang" .. lang}, lang.format("CHANNELS_SWITCH_TO", lang), function(_)
-        switchChannel(lang)
+    for _, _lang in ipairs(data.publicChannels) do
+      menu.action(channelList, _lang, {"chat_lang" .. _lang}, _lang.format("CHANNELS_SWITCH_TO", _lang), function(_)
+        switchChannel(_lang)
       end)
     end
+  else
+    util.toast("Jackz Chat server returned an error (invalid json)")
   end
-end, function(err) util.toast("Could not fetch public channels: " .. err) end)
+end, function() util.toast("Could not fetch public channels") end)
 async_http.dispatch()
 
-menu.action(channelList, lang.format("CHANNELS_SPECIFIC_NAME"), { "chatchannel" } , lang.format("DESC"), function(_)
+menu.action(channelList, _lang.format("CHANNELS_SPECIFIC_NAME"), { "chatchannel" } , _lang.format("DESC"), function(_)
   menu.show_command_box("chatchannel ")
 end, function(args)
   args = args:gsub('%W','')
   if string.len(args) == 0 or args == "_all" or args == "system" then
     -- Before you try to bypass this, it's handled on the server side.
-    lang.toast("CHANNELS_SPECIFIC_INVALID")
+    _lang.toast("CHANNELS_SPECIFIC_INVALID")
   else
     switchChannel(string.lower(args))
   end
 end)
 
-menu.toggle(menu.my_root(), lang.format("RECV_ALL_PUBLIC_NAME"), {"chatglobal"}, lang.format("RECV_ALL_PUBLIC_DESC"), function(on)
+menu.toggle(menu.my_root(), _lang.format("RECV_ALL_PUBLIC_NAME"), {"chatglobal"}, _lang.format("RECV_ALL_PUBLIC_DESC"), function(on)
   if on then
     recvChannel = "_all"
   else
@@ -268,9 +274,9 @@ menu.toggle(menu.my_root(), lang.format("RECV_ALL_PUBLIC_NAME"), {"chatglobal"},
   end
 end, false)
 
-menu.text_input(menu.my_root(), lang.format("SEND_MSG_NAME"), { "chat", "c" }, lang.format("SEND_MSG_DESC") .. "\n\n" .. lang.format("SEND_CHAT_AS", user), function(args, clickType)
+menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME"), { "chat", "c" }, _lang.format("SEND_MSG_DESC") .. "\n\n" .. _lang.format("SEND_CHAT_AS", user), function(args, clickType)
   show_busyspinner("Sending messsage")
-  async_http.init("stand-chat.jackz.me", "/channels/" .. sendChannel .. "?v=" .. VERSION, function(result)
+  async_http.init("jackz.me", "/stand/chat/channels/" .. sendChannel .. "?v=" .. VERSION, function(result)
     if result == "OK" or result == "Bad Request" then
       table.insert(messages, {
         u = user,
@@ -279,9 +285,9 @@ menu.text_input(menu.my_root(), lang.format("SEND_MSG_NAME"), { "chat", "c" }, l
         l = sendChannel
       })
     elseif result == "MAINTENANCE" then
-      lang.toast("SEND_MAINTENANCE")
+      _lang.toast("SEND_MAINTENANCE")
     else
-      lang.toast("SEND_ERR", result)
+      _lang.toast("SEND_ERR", result)
     end
     HUD.BUSYSPINNER_OFF()
   end)
@@ -297,7 +303,7 @@ end)
 
 util.create_tick_handler(function(_)
   waiting = true
-  async_http.init("stand-chat.jackz.me", "/channels/" .. recvChannel .. "/" .. lastTimestamp, function(body)
+  async_http.init("jackz.me", "/stand/chat/channels/" .. recvChannel .. "/" .. lastTimestamp, function(body)
     -- check if response is validish json (incase ratelimitted)
     if body:sub(1, 1) == "{" then
       local data = json.decode(body)
@@ -350,8 +356,8 @@ while true do
   end
   directx.draw_rect(chatPos.x, chatPos.y - (textOffsetSize / 2), width + 0.005, textOffsetSize * i, bgColor)
   if showExampleMessage then
-    directx.draw_text(chatPos.x, chatPos.y - textOffsetSize, lang.format("EXAMPLE_1"), ALIGN_CENTRE_LEFT, textSize, textColor, true)
-    directx.draw_text(chatPos.x, chatPos.y - (textOffsetSize * 2), lang.format("EXAMPLE_2"), ALIGN_CENTRE_LEFT, textSize, textColor, true)
+    directx.draw_text(chatPos.x, chatPos.y - textOffsetSize, _lang.format("EXAMPLE_1"), ALIGN_CENTRE_LEFT, textSize, textColor, true)
+    directx.draw_text(chatPos.x, chatPos.y - (textOffsetSize * 2), _lang.format("EXAMPLE_2"), ALIGN_CENTRE_LEFT, textSize, textColor, true)
     directx.draw_rect(chatPos.x, chatPos.y - (textOffsetSize * 2) - (textOffsetSize / 2), 0.3 + 0.2 * textSize, textOffsetSize * 2, bgColor)
   end
 	util.yield()

@@ -82,7 +82,10 @@
         "SCRIPT_NAME",
         "SCRIPT_RELPATH",
         "SCRIPT_MANUAL_START",
-        "SCRIPT_SOURCE"
+        "SCRIPT_SOURCE",
+        "MODULE_SOURCE",
+        "i18n",
+        "_lang"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"
@@ -94,11 +97,13 @@
         "latex"
     ],
     "Lua.diagnostics.neededFileStatus": {
-        "Choice": "Opened"
+        
     },
     "Lua.workspace.checkThirdParty": false,
     "Lua.window.statusBar": false,
     "Lua.diagnostics.severity": {
         "undefined-global": "Error"
-    }
+    },
+    "Lua.completion.callSnippet": "Both",
+    "Lua.completion.displayContext": 2
 }

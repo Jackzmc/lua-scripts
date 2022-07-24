@@ -73,6 +73,13 @@ v3.7.0
 * Rename "Current Vehicle Multiplers" to "Current Vehicle Settings"
 * Add Always Keep Upright to above list
 * (3.7.2) Possibly fix cloud user's vehicles list being empty
+* (3.7.3) Sorry, parser acted up again, fixed termination issue
+* (3.7.5) Added korean translations (Thanks IceDoomfist)
+* (3.7.6) Updated translations lib
+* (3.7.7) Minor fixes
+* (3.7.8) Possible fix for rare vehicle saving failure
+* (3.7.9) Fix bug with vehicle lib
+* (3.7.10) Update jackzvehiclelib
 
 # actions (v1)
 
@@ -80,6 +87,7 @@ v1.1
 
 * Fixed lua failure when search result returned < 20
 * Added an option to immediately stop anim/scenario when switching to new one
+
 v1.2
 
 * Added a favorites system
@@ -139,6 +147,7 @@ v1.9.0
 * (1.9.4) Remove auto updated dupe files
 * (1.9.6) "Fix" race error on cloud fetch
 * (1.9.7) Update cloud url
+* (1.9.8) Fix outdated code prompting lang meta menu
 
 # jackz chat (v1)
 
@@ -161,6 +170,9 @@ V1.2.0
 * (1.2.5) Use updated natives
 * (1.2.6) Remove auto updated dupe files
 * (1.2.11) Use updated lang
+* (1.2.16) Added korean translations (Thanks IceDoomfist)
+* (1.2.17) Updated translations lib
+* (1.2.18) Switched chat server to fix script not working
 
 # train control (v1)
 
@@ -175,6 +187,7 @@ V1.1.0
 * (1.1.1) Upgraded apis to new stand apis
 * (1.1.2) Use updated natives
 * (1.1.3) Remove auto updated dupe files
+* (1.1.6) Fix errors
 
 # jackz vehicle builder (v1)
 
@@ -235,3 +248,16 @@ V1.9.0
 * (1.9.5) Sorry this took a while: Fix saved vehicle spawn failure
 * (1.9.5) Removed teleport into vehicle option for individual vehicle
 * (1.9.5) Add 'Spawn In Vehicle' for spawner
+* (1.9.6) Fix possible delete error
+* (1.9.7) Updated translations lib
+* (1.9.8) Possible fix for rare vehicle saving failure
+* (1.9.10) Fix bug
+* (1.9.11) Fix bug with vehicle lib
+
+V1.10.0
+
+* Attached vehicles now default to godmode
+* Add option to disable godmode for attached vehicles
+* Fix preview not being removed on spawn
+* Make Free Edit disabled by default
+* (1.10.1) Update jackzvehiclelib

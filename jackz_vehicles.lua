@@ -1,9 +1,9 @@
 -- Jackz Vehicles
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.7.2"
-local LANG_TARGET_VERSION = "1.3.1" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.0"
+local VERSION = "3.7.11"
+local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
+local VEHICLELIB_TARGET_VERSION = "1.1.3"
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -17,7 +17,11 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
         -- Remove this block (lines 15-32) to disable auto updates
         async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
             local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
-            file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            if file == nil then
+                util.toast(SCRIPT .. " could not auto update, most likely due to a permission issue.")
+                return
+            end
+            file:write(result:gsub("\r", "") .. "\n")
             file:close()
             util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
         end, function()
@@ -32,6 +36,10 @@ async_http.dispatch()
 function download_lib_update(lib)
     async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
         local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+        if file == nil then
+            util.toast(SCRIPT .. " could not automatically update library " .. lib .. "most likely due to a permission issue.")
+            return
+        end
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
         util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
@@ -67,84 +75,99 @@ end
 local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
 if not filesystem.exists(VERSION_FILE_PATH) then
     local versionFile = io.open(VERSION_FILE_PATH, "w")
+    if versionFile == nil then
+        util.log(SCRIPT .. ": Could not create jackz_versions.txt")
+        return
+    end
     versionFile:close()
 end
 local wasUpdated = false
 local versionFile = io.open(VERSION_FILE_PATH, "r+")
-local versions = {}
-for line in versionFile:lines("l") do
-    local script, version = line:match("(%g+): (%g+)")
-    if script then
-        versions[script] = version
+if versionFile == nil then
+    util.log(SCRIPT .. ": Could not read jackz_versions.txt, skipping changelog system")
+else
+    -- Get all versions from file
+    local versions = {}
+    for line in versionFile:lines("l") do
+        local script, version = line:match("(%g+): (%g+)")
+        if script then
+            versions[script] = version
+        end
     end
+
+    -- If version is older or non existenant
+    if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
+        if versions[SCRIPT] ~= nil then
+            -- If the version was older, show changelog since then
+            async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
+                util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
+            end, function() util.log(string.format(SCRIPT ..": Failed to acquire changelog (since %s, version %s)", versions[SCRIPT], VERSION)) end)
+            async_http.dispatch()
+            wasUpdated = true
+        end
+        -- Update the version in the version file
+        versions[SCRIPT] = VERSION
+        versionFile:seek("set", 0)
+        versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+        for script, version in pairs(versions) do
+            versionFile:write(script .. ": " .. version .. "\n")
+        end
+    end
+    versionFile:close()
 end
-if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-    if versions[SCRIPT] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
-            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-        end, function() util.log(SCRIPT ..": Could not get changelog") end)
-        async_http.dispatch()
-        wasUpdated = true
-    end
-    versions[SCRIPT] = VERSION
-    versionFile:seek("set", 0)
-    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-    for script, version in pairs(versions) do
-        versionFile:write(script .. ": " .. version .. "\n")
-    end
-end
-versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
 
 util.require_natives(1627063482)
 local json = require("json")
-local lang = require("translations")
+local i18n = require("translations")
 local vehiclelib = require("jackzvehiclelib")
 
 if vehiclelib == nil then
-    util.toast("CRITICAL: Vehiclelib not loaded, exiting.", TOAST_ALL)
+    util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'jackzvehiclelib' was not loaded, cannot continue. Exiting.", TOAST_ALL)
     util.stop_script()
+    return
+elseif i18n == nil then
+    util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'translations' was not loaded, cannot continue. Exiting.", TOAST_ALL)
+    util.stop_script()
+    return
 end
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
---#P:MANUAL_ONLY
-     util.toast("Outdated vehiclelib library, downloading update...")
-     download_lib_update("jackzvehiclelib.lua")
-     vehiclelib = require("jackzvehiclelib")
---#P:END
---#P:REPO_ONLY
-     util.toast("Outdated lib: 'jackzvehiclelib'")
---#P:END
+    if SCRIPT_SOURCE == "MANUAL" then
+        util.toast("Outdated vehiclelib library, attempting update...")
+        download_lib_update("jackzvehiclelib.lua")
+        vehiclelib = require("jackzvehiclelib")
+    end
 end
-if lang.VERSION ~= LANG_TARGET_VERSION then
---#P:MANUAL_ONLY
-    util.toast("Outdated translations library, downloading update...")
-    package.loaded["translations"] = nil
-    _G["translations"] = nil
-    download_lib_update("translations.lua")
-    lang = require("translations")
---#P:END
---#P:REPO_ONLY
-    util.toast("Outdated lib: 'translations'")
---#P:END
+if i18n.VERSION ~= LANG_TARGET_VERSION then
+    if SCRIPT_SOURCE == "MANUAL" then
+        util.toast("Outdated translations library, attempting update...")
+        package.loaded["translations"] = nil
+        _G["translations"] = nil
+        download_lib_update("translations.lua")
+        lang = require("translations")
+    end
 end
-lang.set_autodownload_uri("jackz.me", "/stand/translations/")
-lang.load_translation_file(SCRIPT)
+i18n.set_autodownload_uri("jackz.me", "/stand/translations/")
+i18n.load_translation_file(SCRIPT)
 if wasUpdated then
-    lang.update_translation_file(SCRIPT)
+    i18n.update_translation_file(SCRIPT)
 end
 
 local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/264612")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-if lang ~= nil then
+if i18n ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    lang.add_language_selector_to_menu(metaList)
+    i18n.add_language_selector_to_menu(metaList)
+    menu.divider(metaList, "--[[ Credits ]]--")
+    menu.divider(metaList, "hiers - Translator")
+    menu.divider(metaList, "voyager - Translator")
+    menu.divider(metaList, "Icedoomfist - Translator")
 end
--- Per-player options
-local options = {}
 
+-- CONSTANTS
 local DOOR_NAMES = {
     "Front Left", "Front Right",
     "Back Left", "Back Right",
@@ -158,6 +181,7 @@ if not filesystem.exists(VEHICLE_DIR) then
     filesystem.mkdir(VEHICLE_DIR)
 end
 
+-- UTIL FUNCTIONS
 function clear_menu_table(t)
     for k, h in pairs(t) do
         pcall(menu.delete, h)
@@ -181,8 +205,8 @@ function get_player_vehicle_in_control(pid, opts)
         return 0
     end
     if vehicle == 0 and target_ped ~= my_ped and dist > 340000 and not was_spectating then
-        lang.toast("AUTO_SPECTATE")
-        show_busyspinner(lang.format("AUTO_SPECTATE"))
+        i18n.toast("AUTO_SPECTATE")
+        show_busyspinner(i18n.format("AUTO_SPECTATE"))
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(true, target_ped)
         -- To prevent a hard 3s loop, we keep waiting upto 3s or until vehicle is acquired
         local loop = (opts and opts.loops ~= nil) and opts.loops or 30 -- 3000 / 100
@@ -226,7 +250,7 @@ function control_vehicle(pid, callback, opts)
     if vehicle > 0 then
         callback(vehicle)
     elseif opts == nil or opts.silent ~= true then
-        lang.toast("PLAYER_OUT_OF_RANGE")
+        i18n.toast("PLAYER_OUT_OF_RANGE")
     end
 end
 
@@ -239,7 +263,7 @@ function get_waypoint_pos(callback, silent)
         end
         return waypoint_pos
     elseif not silent then
-        lang.toast("NO_WAYPOINT_SET")
+        i18n.toast("NO_WAYPOINT_SET")
         return nil
     end
 end
@@ -382,15 +406,17 @@ function setup_choose_player_menu(rootMenu, menuList, callback, pid)
         for _, target_pid in ipairs(cur_players) do
             local name = PLAYER.GET_PLAYER_NAME(target_pid)
             if pid ~= nil and target_pid == pid then
-                name = name .. " (" .. lang.format("THEM") .. ")"
+                name = name .. " (" .. i18n.format("THEM") .. ")"
             elseif target_pid == my_pid then
-                name = name .. " (" .. lang.format("ME") .. ")"
+                name = name .. " (" .. i18n.format("ME") .. ")"
             end
             local m = callback(target_pid, name)
             table.insert(menuList, m)
         end
     end)
 end
+
+-- Data
 
 local driveClone = {
     vehicle = 0,
@@ -399,12 +425,14 @@ local driveClone = {
 local spawnInVehicle = false
 local smartAutodrive = false
 
--- Setup player menus
-function setup_action_for(pid)
+-- Per-player options
+local playerOptions = {}
+
+function setup_player_menu(pid)
     menu.divider(menu.player_root(pid), "Jackz Vehicles")
-    local submenu = lang.menus.list(menu.player_root(pid), "VEHICLE_OPTIONS", { "vehicle"} )
+    local submenu = i18n.menus.list(menu.player_root(pid), "VEHICLE_OPTIONS", { "vehicle"} )
     -- Set default player settings
-    options[pid] = {
+    playerOptions[pid] = {
         teleport_last = false,
         paint_color_primary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
         paint_color_secondary = { r = 1.0, g = 0.412, b = 0.706, a = 1 },
@@ -413,7 +441,7 @@ function setup_action_for(pid)
         cargo_magnet = false
     }
 
-    lang.menus.action(submenu, "TP_VEH_TO_ME", { "tpvehme" }, function(_)
+    i18n.menus.action(submenu, "TP_VEH_TO_ME", { "tpvehme" }, function(_)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -422,7 +450,7 @@ function setup_action_for(pid)
         end)
     end)
 
-    lang.menus.action(submenu, "TP_VEH_TO_WAYPOINT", { "tpvehwaypoint" }, function(_)
+    i18n.menus.action(submenu, "TP_VEH_TO_WAYPOINT", { "tpvehwaypoint" }, function(_)
         get_waypoint_pos(function(pos)
             STREAMING.LOAD_SCENE(pos.x, pos.y, pos.z)
             control_vehicle(pid, function(vehicle)
@@ -434,9 +462,9 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- Attachments Section
     ----------------------------------------------------------------
-    local attachmentsList = lang.menus.list(submenu, "ATTACHMENTS", {"attachments"})
-        lang.menus.divider(attachmentsList, "TOW_TRUCKS")
-            lang.menus.action(attachmentsList, "TOW_DRIVE", {"tow"}, function()
+    local attachmentsList = i18n.menus.list(submenu, "ATTACHMENTS", {"attachments"})
+        i18n.menus.divider(attachmentsList, "TOW_TRUCKS")
+            i18n.menus.action(attachmentsList, "TOW_DRIVE", {"tow"}, function()
                 control_vehicle(pid, function(vehicle)
                     local tow, driver = spawn_tow_for_vehicle(vehicle)
                     util.yield(1500)
@@ -447,13 +475,13 @@ function setup_action_for(pid)
                     end
                 end)
             end)
-            lang.menus.action(attachmentsList, "TOW_TRUCKS_WANDER", {"towwander"}, function(_)
+            i18n.menus.action(attachmentsList, "TOW_TRUCKS_WANDER", {"towwander"}, function(_)
                 control_vehicle(pid, function(vehicle)
                     local tow, driver = spawn_tow_for_vehicle(vehicle)
                     TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 6)
                 end)
             end)
-            menu.action(attachmentsList, lang.format("TOW_TO_WAYPOINT_NAME"), {"towwaypoint"}, lang.format("TOW_TO_WAYPOINT_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("TOW_TO_WAYPOINT_NAME"), {"towwaypoint"}, i18n.format("TOW_TO_WAYPOINT_DESC"), function(_)
                 get_waypoint_pos(function(waypoint_pos)
                     control_vehicle(pid, function(vehicle)
                         local tow, driver, model = spawn_tow_for_vehicle(vehicle)
@@ -461,7 +489,7 @@ function setup_action_for(pid)
                     end)
                 end)
             end)
-            local towPlayerMenu = menu.list(attachmentsList, lang.format("TOW_TO_PLAYER_DIVIDER"), {"towtoplayer"})
+            local towPlayerMenu = menu.list(attachmentsList, i18n.format("TOW_TO_PLAYER_DIVIDER"), {"towtoplayer"})
             local towPlayerMenus = {}
             menu.on_focus(towPlayerMenu, function(_)
                 for _, m in ipairs(towPlayerMenus) do
@@ -473,11 +501,11 @@ function setup_action_for(pid)
                 for _, pid2 in ipairs(cur_players) do
                     local name = PLAYER.GET_PLAYER_NAME(pid2) 
                     if pid == pid2 then
-                        name = name .. " (" .. lang.format("THEM") .. ")"
+                        name = name .. " (" .. i18n.format("THEM") .. ")"
                     elseif pid2 == my_pid then
-                        name = name .. " (" .. lang.format("ME") .. ")"
+                        name = name .. " (" .. i18n.format("ME") .. ")"
                     end
-                    local m = menu.action(towPlayerMenu, name, {}, lang.format("TOW_TO_PLAYER_INDV_DESC"), function(_)
+                    local m = menu.action(towPlayerMenu, name, {}, i18n.format("TOW_TO_PLAYER_INDV_DESC"), function(_)
                         local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid2)
                         control_vehicle(pid, function(vehicle)
                             local tow, driver = spawn_tow_for_vehicle(vehicle)
@@ -494,7 +522,7 @@ function setup_action_for(pid)
                 end
             end)
 
-            menu.action(attachmentsList, lang.format("DETACH_TOW_NAME"), {"detachtow"},  lang.format("DETACH_TOW_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("DETACH_TOW_NAME"), {"detachtow"},  i18n.format("DETACH_TOW_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
                     VEHICLE.DETACH_VEHICLE_FROM_ANY_TOW_TRUCK(vehicle)
                 end)
@@ -502,13 +530,13 @@ function setup_action_for(pid)
 
         menu.divider(attachmentsList, "Cargobob")
 
-            menu.toggle(attachmentsList, lang.format("USE_MAGNET_NAME"), {"cargomagnet"}, lang.format("USE_MAGNET_DESC"), function(on)
-                options[pid].cargo_magnet = on
-            end, options[pid].cargo_magnet)
+            menu.toggle(attachmentsList, i18n.format("USE_MAGNET_NAME"), {"cargomagnet"}, i18n.format("USE_MAGNET_DESC"), function(on)
+                playerOptions[pid].cargo_magnet = on
+            end, playerOptions[pid].cargo_magnet)
 
-            menu.action(attachmentsList, lang.format("CARGOBOB_FLY_NAME"), {"cargobofly"}, lang.format("CARGOBOB_FLY_DESC"), function()
+            menu.action(attachmentsList, i18n.format("CARGOBOB_FLY_NAME"), {"cargobofly"}, i18n.format("CARGOBOB_FLY_DESC"), function()
                 control_vehicle(pid, function(vehicle)
-                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, playerOptions[pid].cargo_magnet)
                     util.yield(1500)
                     if ENTITY.DOES_ENTITY_EXIST(cargobob) then
                         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -518,16 +546,16 @@ function setup_action_for(pid)
                 end)
             end)
 
-            menu.action(attachmentsList, lang.format("CARGOBOB_MT_CHILIAD_NAME"), {"cargobobmt"}, lang.format("CARGOBOB_MT_CHILIAD_DESC"), function()
+            menu.action(attachmentsList, i18n.format("CARGOBOB_MT_CHILIAD_NAME"), {"cargobobmt"}, i18n.format("CARGOBOB_MT_CHILIAD_DESC"), function()
                 control_vehicle(pid, function(vehicle)
-                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, playerOptions[pid].cargo_magnet)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, 450.718 , 5566.614, 806.183, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
                 end)
             end)
 
-            menu.action(attachmentsList, lang.format("CARGOBOB_OCEAN_NAME"), {"cargobobocean"}, lang.format("CARGOBOB_OCEAN_DESC"), function()
+            menu.action(attachmentsList, i18n.format("CARGOBOB_OCEAN_NAME"), {"cargobobocean"}, i18n.format("CARGOBOB_OCEAN_DESC"), function()
                 control_vehicle(pid, function(vehicle)
-                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, playerOptions[pid].cargo_magnet)
                     local pos = ENTITY.GET_ENTITY_COORDS(cargobob)
                     local vec = memory.alloc(24)
                     local dest = { x = 0, y = 0, z = -5.0}
@@ -543,28 +571,28 @@ function setup_action_for(pid)
                 end)
             end)
             
-            local cargoPlayerMenu = menu.list(attachmentsList, lang.format("CARGOBOB_TO_PLAYER_NAME"), {"cargobobtoplayer"})
+            local cargoPlayerMenu = menu.list(attachmentsList, i18n.format("CARGOBOB_TO_PLAYER_NAME"), {"cargobobtoplayer"})
             local cargoPlayerMenus = {}
             setup_choose_player_menu(cargoPlayerMenu, cargoPlayerMenus, function(target_pid, name)
-                return menu.action(cargoPlayerMenu, name, {}, lang.format("CARGOBOB_TO_PLAYER_INDV_DESC"), function()
+                return menu.action(cargoPlayerMenu, name, {}, i18n.format("CARGOBOB_TO_PLAYER_INDV_DESC"), function()
                     local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
                     control_vehicle(pid, function(vehicle)
-                        local _, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                        local _, driver = spawn_cargobob_for_vehicle(vehicle, playerOptions[pid].cargo_magnet)
                         TASK.TASK_HELI_CHASE(driver, target_ped, 0, 0, 80.0)
                     end)
                 end)
             end, pid)
 
-            menu.action(attachmentsList, lang.format("CARGOBOB_TO_WAYPOINT_NAME"), {"cargobobwaypoint"}, lang.format("CARGOBOB_TO_WAYPOINT_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("CARGOBOB_TO_WAYPOINT_NAME"), {"cargobobwaypoint"}, i18n.format("CARGOBOB_TO_WAYPOINT_DESC"), function(_)
                 get_waypoint_pos(function(waypoint_pos)
                     control_vehicle(pid, function(vehicle)
-                        local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, options[pid].cargo_magnet)
+                        local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, playerOptions[pid].cargo_magnet)
                         TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
                     end)
                 end)
             end)
 
-            menu.action(attachmentsList, lang.format("DETACH_CARGOBOB_NAME"), {"detachcargo"}, lang.format("DETACH_CARGOBOB_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("DETACH_CARGOBOB_NAME"), {"detachcargo"}, i18n.format("DETACH_CARGOBOB_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
                     VEHICLE.DETACH_VEHICLE_FROM_ANY_CARGOBOB(vehicle)
                     local hasPlayer = false
@@ -576,47 +604,47 @@ function setup_action_for(pid)
                         end
                     end
                     if not hasPlayer then
-                        local pointer = util.get_entity_address(vehicle)
+                        local pointer = ENTITY.get_entity_address(vehicle)
                         ENTITY.SET_VEHICLE_AS_NO_LONGER_NEEDED(pointer)
                     end
                 end)
             end)
 
-        menu.divider(attachmentsList, lang.format("TRAILERS_DIVIDER"))
+        menu.divider(attachmentsList, i18n.format("TRAILERS_DIVIDER"))
 
-            menu.action(attachmentsList, lang.format("TRAILER_DRIVE_WANDER_NAME"), {"trailerwander"}, lang.format("TRAILER_DRIVE_WANDER_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("TRAILER_DRIVE_WANDER_NAME"), {"trailerwander"}, i18n.format("TRAILER_DRIVE_WANDER_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
-                    local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
+                    local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, playerOptions[pid].trailer_gate)
                     TASK.TASK_VEHICLE_DRIVE_WANDER(driver, cab, 30.0, 786603)
                     TASK.SET_PED_KEEP_TASK(driver, true)
                 end)
             end)
 
-            menu.action(attachmentsList, lang.format("TRAILER_TO_WAYPOINT_NAME"), {"trailerwaypoint"}, lang.format("TRAILER_TO_WAYPOINT_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("TRAILER_TO_WAYPOINT_NAME"), {"trailerwaypoint"}, i18n.format("TRAILER_TO_WAYPOINT_DESC"), function(_)
                 get_waypoint_pos(function(waypoint_pos)
                     control_vehicle(pid, function(vehicle)
-                        local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, options[pid].trailer_gate)
+                        local cab, driver = spawn_cab_and_trailer_for_vehicle(vehicle, playerOptions[pid].trailer_gate)
                         TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cab, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, CAB_MODEL, 786603, 5.0, 1.0)
                     end)
                 end)
             end)
 
-            menu.toggle(attachmentsList, lang.format("TRAILER_GATE_DOWN_OPT_NAME"), {"trailergate"}, lang.format("TRAILER_GATE_DOWN_OPT_DESC"), function(on)
-                options[pid].trailer_gate = on
-            end, options[pid].trailer_gate)
+            menu.toggle(attachmentsList, i18n.format("TRAILER_GATE_DOWN_OPT_NAME"), {"trailergate"}, i18n.format("TRAILER_GATE_DOWN_OPT_DESC"), function(on)
+                playerOptions[pid].trailer_gate = on
+            end, playerOptions[pid].trailer_gate)
 
         menu.divider(attachmentsList, "Titan")
-            menu.action(attachmentsList, lang.format("TITAN_FLY_TO_MT_CHILIAD_NAME"), {"titanmtchiliad"}, lang.format("TITAN_FLY_TO_MT_CHILIAD_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("TITAN_FLY_TO_MT_CHILIAD_NAME"), {"titanmtchiliad"}, i18n.format("TITAN_FLY_TO_MT_CHILIAD_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
                     local titan, driver = spawn_titan_for_vehicle(vehicle)
                     --TASK.TASK_PLANE_CHASE(driver, target_ped, 0, 0, 80.0)
                     TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, titan, 450.718 , 5566.614, 806.183, 100.0, 1.0, TITAN_MODEL, 786603, 5.0, 1.0)
                 end)
             end)
-            local titanPlayerMenu = menu.list(attachmentsList, lang.format("TITAN_FLY_TO_PLAYER_NAME"), {"titantoplayer"})
+            local titanPlayerMenu = menu.list(attachmentsList, i18n.format("TITAN_FLY_TO_PLAYER_NAME"), {"titantoplayer"})
             local titanPlayerMenus = {}
             setup_choose_player_menu(titanPlayerMenu, titanPlayerMenus, function(target_pid, name)
-                return menu.action(titanPlayerMenu, name, {}, lang.format("TITAN_FLY_TO_PLAYER_INDV_DESC"), function(_)
+                return menu.action(titanPlayerMenu, name, {}, i18n.format("TITAN_FLY_TO_PLAYER_INDV_DESC"), function(_)
                     local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
                     control_vehicle(pid, function(vehicle)
                         local _, driver = spawn_titan_for_vehicle(vehicle)
@@ -624,7 +652,7 @@ function setup_action_for(pid)
                     end)
                 end)
             end, pid)
-            menu.action(attachmentsList, lang.format("TITAN_FLY_TO_WAYPOINT_NAME"), {"flywaypoint"}, lang.format("TITAN_FLY_TO_WAYPOINT_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("TITAN_FLY_TO_WAYPOINT_NAME"), {"flywaypoint"}, i18n.format("TITAN_FLY_TO_WAYPOINT_DESC"), function(_)
                 get_waypoint_pos(function(waypoint_pos)
                     control_vehicle(pid, function(vehicle)
                         local titan, driver = spawn_titan_for_vehicle(vehicle)
@@ -635,19 +663,19 @@ function setup_action_for(pid)
 
         menu.divider(attachmentsList, "Misc")
 
-            menu.action(attachmentsList, lang.format("ATTACH_FREE_VEHICLE_NAME"), {"freevehicle"}, lang.format("ATTACH_FREE_VEHICLE_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("ATTACH_FREE_VEHICLE_NAME"), {"freevehicle"}, i18n.format("ATTACH_FREE_VEHICLE_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
                     local pos = ENTITY.GET_ENTITY_COORDS(vehicle)
                     ENTITY.SET_ENTITY_COORDS(vehicle, pos.x, pos.y, pos.z + 5.0)
                 end)
             end)
 
-            menu.action(attachmentsList, lang.format("ATTACH_DETACH_ALL_NAME"), {"detachall"}, lang.format("ATTACH_DETACH_ALL_DESC"), function(_)
+            menu.action(attachmentsList, i18n.format("ATTACH_DETACH_ALL_NAME"), {"detachall"}, i18n.format("ATTACH_DETACH_ALL_DESC"), function(_)
                 control_vehicle(pid, function(vehicle)
                     ENTITY.DETACH_ENTITY(vehicle, true, 0)
                 end)
             end)
-            lang.menus.toggle(attachmentsList, "VEH_DRIVE", {"clonevehicle"}, function(on)
+            i18n.menus.toggle(attachmentsList, "VEH_DRIVE", {"clonevehicle"}, function(on)
                 if on then
                     control_vehicle(pid, function(vehicle)
                         local saveData = vehiclelib.Serialize(vehicle)
@@ -676,9 +704,9 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- Movement Section
     ----------------------------------------------------------------
-    local movementMenu = menu.list(submenu, lang.format("MOVEMENT_NAME"), {}, lang.format("MOVEMENT_DESC"))
+    local movementMenu = menu.list(submenu, i18n.format("MOVEMENT_NAME"), {}, i18n.format("MOVEMENT_DESC"))
 
-        menu.click_slider(movementMenu, lang.format("MOVEMENT_BOOST_NAME"), {"boost"}, lang.format("MOVEMENT_BOOST_DESC"), -200, 200, 200, 10, function(mph)
+        menu.click_slider(movementMenu, i18n.format("MOVEMENT_BOOST_NAME"), {"boost"}, i18n.format("MOVEMENT_BOOST_DESC"), -200, 200, 200, 10, function(mph)
             local speed = mph / 0.44704
             control_vehicle(pid, function(vehicle)
                 VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, speed)
@@ -688,7 +716,7 @@ function setup_action_for(pid)
             end)
         end)
 
-        menu.action(movementMenu, lang.format("MOVEMENT_SLINGSHOT_NAME"), {"slingshot"}, lang.format("MOVEMENT_SLINGSHOT_DESC"), function(_)
+        menu.action(movementMenu, i18n.format("MOVEMENT_SLINGSHOT_NAME"), {"slingshot"}, i18n.format("MOVEMENT_SLINGSHOT_DESC"), function(_)
             control_vehicle(pid, function(vehicle)
                 VEHICLE.SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
                 local vel = ENTITY.GET_ENTITY_VELOCITY(vehicle)
@@ -697,14 +725,14 @@ function setup_action_for(pid)
             end)
         end)
 
-        menu.click_slider(movementMenu, lang.format("MOVEMENT_LAUNCH_NAME"), {"launch"}, lang.format("MOVEMENT_LAUNCH_DESC"), -200, 200, 200, 10, function(mph)
+        menu.click_slider(movementMenu, i18n.format("MOVEMENT_LAUNCH_NAME"), {"launch"}, i18n.format("MOVEMENT_LAUNCH_DESC"), -200, 200, 200, 10, function(mph)
             local speed = mph / 0.44704
             control_vehicle(pid, function(vehicle)
                 ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, speed)
             end)
         end)
 
-        menu.action(movementMenu, lang.format("MOVEMENT_STOP_NAME"), {"stopvehicle"}, lang.format("MOVEMENT_STOP_DESC"), function(_)
+        menu.action(movementMenu, i18n.format("MOVEMENT_STOP_NAME"), {"stopvehicle"}, i18n.format("MOVEMENT_STOP_DESC"), function(_)
             control_vehicle(pid, function(vehicle)
                 VEHICLE._STOP_BRING_VEHICLE_TO_HALT(vehicle)
                 ENTITY.SET_ENTITY_VELOCITY(vehicle, 0.0, 0.0, 0.0)
@@ -715,8 +743,8 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- Door Section
     ----------------------------------------------------------------
-    local door_submenu = menu.list(submenu, lang.format("DOORS_NAME"), {}, lang.format("DOORS_DESC"))
-    menu.slider(door_submenu, lang.format("DOORS_LOCK_STATUS_NAME"), {"lockstatus"}, lang.format("DOORS_LOCK_STATUS_DESC"), 0, 2, 0, 1, function(state)
+    local door_submenu = menu.list(submenu, i18n.format("DOORS_NAME"), {}, i18n.format("DOORS_DESC"))
+    menu.slider(door_submenu, i18n.format("DOORS_LOCK_STATUS_NAME"), {"lockstatus"}, i18n.format("DOORS_LOCK_STATUS_DESC"), 0, 2, 0, 1, function(state)
         control_vehicle(pid, function(vehicle)
             if state == 0 then
                 VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle, 1)
@@ -729,11 +757,11 @@ function setup_action_for(pid)
     end)
 
     local open_doors = true
-    menu.toggle(door_submenu, lang.format("DOORS_OPEN_NAME"), {}, lang.format("DOORS_OPEN_DESC"), function(on)
+    menu.toggle(door_submenu, i18n.format("DOORS_OPEN_NAME"), {}, i18n.format("DOORS_OPEN_DESC"), function(on)
         open_doors = on
     end, open_doors)
 
-    menu.action(door_submenu, lang.format("DOORS_ALL_DOORS_NAME"), {}, lang.format("DOORS_ALL_DOORS_DESC"), function(_)
+    menu.action(door_submenu, i18n.format("DOORS_ALL_DOORS_NAME"), {}, i18n.format("DOORS_ALL_DOORS_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             if open_doors then
                 for door = 0,7 do
@@ -747,7 +775,7 @@ function setup_action_for(pid)
     
 
     for i, name in pairs(DOOR_NAMES) do
-        menu.action(door_submenu, name, {}, lang.format("DOORS_INDV_DESC", name), function(_)
+        menu.action(door_submenu, name, {}, i18n.format("DOORS_INDV_DESC", name), function(_)
             control_vehicle(pid, function(vehicle)
                 if open_doors then
                     VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle, i - 1, false, false)
@@ -757,7 +785,7 @@ function setup_action_for(pid)
             end)
         end)
     end
-    menu.toggle(door_submenu, lang.format("DOORS_LANDING_GEAR_NAME"), {}, lang.format("DOORS_LANDING_GEAR_DESC"), function(on)
+    menu.toggle(door_submenu, i18n.format("DOORS_LANDING_GEAR_NAME"), {}, i18n.format("DOORS_LANDING_GEAR_DESC"), function(on)
         control_vehicle(pid, function(vehicle)
             VEHICLE.CONTROL_LANDING_GEAR(vehicle, on and 0 or 3)
         end)
@@ -766,14 +794,14 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- LSC Section
     ----------------------------------------------------------------
-    local lsc = menu.list(submenu, "Los Santos Customs", {"lcs"}, lang.format("LSC_DESC"))
-    menu.slider(lsc, lang.format("LSC_XENON_TYPE_NAME"), {"xenoncolor"}, lang.format("LSC_XENON_TYPE_DESC"), -1, 12, 0, 1, function(paint)
+    local lsc = menu.list(submenu, "Los Santos Customs", {"lcs"}, i18n.format("LSC_DESC"))
+    menu.slider(lsc, i18n.format("LSC_XENON_TYPE_NAME"), {"xenoncolor"}, i18n.format("LSC_XENON_TYPE_DESC"), -1, 12, 0, 1, function(paint)
         control_vehicle(pid, function(vehicle)
             VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle, paint)
         end)
     end)
     local extrasMenus = {}
-    local extrasList = lang.menus.list(lsc, "LSC_EXTRAS", {})
+    local extrasList = i18n.menus.list(lsc, "LSC_EXTRAS", {})
     menu.on_focus(extrasList, function(_)
         for _, m in ipairs(extrasMenus) do
             menu.delete(m)
@@ -783,7 +811,7 @@ function setup_action_for(pid)
             for x = 0, vehiclelib.MAX_EXTRAS do
                 if VEHICLE.DOES_EXTRA_EXIST(vehicle, x) then
                     local active = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle, x)
-                    local m = menu.toggle(extrasList, "Extra " .. x, {}, lang.format("EXTRA_INDV_DESC"), function(on)
+                    local m = menu.toggle(extrasList, "Extra " .. x, {}, i18n.format("EXTRA_INDV_DESC"), function(on)
                         VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, not on)
                     end, active)
                     table.insert(extrasMenus, m)
@@ -794,19 +822,19 @@ function setup_action_for(pid)
     --
     -- NEON SECTION
     --
-    local neon = menu.list(lsc, lang.format("LSC_NEON_LIGHTS_NAME"), {}, "")
+    local neon = menu.list(lsc, i18n.format("LSC_NEON_LIGHTS_NAME"), {}, "")
     local neon_menus = {}
-        menu.action(neon, lang.format("LSC_NEON_APPLY_NAME"), {"paintneon"}, lang.format("LSC_NEON_APPLY_DESC"), function(_)
+        menu.action(neon, i18n.format("LSC_NEON_APPLY_NAME"), {"paintneon"}, i18n.format("LSC_NEON_APPLY_DESC"), function(_)
             control_vehicle(pid, function(vehicle)
-                local r = math.floor(options[pid].neon_color.r * 255)
-                local g = math.floor(options[pid].neon_color.g * 255)
-                local b = math.floor(options[pid].neon_color.b * 255)
+                local r = math.floor(playerOptions[pid].neon_color.r * 255)
+                local g = math.floor(playerOptions[pid].neon_color.g * 255)
+                local b = math.floor(playerOptions[pid].neon_color.b * 255)
                 VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle, r, g, b)
             end)
         end)
 
-        menu.colour(neon, lang.format("LSC_NEON_COLOR_NAME"), {"neoncolor"}, lang.format("LSC_NEON_COLOR_DESC"), options[pid].neon_color, false, function(color)
-            options[pid].neon_color = color
+        menu.colour(neon, i18n.format("LSC_NEON_COLOR_NAME"), {"neoncolor"}, i18n.format("LSC_NEON_COLOR_DESC"), playerOptions[pid].neon_color, false, function(color)
+            playerOptions[pid].neon_color = color
         end)
         menu.on_focus(neon, function()
             for i, m in ipairs(neon_menus) do
@@ -826,31 +854,31 @@ function setup_action_for(pid)
         end)
     --END NEON--
     -- PAINT
-    menu.action(lsc, lang.format("LSC_PAINT_NAME"), {"paint"}, lang.format("LSC_PAINT_DESC"), function(on_click)
+    menu.action(lsc, i18n.format("LSC_PAINT_NAME"), {"paint"}, i18n.format("LSC_PAINT_DESC"), function(on_click)
         control_vehicle(pid, function(vehicle)
-            local r = math.floor(options[pid].paint_color_primary.r * 255)
-            local g = math.floor(options[pid].paint_color_primary.g * 255)
-            local b = math.floor(options[pid].paint_color_primary.b * 255)
+            local r = math.floor(playerOptions[pid].paint_color_primary.r * 255)
+            local g = math.floor(playerOptions[pid].paint_color_primary.g * 255)
+            local b = math.floor(playerOptions[pid].paint_color_primary.b * 255)
             VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, r, g, b)
-            r = math.floor(options[pid].paint_color_secondary.r * 255)
-            g = math.floor(options[pid].paint_color_secondary.g * 255)
-            b = math.floor(options[pid].paint_color_secondary.b * 255)
+            r = math.floor(playerOptions[pid].paint_color_secondary.r * 255)
+            g = math.floor(playerOptions[pid].paint_color_secondary.g * 255)
+            b = math.floor(playerOptions[pid].paint_color_secondary.b * 255)
             VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, r, g, b)
         end)
     end)
 
-    menu.colour(lsc, lang.format("LSC_PAINT_PRIMARY_NAME"), {"paintcolorprimary"}, lang.format("LSC_PAINT_PRIMARY_DESC"), options[pid].paint_color_primary, false, function(color)
-        options[pid].paint_color_primary = color
+    menu.colour(lsc, i18n.format("LSC_PAINT_PRIMARY_NAME"), {"paintcolorprimary"}, i18n.format("LSC_PAINT_PRIMARY_DESC"), playerOptions[pid].paint_color_primary, false, function(color)
+        playerOptions[pid].paint_color_primary = color
     end)
 
-    menu.colour(lsc, lang.format("LSC_PAINT_SECONDARY_NAME"), {"paintcolorsecondary"}, lang.format("LSC_PAINT_SECONDARY_DESC"), options[pid].paint_color_secondary, false, function(color)
-        options[pid].paint_color_secondary = color
+    menu.colour(lsc, i18n.format("LSC_PAINT_SECONDARY_NAME"), {"paintcolorsecondary"}, i18n.format("LSC_PAINT_SECONDARY_DESC"), playerOptions[pid].paint_color_secondary, false, function(color)
+        playerOptions[pid].paint_color_secondary = color
     end)
     -- END PAINT
 
     -- VEHICLE MODS
     local subMenus = {}
-    local modMenu = menu.list(lsc, lang.format("LSC_VEHICLE_MODS_NAME"), {}, lang.format("LSC_VEHICLE_MODS_DESC"))
+    local modMenu = menu.list(lsc, i18n.format("LSC_VEHICLE_MODS_NAME"), {}, i18n.format("LSC_VEHICLE_MODS_DESC"))
     menu.on_focus(modMenu, function(_)
         for _, m in ipairs(subMenus) do
             menu.delete(m)
@@ -858,9 +886,9 @@ function setup_action_for(pid)
         subMenus = {}
         control_vehicle(pid, function(vehicle)
             for i, mod in pairs(vehiclelib.MOD_NAMES) do
-                local default = VEHICLE.GET_VEHICLE_MOD(vehicle, i -1)
+                local default_val = VEHICLE.GET_VEHICLE_MOD(vehicle, i -1)
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(vehicle, i - 1)
-                local m = menu.slider(modMenu, mod, {"set" .. mod}, lang.format("LSC_MOD_NORMAL_DESC", max, mod), -1, max, default, 1, function(index)
+                local m = menu.slider(modMenu, mod, {"set" .. mod}, i18n.format("LSC_MOD_NORMAL_DESC", max, mod), -1, max, default_val, 1, function(index)
                     control_vehicle(pid, function(vehicle)
                         VEHICLE.SET_VEHICLE_MOD(vehicle, i - 1, index)
                     end)
@@ -868,31 +896,31 @@ function setup_action_for(pid)
                 table.insert(subMenus, m)
             end
             for i, mod in pairs(vehiclelib.TOGGLEABLE_MOD_NAMES) do
-                local default = VEHICLE.IS_TOGGLE_MOD_ON(vehicle, i-1)
-                local m = menu.toggle(modMenu, mod, {"toggle" .. mod}, lang.format("LSC_MOD_TOGGLE_DESC", mod), function(on)
+                local default_val = VEHICLE.IS_TOGGLE_MOD_ON(vehicle, i-1)
+                local m = menu.toggle(modMenu, mod, {"toggle" .. mod}, i18n.format("LSC_MOD_TOGGLE_DESC", mod), function(on)
                     control_vehicle(pid, function(vehicle)
                         VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, i-1, on)
                     end)
-                end, default)
+                end, default_val)
                 table.insert(subMenus, m)
             end
         end, { silent = true})
     end)
     -- END VEHICLE MODS
     -- MISC ACTIONS:
-    menu.click_slider(modMenu, lang.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, lang.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(wheelType)
+    menu.click_slider(modMenu, i18n.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, i18n.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(wheelType)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, wheelType)
         end)
     end)
 
-    menu.click_slider(modMenu, lang.format("LSC_WINDOW_TINT_NAME"), {"windowtint"}, lang.format("LSC_WINDOW_TINT_DESC"), 0, 6, 0, 1, function(value)
+    menu.click_slider(modMenu, i18n.format("LSC_WINDOW_TINT_NAME"), {"windowtint"}, i18n.format("LSC_WINDOW_TINT_DESC"), 0, 6, 0, 1, function(value)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, value)
         end)
     end)
 
-    menu.action(lsc, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, lang.format("LSC_UPGRADE_DESC"), function(_)
+    menu.action(lsc, i18n.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, i18n.format("LSC_UPGRADE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
@@ -907,7 +935,7 @@ function setup_action_for(pid)
         end)
     end)
 
-    lang.menus.action(lsc, "LSC_UPGRADE_RANDOM", {"upgradevehiclerandom"}, function(_)
+    i18n.menus.action(lsc, "LSC_UPGRADE_RANDOM", {"upgradevehiclerandom"}, function(_)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
@@ -923,7 +951,7 @@ function setup_action_for(pid)
         end)
     end)
 
-    menu.action(lsc, lang.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, lang.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
+    menu.action(lsc, i18n.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, i18n.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local mods = { 11, 12, 13, 16 }
             for x in ipairs(mods) do
@@ -934,7 +962,7 @@ function setup_action_for(pid)
         end)
     end)
 
-    menu.action(lsc, lang.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, lang.format("VEH_LICENSE_DESC"), function(on)
+    menu.action(lsc, i18n.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, i18n.format("VEH_LICENSE_DESC"), function(on)
         local name = PLAYER.GET_PLAYER_NAME(pid)
         menu.show_command_box("setlicenseplate" .. name .. " ")
     end, function(args)
@@ -948,7 +976,7 @@ function setup_action_for(pid)
     ----------------------------------------------------------------
     -- MISC OPTIONS FOR VEHICLE OPTIONS ROOT
     ----------------------------------------------------------------
-    menu.action(submenu, lang.format("VEH_CLONE_NAME"), {"clonevehicle"}, lang.format("VEH_CLONE_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_CLONE_NAME"), {"clonevehicle"}, i18n.format("VEH_CLONE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local saveData = vehiclelib.Serialize(vehicle)
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -963,8 +991,8 @@ function setup_action_for(pid)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_SAVE_NAME"), {"saveplayervehicle"}, lang.format("VEH_SAVE_DESC"), function(_)
-        lang.toast("VEH_SAVE_HINT")
+    menu.action(submenu, i18n.format("VEH_SAVE_NAME"), {"saveplayervehicle"}, i18n.format("VEH_SAVE_DESC"), function(_)
+        i18n.toast("VEH_SAVE_HINT")
         menu.show_command_box("savevehicle ")
     end, function(args)
         control_vehicle(pid, function(vehicle)
@@ -973,10 +1001,10 @@ function setup_action_for(pid)
             local file = io.open( VEHICLE_DIR .. args .. ".json", "w")
             file:write(json.encode(saveData))
             file:close()
-            lang.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. args .. ".json")
+            i18n.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. args .. ".json")
         end)
     end)
-    menu.action(submenu, lang.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnfor"}, lang.format("VEH_SPAWN_VEHICLE_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnfor"}, i18n.format("VEH_SPAWN_VEHICLE_DESC"), function(_)
         local name = PLAYER.GET_PLAYER_NAME(pid)
         menu.show_command_box("spawnfor" .. name .. " ")
     end, function(args)
@@ -990,11 +1018,11 @@ function setup_action_for(pid)
             add_vehicle_to_list(vehicle)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
         else
-            lang.toast("VEH_SPAWN_NOT_FOUND")
+            i18n.toast("VEH_SPAWN_NOT_FOUND")
         end
     end, false)
 
-    menu.action(submenu, lang.format("VEH_FLIP_UPRIGHT_NAME"), {"flipveh"}, lang.format("VEH_FLIP_UPRIGHT_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_FLIP_UPRIGHT_NAME"), {"flipveh"}, i18n.format("VEH_FLIP_UPRIGHT_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
             ENTITY.SET_ENTITY_ROTATION(vehicle, 0, rot.y, rot.z)
@@ -1002,14 +1030,14 @@ function setup_action_for(pid)
     end)
 
 
-    menu.action(submenu, lang.format("VEH_FLIP_180_NAME"), {"flipv"}, lang.format("VEH_FLIP_180_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_FLIP_180_NAME"), {"flipv"}, i18n.format("VEH_FLIP_180_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local rot = ENTITY.GET_ENTITY_ROTATION(vehicle)
             ENTITY.SET_ENTITY_ROTATION(vehicle, 0, 0, -rot.z)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_HONK_NAME"), {"honk"}, lang.format("VEH_HONK_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_HONK_NAME"), {"honk"}, i18n.format("VEH_HONK_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_ALARM(vehicle, true)
             VEHICLE.START_VEHICLE_ALARM(vehicle)
@@ -1017,7 +1045,7 @@ function setup_action_for(pid)
         end)
     end)
 
-    menu.click_slider(submenu, lang.format("VEH_HIJACK_WANDER_NAME"), {"hijack"}, lang.format("VEH_HIJACK_WANDER_DESC"), 0, 1, 0, 1, function(hijackLevel)
+    menu.click_slider(submenu, i18n.format("VEH_HIJACK_WANDER_NAME"), {"hijack"}, i18n.format("VEH_HIJACK_WANDER_DESC"), 0, 1, 0, 1, function(hijackLevel)
         control_vehicle(pid, function(vehicle)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
             ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
@@ -1037,10 +1065,10 @@ function setup_action_for(pid)
         end)
     end)
 
-    local hijackToMenu = menu.list(submenu, lang.format("VEH_HIJACK_TO_PLAYER_NAME"), {"hijacktoplayer"})
+    local hijackToMenu = menu.list(submenu, i18n.format("VEH_HIJACK_TO_PLAYER_NAME"), {"hijacktoplayer"})
     local hijackToMenus = {}
     setup_choose_player_menu(hijackToMenu, hijackToMenus, function(target_pid, name)
-        return menu.action(hijackToMenu, name, {}, lang.format("VEH_HIJACK_TO_PLAYER_INDV_DESC"), function(_)
+        return menu.action(hijackToMenu, name, {}, i18n.format("VEH_HIJACK_TO_PLAYER_INDV_DESC"), function(_)
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
             control_vehicle(pid, function(vehicle)
                 local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 1.0, 0.1)
@@ -1060,7 +1088,7 @@ function setup_action_for(pid)
                     util.yield(1000)
                     loops = loops - 1
                     if loops == 0 then
-                        lang.toast("VEH_HIJACK_FAILED_ACQUIRE")
+                        i18n.toast("VEH_HIJACK_FAILED_ACQUIRE")
                         return false
                     end
                 end
@@ -1076,7 +1104,7 @@ function setup_action_for(pid)
         end)
     end, pid)
 
-    menu.action(submenu, lang.format("VEH_BURST_TIRES_NAME"), {"bursttires", "bursttyres"}, lang.format("VEH_BURST_TIRES_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_BURST_TIRES_NAME"), {"bursttires", "bursttyres"}, i18n.format("VEH_BURST_TIRES_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local burstable = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle)
             VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle, true)
@@ -1090,39 +1118,39 @@ function setup_action_for(pid)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_DELETE_NAME"), {"deletevehicle"}, lang.format("VEH_DELETE_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_DELETE_NAME"), {"deletevehicle"}, i18n.format("VEH_DELETE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             entities.delete_by_handle(vehicle)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_EXPLODE_NAME"), {"explodevehicle"}, lang.format("VEH_EXPLODE_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_EXPLODE_NAME"), {"explodevehicle"}, i18n.format("VEH_EXPLODE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             local pos = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
             FIRE.ADD_EXPLOSION(pos.x, pos.y, pos.z + 1.0, 26, 60, true, true, 0.0)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_KILL_ENGINE_NAME"), {"killengine"}, lang.format("VEH_KILL_ENGINE_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_KILL_ENGINE_NAME"), {"killengine"}, i18n.format("VEH_KILL_ENGINE_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle, -4000)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_CLEAN_NAME"), {"cleanvehicle"}, lang.format("VEH_CLEAN_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_CLEAN_NAME"), {"cleanvehicle"}, i18n.format("VEH_CLEAN_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             GRAPHICS.REMOVE_DECALS_FROM_VEHICLE(vehicle)
             VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, 0.0)
         end)
     end)
 
-    menu.action(submenu, lang.format("VEH_REPAIR_NAME"), {"repairvehicle"}, lang.format("VEH_REPAIR_DESC"), function(_)
+    menu.action(submenu, i18n.format("VEH_REPAIR_NAME"), {"repairvehicle"}, i18n.format("VEH_REPAIR_DESC"), function(_)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_FIXED(vehicle)
         end)
     end)
 
-    menu.toggle(submenu, lang.format("VEH_TOGGLE_GODMODE_NAME"), {"setvehgod"}, lang.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
+    menu.toggle(submenu, i18n.format("VEH_TOGGLE_GODMODE_NAME"), {"setvehgod"}, i18n.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
         control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
         end)
@@ -1137,14 +1165,14 @@ end
 ----------------------------
 -- CLOUD VEHICLES SECTION
 ----------------------------
-local nearbyMenu = menu.list(menu.my_root(), lang.format("NEARBY_VEHICLES_NAME"), {"nearbyvehicles"}, lang.format("NEARBY_VEHICLES_DESC"))
-local allPlayersMenu = menu.list(menu.my_root(), lang.format("ALL_NAME"), {"vehicleall"}, lang.format("ALL_DESC"))
-local autodriveMenu = menu.list(menu.my_root(), lang.format("AUTODRIVE_NAME"), {"autodrive"}, lang.format("AUTODRIVE_DESC"))
+local nearbyMenu = menu.list(menu.my_root(), i18n.format("NEARBY_VEHICLES_NAME"), {"nearbyvehicles"}, i18n.format("NEARBY_VEHICLES_DESC"))
+local allPlayersMenu = menu.list(menu.my_root(), i18n.format("ALL_NAME"), {"vehicleall"}, i18n.format("ALL_DESC"))
+local autodriveMenu = menu.list(menu.my_root(), i18n.format("AUTODRIVE_NAME"), {"autodrive"}, i18n.format("AUTODRIVE_DESC"))
 menu.divider(menu.my_root(), "Vehicle Spawning")
-local cloudVehiclesMenu = lang.menus.list(menu.my_root(), "CLOUD", {})
+local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {})
 menu.on_focus(cloudVehiclesMenu, function() _load_cloud_user_vehs() end)
 
-local cloudSearchMenu = menu.list(cloudVehiclesMenu, lang.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, lang.format("CLOUD_SEARCH_DESC"))
+local cloudSearchMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
 local cloudSearchMenus = {}
 local cloudUserVehicleSaveDataCache = {}
 local previewVehicle = 0
@@ -1181,7 +1209,7 @@ function setup_cloud_vehicle_submenu(m, user, vehicleName)
         do_cloud_request("/stand/cloud/vehicles?scname=" .. user .. "&vehicle=" .. vehicleName, function(data)
             cloudUserVehicleSaveDataCache[user][vehicleName] = data.vehicle
             spawn_preview_vehicle(cloudUserVehicleSaveDataCache[user][vehicleName])
-            lang.menus.action(m, "CLOUD_SPAWN", {}, function()
+            i18n.menus.action(m, "CLOUD_SPAWN", {}, function()
                 while not cloudUserVehicleSaveDataCache[user][vehicleName] do
                     util.yield()
                 end
@@ -1194,19 +1222,19 @@ function setup_cloud_vehicle_submenu(m, user, vehicleName)
                 if spawnInVehicle then
                     PED.SET_PED_INTO_VEHICLE(my_ped, vehicle, -1)
                 end
-                lang.toast("VEHICLE_SPAWNED", user .. "/" .. vehicleName)
+                i18n.toast("VEHICLE_SPAWNED", user .. "/" .. vehicleName)
                 if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
                     entities.delete_by_handle(previewVehicle)
                 end
             end)
-            lang.menus.action(m, "CLOUD_DOWNLOAD", {}, function()
+            i18n.menus.action(m, "CLOUD_DOWNLOAD", {}, function()
                 while not cloudUserVehicleSaveDataCache[user][vehicleName] do
                     util.yield()
                 end
                 local file = io.open( VEHICLE_DIR .. user .. "_" .. vehicleName, "w")
                 file:write(json.encode(cloudUserVehicleSaveDataCache[user][vehicleName]))
                 file:close()
-                lang.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. user .. "_" .. vehicleName)
+                i18n.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. user .. "_" .. vehicleName)
             end)
         end)
     end
@@ -1214,7 +1242,7 @@ end
 ----------------------------
 -- CLOUD SEARCH
 ----------------------------
-menu.action(cloudSearchMenu, "> " .. lang.format("CLOUD_SEARCH_NEW_NAME"), {"searchcloud"}, "", function(_)
+menu.action(cloudSearchMenu, "> " .. i18n.format("CLOUD_SEARCH_NEW_NAME"), {"searchcloud"}, "", function(_)
     menu.show_command_box("searchcloud ")
 end, function(query)
     show_busyspinner("Searching " .. query)
@@ -1229,7 +1257,7 @@ end, function(query)
                 util.toast(data.message)
             else
                 if #data.results == 0 then
-                    lang.toast("CLOUD_SEARCH_NO_RESULTS", query)
+                    i18n.toast("CLOUD_SEARCH_NO_RESULTS", query)
                     return
                 end
         
@@ -1264,7 +1292,7 @@ menu.on_focus(cloudSearchMenu, function(_)
     end
     cloudSearchMenus = {}
 end)
-local cloudUploadMenu = menu.list(cloudVehiclesMenu, lang.format("CLOUD_UPLOAD"), {"uploadcloud"}, lang.format("CLOUD_UPLOAD_DESC"))
+local cloudUploadMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
 local cloudUploadMenus = {}
 os.remove(VEHICLE_DIR .. "/cloud.id")
 menu.on_focus(cloudUploadMenu, function(_)
@@ -1274,9 +1302,9 @@ menu.on_focus(cloudUploadMenu, function(_)
     cloudUploadMenus = {}
     load_vehicles_in_dir(VEHICLE_DIR, cloudUploadMenu, function(parent, name, saveData)
         local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-        local desc = lang.format("VEHICLE_SAVE_DATA", manuf, saveData.Name, saveData.Type, saveData.Format, vehiclelib.FORMAT_VERSION)
+        local desc = i18n.format("VEHICLE_SAVE_DATA", manuf, saveData.Name, saveData.Type, saveData.Format, vehiclelib.FORMAT_VERSION)
         local displayName = string.sub(name, 0, -6)
-        return menu.action(parent, displayName, {}, lang.format("CLOUD_UPLOAD_VEHICLE") .."\n\n" .. desc .. "\n\n" .. lang.format("CLOUD_UPLOAD_VEHICLE_NOTICE"), function(_)
+        return menu.action(parent, displayName, {}, i18n.format("CLOUD_UPLOAD_VEHICLE") .."\n\n" .. desc .. "\n\n" .. i18n.format("CLOUD_UPLOAD_VEHICLE_NOTICE"), function(_)
             if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
                 entities.delete_by_handle(previewVehicle)
                 previewVehicle = 0
@@ -1287,10 +1315,10 @@ menu.on_focus(cloudUploadMenu, function(_)
                 local status, data = pcall(json.decode, result)
                 if status then
                     if data.error then
-                        lang.toast("CLOUD_UPLOAD_ERROR", data.message)
+                        i18n.toast("CLOUD_UPLOAD_ERROR", data.message)
                         util.log("jackz_vehicles: Failed to upload: " .. data.message)
                     else
-                        lang.toast("CLOUD_UPLOAD_SUCCESS")
+                        i18n.toast("CLOUD_UPLOAD_SUCCESS")
                     end
                 else
                     util.toast("Server returned an error fetching cloud data")
@@ -1308,7 +1336,7 @@ end)
 local cloudUserMenus = {}
 local cloudUserVehicleMenus = {}
 local waitForFetch = false
-menu.divider(cloudVehiclesMenu, lang.format("CLOUD_BROWSE_DIVIDER"))
+menu.divider(cloudVehiclesMenu, i18n.format("CLOUD_BROWSE_DIVIDER"))
 function do_cloud_request(uri, onSuccessCallback)
     if waitForFetch then
         util.yield()
@@ -1343,7 +1371,7 @@ function _load_cloud_user_vehs()
     cloudUserMenus = {}
     do_cloud_request("/stand/cloud/vehicles?list", function(data)
         for _, user in ipairs(data.users) do
-            cloudUserMenus[user] = menu.list(cloudVehiclesMenu, user, {}, lang.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
+            cloudUserMenus[user] = menu.list(cloudVehiclesMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
             menu.on_focus(cloudUserMenus[user], function() _load_user_vehicle_list(user) end)
             cloudUserVehicleSaveDataCache[user] = {}
         end
@@ -1393,26 +1421,26 @@ end
 -- Spawn Saved Vehicles
 ----------------------------
 local savedVehicleMenus = {}
-local savedVehiclesList = menu.list(menu.my_root(), lang.format("SAVED_NAME"), {}, lang.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
+local savedVehiclesList = menu.list(menu.my_root(), i18n.format("SAVED_NAME"), {}, i18n.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
 menu.on_focus(savedVehiclesList, function() clear_menu_table(savedVehicleMenus) end)
 local xmlMenusHandles = {}
 local xmlList = menu.list(savedVehiclesList, "Convert XML Vehicles", {}, "Vehicles (*.xml), typically from menyoo. Able to convert them through this menu.")
 local applySaved = false
-lang.menus.action(menu.my_root(), "VEH_SAVE_CURRENT", {"savevehicle2"}, function(_)
+i18n.menus.action(menu.my_root(), "VEH_SAVE_CURRENT", {"savevehicle2"}, function(_)
     menu.show_command_box("savevehicle2 ")
-    lang.toast("VEH_SAVE_CURRENT_HINT")
+    i18n.toast("VEH_SAVE_CURRENT_HINT")
 end, function(args)
     local vehicle = entities.get_user_vehicle_as_handle()
     local saveData = vehiclelib.Serialize(vehicle)
     local file = io.open( VEHICLE_DIR .. args .. ".json", "w")
     file:write(json.encode(saveData))
     file:close()
-    lang.toast("FILE_SAVED", args .. ".json")
+    i18n.toast("FILE_SAVED", args .. ".json")
 end, "savevehicle2 name")
-lang.menus.toggle(menu.my_root(), "SPAWN_IN_VEHICLE", {}, function(on)
+i18n.menus.toggle(menu.my_root(), "SPAWN_IN_VEHICLE", {}, function(on)
     spawnInVehicle = on
 end, spawnInVehicle)
-menu.toggle(menu.my_root(), lang.format("SAVED_APPLY_CURRENT_NAME"), {}, lang.format("SAVED_APPLY_CURRENT_DESC"), function(on)
+menu.toggle(menu.my_root(), i18n.format("SAVED_APPLY_CURRENT_NAME"), {}, i18n.format("SAVED_APPLY_CURRENT_DESC"), function(on)
     applySaved = on
 end, applySaved)
 
@@ -1477,9 +1505,9 @@ function load_saved_vehicles_list()
     clear_menu_table(loadedVehicleMenus)
     load_vehicles_in_dir(VEHICLE_DIR, savedVehiclesList, function(parent, filename, saveData)
         local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
-        local desc = lang.format("VEHICLE_SAVE_DATA", manuf, saveData.Name, saveData.Type, saveData.Format, vehiclelib.FORMAT_VERSION)
+        local desc = i18n.format("VEHICLE_SAVE_DATA", manuf, saveData.Name, saveData.Type, saveData.Format, vehiclelib.FORMAT_VERSION)
         local name = string.sub(filename, 0, -6)
-        return menu.action(parent, name, {"spawnvehicle" .. name}, lang.format("SAVED_VEHICLE_DESC") .. "\n" .. desc, function()
+        return menu.action(parent, name, {"spawnvehicle" .. name}, i18n.format("SAVED_VEHICLE_DESC") .. "\n" .. desc, function()
             if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
                 entities.delete_by_handle(previewVehicle)
                 previewVehicle = 0
@@ -1491,10 +1519,10 @@ function load_saved_vehicles_list()
             if applySaved then
                 vehicle = entities.get_user_vehicle_as_handle()
                 if vehicle == 0 then
-                    lang.toast("SAVED_MUST_BE_IN_VEHICLE")
+                    i18n.toast("SAVED_MUST_BE_IN_VEHICLE")
                     return
                 end
-                lang.toast("SAVED_SUCCESS_CURRENT", filename)
+                i18n.toast("SAVED_SUCCESS_CURRENT", filename)
             else
                 load_hash(saveData.Model)
                 vehicle = entities.create_vehicle(saveData.Model, pos, heading)
@@ -1503,7 +1531,7 @@ function load_saved_vehicles_list()
                     PED.SET_PED_INTO_VEHICLE(my_ped, vehicle, -1)
                 end
                 STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(saveData.Model)
-                lang.toast("VEHICLE_SPAWNED", filename)
+                i18n.toast("VEHICLE_SPAWNED", filename)
             end
 
             if vehicle > 0 then
@@ -1538,13 +1566,13 @@ local CVModifiers = {
     Traction = 1,
     KeepUpright = false
 }
-local currentModifiersMenu = lang.menus.list(menu.my_root(), "CVM", {})
+local currentModifiersMenu = i18n.menus.list(menu.my_root(), "CVM", {})
 
-lang.menus.toggle(currentModifiersMenu, "CVM_KEEP_UPRIGHT", {}, function(on)
+i18n.menus.toggle(currentModifiersMenu, "CVM_KEEP_UPRIGHT", {}, function(on)
     CVModifiers.KeepUpright = on
 end, CVModifiers.KeepUpright)
-lang.menus.divider(currentModifiersMenu, "CVM_ACTIVE_MODS")
-lang.menus.toggle(currentModifiersMenu, "CVM_ACTIVE", {}, function(on)
+i18n.menus.divider(currentModifiersMenu, "CVM_ACTIVE_MODS")
+i18n.menus.toggle(currentModifiersMenu, "CVM_ACTIVE", {}, function(on)
     CVModifiers.ACTIVE = on
     if not on then
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -1552,16 +1580,16 @@ lang.menus.toggle(currentModifiersMenu, "CVM_ACTIVE", {}, function(on)
         VEHICLE.SET_VEHICLE_REDUCE_GRIP(my_vehicle, true)
     end
 end, CVModifiers.ACTIVE)
-lang.menus.slider(currentModifiersMenu, "CVM_TRACTION", {"vtraction"}, 0, 500, CVModifiers.Traction, 1, function(value)
+i18n.menus.slider(currentModifiersMenu, "CVM_TRACTION", {"vtraction"}, 0, 500, CVModifiers.Traction, 1, function(value)
     CVModifiers.Traction = value
 end)
-lang.menus.slider(currentModifiersMenu, "CVM_LIGHTS", {"vlights"}, 0, 10000, CVModifiers.Lights * 100, 100, function(value)
+i18n.menus.slider(currentModifiersMenu, "CVM_LIGHTS", {"vlights"}, 0, 10000, CVModifiers.Lights * 100, 100, function(value)
     CVModifiers.Lights = value / 100
 end)
-lang.menus.slider(currentModifiersMenu, "CVM_TORQUE", {"vtorque"}, -1000, 10000, CVModifiers.Torque * 100, 1, function(value)
+i18n.menus.slider(currentModifiersMenu, "CVM_TORQUE", {"vtorque"}, -1000, 10000, CVModifiers.Torque * 100, 1, function(value)
     CVModifiers.Torque = value / 100
 end)
-lang.menus.slider(currentModifiersMenu, "CVM_TRACTION", {"vtraction"}, 0, 500, CVModifiers.Traction, 1, function(value)
+i18n.menus.slider(currentModifiersMenu, "CVM_TRACTION", {"vtraction"}, 0, 500, CVModifiers.Traction, 1, function(value)
     CVModifiers.Traction = value
 end)
 ----------------------------
@@ -1569,7 +1597,7 @@ end)
 ----------------------------
 local spawned_tows = {}
     -- NEARBY VEHICLES LIST SECTION
-    local nearbyListMenu = lang.menus.list(nearbyMenu, "NEARBY_VEHICLES_LIST", {})
+    local nearbyListMenu = i18n.menus.list(nearbyMenu, "NEARBY_VEHICLES_LIST", {})
     local SEATS = {
         [-2] = "Any Available Seat",
         [-1] = "Driver Seat",
@@ -1602,7 +1630,7 @@ local spawned_tows = {}
         local prefix = (manu ~= "") and (manu .. " " .. name) or name
 
         local vehMenu = menu.list(nearbyListMenu, prefix, {}, "")
-        local seatList = lang.menus.list(vehMenu, "VEHLIST_SEATS", {})
+        local seatList = i18n.menus.list(vehMenu, "VEHLIST_SEATS", {})
         for x = -2, VEHICLE.GET_VEHICLE_MODEL_NUMBER_OF_SEATS(model) - 2 do
             local text = SEATS[x] or ("Extra Seat" .. (x-2))
             menu.action(seatList, text, {}, "", function(_)
@@ -1612,7 +1640,7 @@ local spawned_tows = {}
                 local ped = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, x)
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 if PED.IS_PED_A_PLAYER(ped) then
-                    lang.toast("VEHLIST_SEAT_OCCUPIED")
+                    i18n.toast("VEHLIST_SEAT_OCCUPIED")
                 else
                     if ped > 0 then --Shove the ped driver to a different seat
                         PED.SET_PED_INTO_VEHICLE(ped, vehicle, -2)
@@ -1662,7 +1690,7 @@ local spawned_tows = {}
     end)
     -- END NEARBY VEHICLES LIST SECTION
 
-menu.action(nearbyMenu, lang.format("NEARBY_TOW_ALL_NAME"), {}, lang.format("NEARBY_TOW_ALL_DESC", 30), function(sdfa)
+menu.action(nearbyMenu, i18n.format("NEARBY_TOW_ALL_NAME"), {}, i18n.format("NEARBY_TOW_ALL_DESC", 30), function(sdfa)
     local pz = memory.alloc(8)
     load_hash(TOW_TRUCK_MODEL_1)
     load_hash(TOW_TRUCK_MODEL_2)
@@ -1707,7 +1735,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_TOW_ALL_NAME"), {}, lang.format("NEA
         end
     end
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
     for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
         local model = entities.get_model_hash(pVehicle)
         if model ~= TOW_TRUCK_MODEL_1 and model ~= TOW_TRUCK_MODEL_2 then
@@ -1720,7 +1748,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_
         end
     end
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_ALL_NAME"), {}, lang.format("NEARBY_CARGOBOB_ALL_DESC"), function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_NAME"), {}, i18n.format("NEARBY_CARGOBOB_ALL_DESC"), function(_)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -1774,7 +1802,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_ALL_NAME"), {}, lang.format
     end)
 end)
 -- dry violation but I really don't care about refactoring this
-menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, lang.format("NEARBY_CARGOBOB_ALL_DESC") .. "\n" .. lang.format("NEARBY_CARGOBOB_ALL_MAGNET_EXTRA"), function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, i18n.format("NEARBY_CARGOBOB_ALL_DESC") .. "\n" .. i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_EXTRA"), function(_)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -1827,7 +1855,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, lang
         return false
     end)
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_CLEAR_NAME"), {}, "", function(sdfa)
+menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_CLEAR_NAME"), {}, "", function(sdfa)
     for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
         local model = ENTITY.GET_ENTITY_MODEL(vehicle)
         if model == CARGOBOB_MODEL then
@@ -1839,7 +1867,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_CARGOBOB_CLEAR_NAME"), {}, "", funct
         end
     end
 end)
-menu.click_slider(nearbyMenu, lang.format("NEARBY_ALL_CLEAR_NAME"), {"clearvehicles"}, lang.format("NEARBY_ALL_CLEAR_DESC"), 50, 2000, 100, 100, function(range)
+menu.click_slider(nearbyMenu, i18n.format("NEARBY_ALL_CLEAR_NAME"), {"clearvehicles"}, i18n.format("NEARBY_ALL_CLEAR_DESC"), 50, 2000, 100, 100, function(range)
     range = range * range
     local vehicles = entities.get_all_vehicles_as_handles()
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -1865,9 +1893,9 @@ menu.click_slider(nearbyMenu, lang.format("NEARBY_ALL_CLEAR_NAME"), {"clearvehic
             count = count + 1
         end
     end
-    lang.toast("NEARBY_ALL_CLEAR_SUCCESS", count)
+    i18n.toast("NEARBY_ALL_CLEAR_SUCCESS", count)
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_EXPLODE_RANDOM_NAME"), {}, lang.format("NEARBY_EXPLODE_RANDOM_DESC"), function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_EXPLODE_RANDOM_NAME"), {}, i18n.format("NEARBY_EXPLODE_RANDOM_DESC"), function(_)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(my_ped, 1)
     local vehs = {}
@@ -1896,7 +1924,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_EXPLODE_RANDOM_NAME"), {}, lang.form
         end)
     end
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, lang.format("NEARBY_HIJACK_ALL_DESC"), function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, i18n.format("NEARBY_HIJACK_ALL_DESC"), function(_)
     for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
         local has_control = false
         local loops = 5
@@ -1922,7 +1950,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, la
         PED.SET_PED_KEEP_TASK(ped, true)
     end
 end)
-menu.action(nearbyMenu, lang.format("NEARBY_HONK_NAME"), {"honkall"}, lang.format("NEARBY_HONK_DESC"), function(_)
+menu.action(nearbyMenu, i18n.format("NEARBY_HONK_NAME"), {"honkall"}, i18n.format("NEARBY_HONK_DESC"), function(_)
     for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
         local has_control = false
         local loops = 5
@@ -1942,7 +1970,7 @@ menu.action(nearbyMenu, lang.format("NEARBY_HONK_NAME"), {"honkall"}, lang.forma
 end)
 local spinningCars = false
 local spinningSpeed = 5.0
-menu.toggle(nearbyMenu, lang.format("SPINNING_CARS_NAME"), {}, lang.format("SPINNING_CARS_DESC"), function(on)
+menu.toggle(nearbyMenu, i18n.format("SPINNING_CARS_NAME"), {}, i18n.format("SPINNING_CARS_DESC"), function(on)
     spinningCars = on
 end, spinningCars)
 menu.slider(nearbyMenu, "Spinning Cars Speed", {"spinningspeed"}, "", 0, 300.0, spinningSpeed * 10, 10, function(value)
@@ -1958,7 +1986,7 @@ end)
 ----------------------------
 
 local allNearOnly = true
-menu.toggle(allPlayersMenu, lang.format("ALL_NEAR_ONLY_NAME"), {"allnearby"}, lang.format("ALL_NEAR_ONLY_DESC"), function(on)
+menu.toggle(allPlayersMenu, i18n.format("ALL_NEAR_ONLY_NAME"), {"allnearby"}, i18n.format("ALL_NEAR_ONLY_DESC"), function(on)
     allNearOnly = on
 end, allNearOnly)
 
@@ -1971,7 +1999,7 @@ function control_all_vehicles(callback)
     end
 end
 
-menu.action(allPlayersMenu, lang.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnall"}, lang.format("ALL_SPAWN_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnall"}, i18n.format("ALL_SPAWN_DESC"), function(_)
     menu.show_command_box("spawnall ")
 end, function(args)
     local model = util.joaat(args)
@@ -1991,7 +2019,7 @@ end, function(args)
     end
 end)
 
-menu.action(allPlayersMenu, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, lang.format("LSC_UPGRADE_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("LSC_UPGRADE_NAME"), {"upgradevehicle"}, i18n.format("LSC_UPGRADE_DESC"), function(_)
     control_all_vehicles(function(pid, vehicle)
         VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
             for x = 0, 49 do
@@ -2006,7 +2034,7 @@ menu.action(allPlayersMenu, lang.format("LSC_UPGRADE_NAME"), {"upgradevehicle"},
     end)
 end)
 
-menu.action(allPlayersMenu, lang.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, lang.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"performanceupgradevehicle"}, i18n.format("LSC_PERFORMANCE_UPGRADE_DESC"), function(_)
     control_all_vehicles(function(pid, vehicle)
         local mods = { 11, 12, 13, 16 }
         for x in ipairs(mods) do
@@ -2016,26 +2044,26 @@ menu.action(allPlayersMenu, lang.format("LSC_PERFORMANCE_UPGRADE_NAME"), {"perfo
         VEHICLE.TOGGLE_VEHICLE_MOD(vehicle, 18, true)
     end)
 end)
-menu.action(allPlayersMenu, lang.format("VEH_CLEAN_NAME"), {"cleanall"}, lang.format("ALL_CLEAN_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("VEH_CLEAN_NAME"), {"cleanall"}, i18n.format("ALL_CLEAN_DESC"), function(_)
     control_all_vehicles(function(pid, vehicle)
         GRAPHICS.REMOVE_DECALS_FROM_VEHICLE(vehicle)
         VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle, 0.0)
     end)
 end)
 
-menu.action(allPlayersMenu, lang.format("VEH_REPAIR_NAME"), {"repairall"}, lang.format("ALL_REPAIR_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("VEH_REPAIR_NAME"), {"repairall"}, i18n.format("ALL_REPAIR_DESC"), function(_)
     control_all_vehicles(function(pid, vehicle)
         VEHICLE.SET_VEHICLE_FIXED(vehicle)
     end)
 end)
 
-menu.toggle(allPlayersMenu, lang.format("VEH_TOGGLE_GODMODE_NAME"), {"vehgodall"}, lang.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
+menu.toggle(allPlayersMenu, i18n.format("VEH_TOGGLE_GODMODE_NAME"), {"vehgodall"}, i18n.format("VEH_TOGGLE_GODMODE_DESC"), function(on)
     control_all_vehicles(function(pid, vehicle)
         ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
     end)
 end, false)
 
-menu.action(allPlayersMenu, lang.format("VEH_LICENSE_NAME"), {"setlicenseplateall"}, lang.format("VEH_LICENSE_DESC"), function(_)
+menu.action(allPlayersMenu, i18n.format("VEH_LICENSE_NAME"), {"setlicenseplateall"}, i18n.format("VEH_LICENSE_DESC"), function(_)
     menu.show_command_box("setlicenseplateall ")
 end, function(args)
     control_all_vehicles(function(pid, vehicle)
@@ -2053,17 +2081,17 @@ local drive_style = 0
 local is_driving = false
 
 local DRIVING_STYLES = { -- flags, style name, style description 
-    { 786603,       lang.format("AUTODRIVE_STYLE_NORMAL") },
-    { 6,            lang.format("AUTODRIVE_STYLE_AVOID_EXTREMELY") },
-    { 5,            lang.format("AUTODRIVE_STYLE_OVERTAKE") },
-    { 1074528293,   lang.format("AUTODRIVE_STYLE_RUSHED") },
-    { 2883621,      lang.format("AUTODRIVE_STYLE_IGNORE") },
-    { 786468,       lang.format("AUTODRIVE_STYLE_AVOID") },
-    { 1076,         lang.format("AUTODRIVE_STYLE_REVERSED") },
-    { 8388614,      lang.format("AUTODRIVE_STYLE_GOOD") },
-    { 16777216,     lang.format("AUTODRIVE_STYLE_MOST_EFFICIENT"), lang.format("AUTODRIVE_STYLE_MOST_EFFICIENT_DESC") },
-    { 787260,       lang.format("AUTODRIVE_STYLE_QUICK"), lang.format("AUTODRIVE_STYLE_QUICK_DESC") },
-    { 536871299,    lang.format("AUTODRIVE_STYLE_NERVOUS"), lang.format("AUTODRIVE_STYLE_NERVOUS_DESC") },
+    { 786603,       i18n.format("AUTODRIVE_STYLE_NORMAL") },
+    { 6,            i18n.format("AUTODRIVE_STYLE_AVOID_EXTREMELY") },
+    { 5,            i18n.format("AUTODRIVE_STYLE_OVERTAKE") },
+    { 1074528293,   i18n.format("AUTODRIVE_STYLE_RUSHED") },
+    { 2883621,      i18n.format("AUTODRIVE_STYLE_IGNORE") },
+    { 786468,       i18n.format("AUTODRIVE_STYLE_AVOID") },
+    { 1076,         i18n.format("AUTODRIVE_STYLE_REVERSED") },
+    { 8388614,      i18n.format("AUTODRIVE_STYLE_GOOD") },
+    { 16777216,     i18n.format("AUTODRIVE_STYLE_MOST_EFFICIENT"), i18n.format("AUTODRIVE_STYLE_MOST_EFFICIENT_DESC") },
+    { 787260,       i18n.format("AUTODRIVE_STYLE_QUICK"), i18n.format("AUTODRIVE_STYLE_QUICK_DESC") },
+    { 536871299,    i18n.format("AUTODRIVE_STYLE_NERVOUS"), i18n.format("AUTODRIVE_STYLE_NERVOUS_DESC") },
     { 2147483647,   "Untested, Everything", "All options turned on. Probably awful" },
     { 0,            "Untested, Nothing", "All options turned off. Also probably awful"},
     { 7791,         "Untested. Meh", "Meh. Just used in rockstar scripts. unknown."}
@@ -2078,17 +2106,15 @@ function get_my_driver()
         if driver > 0 then
             return driver, entity
         end
-        goto continue
     end
 
-    ::continue::
     return VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1), vehicle
 end
-local chauffeurMenu = menu.list(autodriveMenu, lang.format("AUTODRIVE_CHAUFFEUR_NAME"), {"chauffeur"}, lang.format("AUTODRIVE_CHAUFFEUR_DESC"))
-local styleMenu = menu.list(autodriveMenu, lang.format("AUTODRIVE_STYLE_NAME"), {}, lang.format("AUTODRIVE_STYLE_DESC"))
+local chauffeurMenu = menu.list(autodriveMenu, i18n.format("AUTODRIVE_CHAUFFEUR_NAME"), {"chauffeur"}, i18n.format("AUTODRIVE_CHAUFFEUR_DESC"))
+local styleMenu = menu.list(autodriveMenu, i18n.format("AUTODRIVE_STYLE_NAME"), {}, i18n.format("AUTODRIVE_STYLE_DESC"))
 
 for _, style in pairs(DRIVING_STYLES) do
-    local desc = lang.format("AUTODRIVE_STYLE_INDV_DESC") .. " " .. style[2]
+    local desc = i18n.format("AUTODRIVE_STYLE_INDV_DESC") .. " " .. style[2]
     if style[3] then
         desc = desc .. "\n" .. style[3]
     end
@@ -2100,16 +2126,16 @@ for _, style in pairs(DRIVING_STYLES) do
             PED.SET_DRIVER_ABILITY(ped, 1.0)
             PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
         end
-        lang.toast("AUTODRIVE_STYLE_INDV_SUCCESS", style[2])
+        i18n.toast("AUTODRIVE_STYLE_INDV_SUCCESS", style[2])
     end)
 end
 
-menu.slider(autodriveMenu, lang.format("AUTODRIVE_SPEED_NAME"), {"setaispeed"}, "", 0, 200, drive_speed, 5.0, function(speed, prev)
+menu.slider(autodriveMenu, i18n.format("AUTODRIVE_SPEED_NAME"), {"setaispeed"}, "", 0, 200, drive_speed, 5.0, function(speed, prev)
     drive_speed = speed
 end)
 
 
-lang.menus.toggle(autodriveMenu, "AUTODRIVE_SMART", {"smartdrive"}, function(on)
+i18n.menus.toggle(autodriveMenu, "AUTODRIVE_SMART", {"smartdrive"}, function(on)
     smartAutodrive = on
     if not on then
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -2117,9 +2143,9 @@ lang.menus.toggle(autodriveMenu, "AUTODRIVE_SMART", {"smartdrive"}, function(on)
     end
 end, smartAutodrive)
 
-menu.divider(autodriveMenu, lang.format("AUTODRIVE_ACTIONS_DIVIDER"))
+menu.divider(autodriveMenu, i18n.format("AUTODRIVE_ACTIONS_DIVIDER"))
 
-menu.action(autodriveMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiwaypoint"}, "", function(v)
+menu.action(autodriveMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiwaypoint"}, "", function(v)
     local ped, vehicle = get_my_driver()
     is_driving = true
 
@@ -2131,10 +2157,10 @@ menu.action(autodriveMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiway
     end)
 end)
 
-local drivetoPlayerMenu = menu.list(autodriveMenu, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_NAME"), {"drivetoplayer"})
+local drivetoPlayerMenu = menu.list(autodriveMenu, i18n.format("AUTODRIVE_DRIVE_TO_PLAYER_NAME"), {"drivetoplayer"})
 local drivetoPlayers = {}
 setup_choose_player_menu(drivetoPlayerMenu, drivetoPlayers, function(target_pid, name)
-    return menu.action(drivetoPlayerMenu, name, {"driveto"}, lang.format("AUTODRIVE_DRIVE_TO_PLAYER_INDV_DESC"), function(_)
+    return menu.action(drivetoPlayerMenu, name, {"driveto"}, i18n.format("AUTODRIVE_DRIVE_TO_PLAYER_INDV_DESC"), function(_)
         local ped, vehicle = get_my_driver()
         local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(target_pid)
         local hash = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -2147,7 +2173,7 @@ setup_choose_player_menu(drivetoPlayerMenu, drivetoPlayers, function(target_pid,
     end)
 end)
 
-menu.action(autodriveMenu, lang.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwander"}, lang.format("AUTODRIVE_WANDER_HOVER_DESC"), function(v)
+menu.action(autodriveMenu, i18n.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwander"}, i18n.format("AUTODRIVE_WANDER_HOVER_DESC"), function(v)
     local ped, vehicle = get_my_driver()
     is_driving = true
 
@@ -2156,7 +2182,7 @@ menu.action(autodriveMenu, lang.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwande
     PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
 end)
 
-menu.action(autodriveMenu, lang.format("AUTODRIVE_STOP_NAME"), {"aistop"}, "", function(v)
+menu.action(autodriveMenu, i18n.format("AUTODRIVE_STOP_NAME"), {"aistop"}, "", function(v)
     local ped = get_my_driver()
     is_driving = false
 
@@ -2170,10 +2196,10 @@ end)
 local autodriveDriver = 0
 local autodriveVehicle = 0
 local autodriveOnlyWhenOntop = false
-menu.toggle(chauffeurMenu, lang.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_NAME"), {}, lang.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_DESC"), function(on)
+menu.toggle(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_NAME"), {}, i18n.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_DESC"), function(on)
     autodriveOnlyWhenOntop = on
 end, autodriveOnlyWhenOntop)
-menu.action(chauffeurMenu, lang.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"), {}, lang.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_DESC"), function(_)
+menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"), {}, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_DESC"), function(_)
     local vehicle = get_player_vehicle_in_control(players.user())
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     if vehicle > 0 then
@@ -2243,37 +2269,37 @@ menu.action(chauffeurMenu, lang.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
             entities.delete_by_handle(driver)
         end
     else
-        lang.toast("PLAYER_OUT_OF_RANGE")
+        i18n.toast("PLAYER_OUT_OF_RANGE")
     end
 end)
 menu.action(chauffeurMenu, "Delete Driver", {}, "", function(_)
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
         entities.delete_by_handle(autodriveDriver)
     else
-        lang.toast("AUTODRIVE_CHAUFFEUR_NO_DRIVER")
+        i18n.toast("AUTODRIVE_CHAUFFEUR_NO_DRIVER")
     end
     autodriveDriver = 0
 end)
-menu.action(chauffeurMenu, lang.format("AUTODRIVE_STOP_NAME"), {}, "Makes the driver stop the vehicle", function(_)
+menu.action(chauffeurMenu, i18n.format("AUTODRIVE_STOP_NAME"), {}, "Makes the driver stop the vehicle", function(_)
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
         if vehicle == 0 then
-            lang.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
+            i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
         else
             TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 100000)
         end
     else
         autodriveDriver = 0
-        lang.toast("AUTODRIVE_DRIVER_NONE")
+        i18n.toast("AUTODRIVE_DRIVER_NONE")
     end
 end)
 menu.divider(chauffeurMenu, "Destinations")
-menu.action(chauffeurMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "", function(_)
+menu.action(chauffeurMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "", function(_)
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
         get_waypoint_pos(function(waypoint_pos)
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
             if vehicle == 0 then
-                lang.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
+                i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
             else
                 local model = ENTITY.GET_ENTITY_MODEL(vehicle)
                 TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
@@ -2281,20 +2307,20 @@ menu.action(chauffeurMenu, lang.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "",
         end)
     else
         autodriveDriver = 0
-        lang.toast("AUTODRIVE_RIVER_NONE")
+        i18n.toast("AUTODRIVE_RIVER_NONE")
     end
 end)
 menu.action(chauffeurMenu, "Wander", {}, "", function(_)
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
         if vehicle == 0 then
-            lang.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
+            i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
         else
             TASK.TASK_VEHICLE_DRIVE_WANDER(autodriveDriver, vehicle, 40.0, 6)
         end
     else
         autodriveDriver = 0
-        lang.toast("AUTODRIVE_RIVER_NONE")
+        i18n.toast("AUTODRIVE_RIVER_NONE")
     end
 end)
 
@@ -2306,7 +2332,7 @@ local cruiseControl = {
     enabled = false,
     currentVel = -1
 }
-lang.menus.toggle(menu.my_root(), "CRUISE_CONTROL", {"cruisecontrol"}, function(on)
+i18n.menus.toggle(menu.my_root(), "CRUISE_CONTROL", {"cruisecontrol"}, function(on)
     cruiseControl.enabled = on
     cruiseControl.currentVel = -1
 end, cruiseControl.enabled)
@@ -2328,10 +2354,10 @@ end)
 -- Setup player menus:
 -- Grab all existing players in session
 for _, pid in pairs(players.list(true, true, true)) do
-    setup_action_for(pid)
+    setup_player_menu(pid)
 end
 -- Add all new players
-players.on_join(function(pid) setup_action_for(pid) end)
+players.on_join(function(pid) setup_player_menu(pid) end)
 
 -- Used for smart autodrive to know when to stop autodriving
 local MOVEMENT_CONTROLS = {

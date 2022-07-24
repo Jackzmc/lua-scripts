@@ -1,9 +1,9 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.9.5"
-local LANG_TARGET_VERSION = "1.3.0" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.0"
+local VERSION = "1.10.1"
+local LANG_TARGET_VERSION = "1.3.2" -- Target version of translations.lua lib
+local VEHICLELIB_TARGET_VERSION = "1.1.3"
 ---@alias Handle number
 ---@alias MenuHandle number
 
@@ -106,8 +106,8 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
     else
-    util.toast("Outdated lib: 'jackzvehiclelib'")
-end
+        util.toast("Outdated lib: 'jackzvehiclelib'")
+    end
 end
 
 
@@ -115,9 +115,9 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/294853")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-if lang ~= nil then
+if _lang ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    lang.add_language_selector_to_menu(metaList)
+    _lang.add_language_selector_to_menu(metaList)
 end
 
 -- [ Begin actual script ]--
@@ -172,7 +172,7 @@ local mainMenu -- TODO: Rename to better name
 
 local POS_SENSITIVITY = 10
 local ROT_SENSITIVITY = 5
-local FREE_EDIT = true
+local FREE_EDIT = false
 local isInEntityMenu = false
 
 local CURATED_PROPS = {
@@ -287,7 +287,6 @@ function _load_saved_list()
                     log("Vehicle has no version" .. name)
                     versionDiff = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
                 end
-
                 if not data.base or not data.objects then
                     log("Not adding invalid vehicle: " .. name)
                     return
@@ -443,6 +442,7 @@ function setup_builder_menus(name)
                     entities.delete_by_handle(entity)
                 end
             end
+            highlightedHandle = nil
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
@@ -452,8 +452,8 @@ function setup_builder_menus(name)
                 else
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
                     builder.base.handle = vehicle
-                    for handle, dat in pairs(builder.entities) do
-                        attach_entity(vehicle, handle, dat.pos, dat.rot)
+                    for handle, data in pairs(builder.entities) do
+                        attach_entity(vehicle, handle, data.pos, data.rot)
                     end
                 end
             else
@@ -844,7 +844,8 @@ function add_entity_to_list(list, handle, name, pos, rot)
         listMenus = {},
         pos = pos or { x = 0.0, y = 0.0, z = 0.0 },
         rot = rot or { x = 0.0, y = 0.0, z = 0.0 },
-        visible = true
+        visible = true,
+        godmode = STREAMING.IS_MODEL_A_VEHICLE(model) and true or nil
     }
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot)
     builder.entities[handle].list = menu.list(list, builder.entities[handle].name, {}, "Edit entity #" .. handle,
@@ -916,10 +917,19 @@ function create_entity_section(entityroot, handle)
         builder.entities[handle].visible = value
         ENTITY.SET_ENTITY_ALPHA(handle, value and 255 or 0)
     end, builder.entities[handle].visible))
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        table.insert(builder.entities[handle].listMenus, menu.toggle(entityroot, "Godmode", {"buildergod" .. handle}, "Make the vehicle invincible", function(value)
+            builder.entities[handle].godmode = value
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
+        end, builder.entities[handle].godmode))
+    end
     table.insert(builder.entities[handle].listMenus, menu.action(entityroot, "Delete", {}, "Delete the entity", function()
-        entities.delete_by_handle(handle)
+        if highlightedHandle == handle then
+            highlightedHandle = nil
+        end
         menu.delete(entityroot)
         builder.entities[handle] = nil
+        entities.delete_by_handle(handle)
     end))
 end
 
@@ -975,6 +985,14 @@ function builder_to_json()
             visible = data.visible,
             type = data.type
         }
+        if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+            if data.godmode == nil then
+                serialized.godmode = true
+                data.godmode = true
+            else
+                serialized.godmode = data.godmode
+            end
+        end
 
         if data.type == "VEHICLE" then
             if ENTITY.DOES_ENTITY_EXIST(handle) then
@@ -999,13 +1017,13 @@ function builder_to_json()
         vehicles = vehicles
     }
     
-    local status, stringifed = pcall(json.encode, serialized)
+    local status, result = pcall(json.encode, serialized)
     if not status then
         util.toast("WARNING: Could not save your vehicle. Please send Jackz your logs.")
-        log("Could not stringify: " .. dump_table(serialized))
+        log("Could not stringify: (" .. result ..") " .. dump_table(serialized))
         return nil
     else
-        return stringifed
+        return result
     end
 end
 
@@ -1041,6 +1059,9 @@ function spawn_vehicle(vehicleData, isPreview)
         if vehicleData.visible == false then
             ENTITY.SET_ENTITY_ALPHA(handle, 0)
         end
+        if vehicleData.godmode or vehicleData.godmode == nil then
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
+        end
     end
 
     if vehicleData.savedata then
@@ -1050,10 +1071,12 @@ function spawn_vehicle(vehicleData, isPreview)
 end
 
 function spawn_custom_vehicle(data, isPreview)
+    remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
     if data.base.visible == false then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
+    ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
     add_attachments(baseHandle, data, false, isPreview)
     if spawnInVehicle and not isPreview then
         util.yield()
@@ -1106,6 +1129,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             if vehData.visible == false then
                 ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
             end
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
             for _, handle2 in ipairs(handles) do
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
             end
@@ -1138,6 +1162,8 @@ function dump_table(o)
           s = s .. '['..k..'] = ' .. dump_table(v) .. ','
        end
        return s .. '} '
+    elseif type(o) == "string" then
+        return '"' .. o .. "'"
     else
        return tostring(o)
     end
@@ -1145,9 +1171,12 @@ function dump_table(o)
  
 
 function attach_entity(parent, handle, pos, rot)
+    if pos == nil or rot == nil then
+        log("null pos or rot" .. debug.traceback(), "attach_entity")
+    end
     ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, 0,
-        pos.x, pos.y, pos.z,
-        rot.x, rot.y, rot.z,
+        pos.x or 0, pos.y or 0, pos.z or 0,
+        rot.x or 0, rot.y or 0, rot.z or 0,
         false, true, true, false, 2, true
     )
 end

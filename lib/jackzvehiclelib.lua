@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
-    FORMAT_VERSION = "JSTAND 1.3",
-    LIB_VERSION = "1.1.0",
+    FORMAT_VERSION = "JSTAND 1.3.1",
+    LIB_VERSION = "1.1.3",
     MOD_NAMES = {
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -148,9 +148,9 @@ function vehiclelib.Serialize(vehicle)
     memory.free(Color.g)
     memory.free(Color.b)
     local Extras = {}
-    for x = 0, vehiclelib.MAX_EXTRAS do
+    for x = 1, vehiclelib.MAX_EXTRAS do
         if VEHICLE.DOES_EXTRA_EXIST(vehicle, x) then
-            Extras[x] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle, x)
+            Extras[tostring(x)] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle, x)
         end
     end
     local mods = { Toggles = {} }
@@ -251,8 +251,8 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
         end
     end
     if saveData.Extras then
-        for x = 0, vehiclelib.MAX_EXTRAS do
-            if saveData.Extras[x-1] then -- If true, set to 0 (its flipped for some reason)
+        for x = 1, vehiclelib.MAX_EXTRAS do
+            if saveData.Extras[tostring(x)] or saveData.Extras[x] then -- If true, set to 0 (its flipped for some reason)
                 VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, false)
             end
         end
@@ -297,3 +297,4 @@ function vehiclelib.ConvertXML(xmlStr)
 end
 
 return vehiclelib
+

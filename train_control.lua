@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.1.5"
+local VERSION = "1.1.6"
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -249,7 +249,7 @@ menu.slider(menu.my_root(), "Global Train Speed", {"settrainspeed", "trainspeed"
 end)
 
 menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all trains in the game", function(v)
-    local vehicles = util.get_all_vehicles_as_handles()
+    local vehicles = entities.get_all_vehicles_as_handles()
     local count = 0
     for _, vehicle in pairs(vehicles) do
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
@@ -266,7 +266,7 @@ menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all 
 end)
 
 menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains render as derailed", function(on)
-    local vehicles = util.get_all_vehicles_as_handles()
+    local vehicles = entities.get_all_vehicles_as_handles()
     for _, vehicle in pairs(vehicles) do 
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
         for _, model in ipairs(models) do
@@ -311,7 +311,7 @@ while true do
             elseif speed >= 80.0 or speed <= -80.0 then
                 increment = -increment
             end
-            local vehicles = util.get_all_vehicles_as_handles()
+            local vehicles = entities.get_all_vehicles_as_handles()
             for k, vehicle in pairs(vehicles) do
                 VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, speed)
                 VEHICLE.SET_TRAIN_SPEED(vehicle, speed)
@@ -319,7 +319,7 @@ while true do
             tick = 0
         end
     elseif globalTrainSpeedControlEnabled then
-        for _, vehicle in pairs(util.get_all_vehicles_as_handles()) do
+        for _, vehicle in pairs(entities.get_all_vehicles_as_handles()) do
             local model = ENTITY.GET_ENTITY_MODEL(vehicle)
             if model == models[1] or model == models[2] then --Only need to set speed for engine
                 local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
