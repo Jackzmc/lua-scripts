@@ -80,6 +80,7 @@ v3.7.0
 * (3.7.8) Possible fix for rare vehicle saving failure
 * (3.7.9) Fix bug with vehicle lib
 * (3.7.10) Update jackzvehiclelib
+* (3.7.11) Fix some lua bugs, updated translations
 
 # actions (v1)
 
@@ -188,6 +189,7 @@ V1.1.0
 * (1.1.2) Use updated natives
 * (1.1.3) Remove auto updated dupe files
 * (1.1.6) Fix errors
+* (1.1.7) Updated translations
 
 # jackz vehicle builder (v1)
 
@@ -261,3 +263,4 @@ V1.10.0
 * Fix preview not being removed on spawn
 * Make Free Edit disabled by default
 * (1.10.1) Update jackzvehiclelib
+* (1.10.2) Updated translations

@@ -1,7 +1,7 @@
 -- Jackz Vehicles
 -- Created By Jackz
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.7.11"
+local VERSION = "3.7.12"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.3"
 
@@ -168,13 +168,15 @@ if i18n ~= nil then
 end
 
 -- CONSTANTS
-local DOOR_NAMES = {
+local DOOR_NAMES = table.freeze({
     "Front Left", "Front Right",
     "Back Left", "Back Right",
     "Engine", "Trunk",
     "Back", "Back 2",
-}
-local NEON_INDICES = { "Left", "Right", "Front", "Back"}
+})
+local NEON_INDICES = table.freeze({ "Left", "Right", "Front", "Back"})
+local MAX_WINDOW_TINTS = 6
+local MAX_WHEEL_TYPES = 11
 
 local VEHICLE_DIR = filesystem.stand_dir() .. "Vehicles" .. package.config:sub(1,1)
 if not filesystem.exists(VEHICLE_DIR) then
@@ -908,13 +910,13 @@ function setup_player_menu(pid)
     end)
     -- END VEHICLE MODS
     -- MISC ACTIONS:
-    menu.click_slider(modMenu, i18n.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, i18n.format("LSC_WHEEL_TYPE_DESC"), 0, 7, 0, 1, function(wheelType)
+    menu.click_slider(modMenu, i18n.format("LSC_WHEEL_TYPE_NAME"), {"wheeltype"}, i18n.format("LSC_WHEEL_TYPE_DESC"), 0, MAX_WHEEL_TYPES, 0, 1, function(wheelType)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, wheelType)
         end)
     end)
 
-    menu.click_slider(modMenu, i18n.format("LSC_WINDOW_TINT_NAME"), {"windowtint"}, i18n.format("LSC_WINDOW_TINT_DESC"), 0, 6, 0, 1, function(value)
+    menu.click_slider(modMenu, i18n.format("LSC_WINDOW_TINT_NAME"), {"windowtint"}, i18n.format("LSC_WINDOW_TINT_DESC"), 0, MAX_WINDOW_TINTS, 0, 1, function(value)
         control_vehicle(pid, function(vehicle)
             VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, value)
         end)
@@ -2360,9 +2362,9 @@ end
 players.on_join(function(pid) setup_player_menu(pid) end)
 
 -- Used for smart autodrive to know when to stop autodriving
-local MOVEMENT_CONTROLS = {
+local MOVEMENT_CONTROLS = table.freeze({
     59, 60, 61, 62, 63, 64, 71, 72, 75, 76, 87, 88, 89, 90, 102, 106, 107, 108, 109, 110, 111, 112, 113, 122, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139
-}
+})
 
 local spinHeading = 0 -- For all vehicles: spin
 local smartAutoDriveData = {

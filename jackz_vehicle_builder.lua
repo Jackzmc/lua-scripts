@@ -1,8 +1,8 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.10.1"
-local LANG_TARGET_VERSION = "1.3.2" -- Target version of translations.lua lib
+local VERSION = "1.10.2"
+local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.3"
 ---@alias Handle number
 ---@alias MenuHandle number

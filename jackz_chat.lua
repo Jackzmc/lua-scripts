@@ -1,14 +1,14 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.18"
-local _lang_TARGET_VERSION = "1.3.2" -- Target version of translations.lua lib
+local VERSION = "1.2.19"
+local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
 async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
-  chunks = {}
+  local chunks = {}
   for substring in string.gmatch(result, "%S+") do
       table.insert(chunks, substring)
   end
@@ -16,7 +16,11 @@ async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. 
       -- Remove this block (lines 15-32) to disable auto updates
       async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
           local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
-          file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+          if file == nil then
+              util.toast(SCRIPT .. " could not auto update, most likely due to a permission issue.")
+              return
+          end
+          file:write(result:gsub("\r", "") .. "\n")
           file:close()
           util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
       end, function()
@@ -29,16 +33,20 @@ end)
 async_http.dispatch()
 
 function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-        file:write(result:gsub("\r", "") .. "\n")
-        file:close()
-        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
-    end, function(e)
-        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-        util.stop_script()
-    end)
-    async_http.dispatch()
+  async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+      local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+      if file == nil then
+          util.toast(SCRIPT .. " could not automatically update library " .. lib .. "most likely due to a permission issue.")
+          return
+      end
+      file:write(result:gsub("\r", "") .. "\n")
+      file:close()
+      util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
+  end, function(e)
+      util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+      util.stop_script()
+  end)
+  async_http.dispatch()
 end
 --#P:END
 
@@ -65,34 +73,47 @@ function compare_version(a, b)
 end
 local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
 if not filesystem.exists(VERSION_FILE_PATH) then
-    local versionFile = io.open(VERSION_FILE_PATH, "w")
-    versionFile:close()
+  local versionFile = io.open(VERSION_FILE_PATH, "w")
+  if versionFile == nil then
+      util.log(SCRIPT .. ": Could not create jackz_versions.txt")
+      return
+  end
+  versionFile:close()
 end
 local wasUpdated = false
 local versionFile = io.open(VERSION_FILE_PATH, "r+")
-local versions = {}
-for line in versionFile:lines("l") do
-  local script, version = line:match("(%g+): (%g+)")
-  if script then
-      versions[script] = version
+if versionFile == nil then
+  util.log(SCRIPT .. ": Could not read jackz_versions.txt, skipping changelog system")
+else
+  -- Get all versions from file
+  local versions = {}
+  for line in versionFile:lines("l") do
+      local script, version = line:match("(%g+): (%g+)")
+      if script then
+          versions[script] = version
+      end
   end
+
+  -- If version is older or non existenant
+  if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
+      if versions[SCRIPT] ~= nil then
+          -- If the version was older, show changelog since then
+          async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
+              util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
+          end, function() util.log(string.format(SCRIPT ..": Failed to acquire changelog (since %s, version %s)", versions[SCRIPT], VERSION)) end)
+          async_http.dispatch()
+          wasUpdated = true
+      end
+      -- Update the version in the version file
+      versions[SCRIPT] = VERSION
+      versionFile:seek("set", 0)
+      versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+      for script, version in pairs(versions) do
+          versionFile:write(script .. ": " .. version .. "\n")
+      end
+  end
+  versionFile:close()
 end
-if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-  if versions[SCRIPT] ~= nil then
-      async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
-          util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-      end, function() util.log(SCRIPT ..": Could not get changelog") end)
-      async_http.dispatch()
-      wasUpdated = true
-  end
-  versions[SCRIPT] = VERSION
-  versionFile:seek("set", 0)
-  versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-  for script, version in pairs(versions) do
-      versionFile:write(script .. ": " .. version .. "\n")
-  end
-end
-versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
 
@@ -100,7 +121,7 @@ util.require_natives(1627063482)
 
 local json = require("json")
 local _lang = require("translations")
-if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= _lang_TARGET_VERSION then
+if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
   --#P:MANUAL_ONLY
   util.toast("Outdated translations library, downloading update...")
   os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")

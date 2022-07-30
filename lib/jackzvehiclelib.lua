@@ -2,7 +2,7 @@ local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.3.1",
     LIB_VERSION = "1.1.3",
-    MOD_NAMES = {
+    MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",
         [3] = "Rear Bumper",
@@ -31,17 +31,17 @@ local vehiclelib = {
         [36] = "Plaques",
         [39] = "Hydraulics",
         [49] = "Livery"
-    },
+    }),
     -- Subtract index by 1 to get modType (ty lua)
-    TOGGLEABLE_MOD_NAMES = {
+    TOGGLEABLE_MOD_NAMES = table.freeze({
         [18] = "UNK17",
         [19] = "Turbo Turning",
         [20] = "UNK19",
         [21] = "Tire Smoke",
         [22] = "UNK21",
         [23] = "Xenon Headlights"
-    },
-    VEHICLE_TYPES = {
+    }),
+    VEHICLE_TYPES = table.freeze({
         "Compacts",
         "Sedans",
         "SUVs",
@@ -64,7 +64,7 @@ local vehiclelib = {
         "Military",
         "Commercial",
         "Trains"
-    }
+    })
 }
 function vehiclelib.Serialize(vehicle)
     local model = ENTITY.GET_ENTITY_MODEL(vehicle)
