@@ -81,6 +81,7 @@ v3.7.0
 * (3.7.9) Fix bug with vehicle lib
 * (3.7.10) Update jackzvehiclelib
 * (3.7.11) Fix some lua bugs, updated translations
+* (3.7.12) Update LSC for new wheel types (Thanks hexarobi)
 
 # actions (v1)
 
@@ -264,3 +265,7 @@ V1.10.0
 * Make Free Edit disabled by default
 * (1.10.1) Update jackzvehiclelib
 * (1.10.2) Updated translations
+
+V1.11.0
+
+* Added basic backend support for peds ('peds' json array)

@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.10.2"
+local VERSION = "1.11.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.3"
 ---@alias Handle number
@@ -836,9 +836,15 @@ function add_entity_to_list(list, handle, name, pos, rot)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
+    local type = "OBJECT"
+    if STREAMING.IS_MODEL_A_VEHICLE(model) then
+        type = "VEHICLE"
+    elseif STREAMING._IS_MODEL_A_PED(model) then
+        type = "PED"
+    end
     builder.entities[handle] = {
         name = name or "(no name)",
-        type = STREAMING.IS_MODEL_A_VEHICLE(model) and "VEHICLE" or "ENTITY",
+        type,
         model = model,
         list = nil,
         listMenus = {},
@@ -976,6 +982,7 @@ end
 function builder_to_json()
     local objects = {}
     local vehicles = {}
+    local peds = {}
     for handle, data in pairs(builder.entities) do
         local serialized = {
             name = data.name,
@@ -1001,6 +1008,8 @@ function builder_to_json()
                 log("Could not fetch vehicle savedata for deleted vehicle", "builder_to_json")
             end
             table.insert(vehicles, serialized)
+        elseif data.type == "PED" then
+            table.insert(peds, serialized)
         else
             table.insert(objects, serialized)
         end
@@ -1014,7 +1023,8 @@ function builder_to_json()
             savedata = vehiclelib.Serialize(builder.base.handle)
         },
         objects = objects,
-        vehicles = vehicles
+        vehicles = vehicles,
+        peds = peds
     }
     
     local status, result = pcall(json.encode, serialized)
@@ -1118,6 +1128,42 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
                 else
                     attach_entity(baseHandle, handle, entityData.offset, entityData.rotation)
+                end
+            end
+        end
+    end
+    -- bad dupe code but im sick i dont care
+    if data.peds then
+        for _, pedData in ipairs(data.peds) do
+            local name = pedData.name or "<nil>"
+            if not STREAMING.IS_MODEL_VALID(pedData.model) then
+                util.toast("Ped has invalid model: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
+            else
+                STREAMING.REQUEST_MODEL(pedData.model)
+                while not STREAMING.HAS_MODEL_LOADED(pedData.model) do
+                    util.yield()
+                end
+                local handle = isPreview
+                    and OBJECT.CREATE_OBJECT(pedData.model, pos.x, pos.y, pos.z, false, false, 0)
+                    or entities.create_ped(0, pedData.model, pos, 0)
+
+                if handle == 0 then
+                    util.toast("Ped failed to spawn: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
+                else
+                    if pedData.visible == false then
+                        ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+                    end
+                    for _, handle2 in ipairs(handles) do
+                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+                    end
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
+                    table.insert(handles, handle)
+
+                    if addToBuilder then
+                        add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation)
+                    else
+                        attach_entity(baseHandle, handle, pedData.offset, pedData.rotation)
+                    end
                 end
             end
         end
