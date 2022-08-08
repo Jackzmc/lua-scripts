@@ -110,171 +110,36 @@ menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
 
--- START Scenario Data
-local SCENARIOS = {
-    HUMAN = {
-        { "WORLD_HUMAN_AA_COFFEE", "AA Coffee" },
-        { "WORLD_HUMAN_AA_SMOKE", "AA Smoking" },
-        { "WORLD_HUMAN_BINOCULARS", "Binoculars" },
-        { "WORLD_HUMAN_BUM_FREEWAY", "Bum Freeway" },
-        { "WORLD_HUMAN_BUM_SLUMPED", "Bum Slumped" },
-        { "WORLD_HUMAN_BUM_STANDING", "Bum Standing" },
-        { "WORLD_HUMAN_BUM_WASH", "Bum Wash" },
-        { "WORLD_HUMAN_CAR_PARK_ATTENDANT", "Car Park Attendant" },
-        { "WORLD_HUMAN_CHEERING", "Cheering" },
-        { "WORLD_HUMAN_CLIPBOARD", "Clipboard" },
-        { "WORLD_HUMAN_CONST_DRILL", "Drill" },
-        { "WORLD_HUMAN_COP_IDLES", "Cop Idle" },
-        { "WORLD_HUMAN_DRINKING", "Drinking" },
-        { "WORLD_HUMAN_DRUG_DEALER", "Drug Dealer" },
-        { "WORLD_HUMAN_DRUG_DEALER_HARD", "Drug Dealer Hard" },
-        { "WORLD_HUMAN_MOBILE_FILM_SHOCKING", "Phone Filming" },
-        { "WORLD_HUMAN_GARDENER_LEAF_BLOWER", "Leaf Blower" },
-        { "WORLD_HUMAN_GARDENER_PLANT", "Gardener" },
-        { "WORLD_HUMAN_GOLF_PLAYER", "Golfing" },
-        { "WORLD_HUMAN_GUARD_PATROL", "Guard Patrol" },
-        { "WORLD_HUMAN_GUARD_STAND", "Guard Stand" },
-        { "WORLD_HUMAN_GUARD_STAND_ARMY", "Guard Stand (Army)" },
-        { "WORLD_HUMAN_HAMMERING", "Hammering" },
-        { "WORLD_HUMAN_HANG_OUT_STREET", "Hanging Out" },
-        { "WORLD_HUMAN_HIKER_STANDING", "Hiker Standing" },
-        { "WORLD_HUMAN_HUMAN_STATUE", "Human Statue" },
-        { "WORLD_HUMAN_JANITOR", "Janitor" },
-        { "WORLD_HUMAN_JOG_STANDING", "Jog in place" },
-        { "WORLD_HUMAN_LEANING", "Leaning" },
-        { "WORLD_HUMAN_MAID_CLEAN", "Cleaning" },
-        { "WORLD_HUMAN_MUSCLE_FLEX", "Muscle Flex" },
-        { "WORLD_HUMAN_MUSCLE_FREE_WEIGHTS", "Weights" },
-        { "WORLD_HUMAN_MUSICIAN", "Musician" },
-        { "WORLD_HUMAN_PAPARAZZI", "Paparazzi" },
-        { "WORLD_HUMAN_PARTYING", "Partying" },
-        { "WORLD_HUMAN_PICNIC", "Picnic" },
-        { "WORLD_HUMAN_PROSTITUTE_HIGH_CLASS", "Prositute (High Class)" },
-        { "WORLD_HUMAN_PROSTITUTE_LOW_CLASS", "Prostitute (Low Class)" },
-        { "WORLD_HUMAN_PUSH_UPS", "Push Ups" },
-        { "WORLD_HUMAN_SEAT_LEDGE", "Ledge Sit" },
-        { "WORLD_HUMAN_SEAT_LEDGE_EATING", "Ledge Eating" },
-        { "WORLD_HUMAN_SEAT_STEPS", "Sit on Steps" },
-        { "WORLD_HUMAN_SEAT_WALL", "Sit on Wall" },
-        { "WORLD_HUMAN_SEAT_WALL_EATING", "Eat on Wall" },
-        { "WORLD_HUMAN_SEAT_WALL_TABLET", "Tablet on Wall" },
-        { "WORLD_HUMAN_SECURITY_SHINE_TORCH", "Shine Torch" },
-        { "WORLD_HUMAN_SIT_UPS", "Situps" },
-        { "WORLD_HUMAN_SMOKING", "Smoking" },
-        { "WORLD_HUMAN_SMOKING_POT", "Smoking Pot" },
-        { "WORLD_HUMAN_STAND_FIRE", "Campfire" },
-        { "WORLD_HUMAN_STAND_FISHING", "Fishing" },
-        { "WORLD_HUMAN_STAND_IMPATIENT", "Impatient" },
-        { "WORLD_HUMAN_STAND_IMPATIENT_UPRIGHT", "Impatient Upright" },
-        { "WORLD_HUMAN_STAND_MOBILE", "Phone" },
-        { "WORLD_HUMAN_STAND_MOBILE_UPRIGHT", "Phone Upright" },
-        { "WORLD_HUMAN_STRIP_WATCH_STAND", "Watch Stand" },
-        { "WORLD_HUMAN_STUPOR", "Stupor" },
-        { "WORLD_HUMAN_SUNBATHE", "Sunbathe" },
-        { "WORLD_HUMAN_SUNBATHE_BACK", "Sunbathe Back" },
-        { "WORLD_HUMAN_SUPERHERO", "Superhero" },
-        { "WORLD_HUMAN_SWIMMING", "Swimming" },
-        { "WORLD_HUMAN_TENNIS_PLAYER", "Tennis Player" },
-        { "WORLD_HUMAN_TOURIST_MAP", "Tourist Map" },
-        { "WORLD_HUMAN_TOURIST_MOBILE", "Tourist Phone" },
-        { "WORLD_HUMAN_VEHICLE_MECHANIC", "Mechanic" },
-        { "WORLD_HUMAN_WELDING", "Welding" },
-        { "WORLD_HUMAN_WINDOW_SHOP_BROWSE", "Window Browsing" },
-        { "WORLD_HUMAN_YOGA", "Yoga" }
-    },
-    HUMAN2 = {
-        { "PROP_HUMAN_ATM", "ATM" },
-        { "PROP_HUMAN_BBQ", "BBQ" },
-        { "PROP_HUMAN_BUM_BIN", "Bum Bin" },
-        { "PROP_HUMAN_BUM_SHOPPING_CART", "BUM Shopping Cart" },
-        { "PROP_HUMAN_MUSCLE_CHIN_UPS", "Muscle Chinups" },
-        { "PROP_HUMAN_MUSCLE_CHIN_UPS_ARMY", "Muscle Chinups (Army)" },
-        { "PROP_HUMAN_MUSCLE_CHIN_UPS_PRISON", "Muscle Chinups (Prison)" },
-        { "PROP_HUMAN_PARKING_METER", "Parking Meter" },
-        { "PROP_HUMAN_SEAT_ARMCHAIR", "Sit (Armchair)" },
-        { "PROP_HUMAN_SEAT_BAR", "Sit (Bar)" },
-        { "PROP_HUMAN_SEAT_BENCH", "Sit (Bench)" },
-        { "PROP_HUMAN_SEAT_BENCH_DRINK", "Sit & Drink (Bench)" },
-        { "PROP_HUMAN_SEAT_BENCH_DRINK_BEER", "Sit & Drink Beer (Bench)" },
-        { "PROP_HUMAN_SEAT_BENCH_FOOD", "Sit & Eat (Bench)" },
-        { "PROP_HUMAN_SEAT_BUS_STOP_WAIT", "Bus Stop Wait" },
-        { "PROP_HUMAN_SEAT_CHAIR", "Sit (Chair)" },
-        { "PROP_HUMAN_SEAT_CHAIR_DRINK", "Sit & Drink (Chair)" },
-        { "PROP_HUMAN_SEAT_CHAIR_DRINK_BEER", "Sit & Drink Beer (Chair)" },
-        { "PROP_HUMAN_SEAT_CHAIR_FOOD", "Sit & Eat (Chair)" },
-        { "PROP_HUMAN_SEAT_CHAIR_UPRIGHT", "Sit Upright (Chair)" },
-        { "PROP_HUMAN_SEAT_CHAIR_MP_PLAYER", "Sit MP Player" },
-        { "PROP_HUMAN_SEAT_COMPUTER", "Sit (Computer)" },
-        { "PROP_HUMAN_SEAT_DECKCHAIR", "Sit (Deckchair)" },
-        { "PROP_HUMAN_SEAT_DECKCHAIR_DRINK", "Sit & Drink (Deckchair)" },
-        { "PROP_HUMAN_SEAT_MUSCLE_BENCH_PRESS", "Bench Press" },
-        { "PROP_HUMAN_SEAT_MUSCLE_BENCH_PRESS_PRISON", "Bench Press (Prison)" },
-        { "PROP_HUMAN_SEAT_SEWING", "Sit (Sewing)" },
-        { "PROP_HUMAN_SEAT_STRIP_WATCH", "Sit (Stripclub)" },
-        { "PROP_HUMAN_SEAT_SUNLOUNGER", "Sit (Sunlounger)" },
-        { "PROP_HUMAN_STAND_IMPATIENT", "Impatient" },
-        { "CODE_HUMAN_COWER", "Cower" },
-        { "CODE_HUMAN_CROSS_ROAD_WAIT", "Cross road wait" },
-        { "CODE_HUMAN_PARK_CAR", "Park Car" },
-        { "PROP_HUMAN_MOVIE_BULB", "Movie Bulb" },
-        { "PROP_HUMAN_MOVIE_STUDIO_LIGHT", "Movie Studio Light" },
-        { "CODE_HUMAN_MEDIC_KNEEL", "Medic Kneel" },
-        { "CODE_HUMAN_MEDIC_TEND_TO_DEAD", "Medic Tend" },
-        { "CODE_HUMAN_MEDIC_TIME_OF_DEATH", "Medic Time of Death" },
-        { "CODE_HUMAN_POLICE_CROWD_CONTROL", "Police Crowd Control" },
-        { "CODE_HUMAN_POLICE_INVESTIGATE", "Police Investigate" },
-        { "CODE_HUMAN_STAND_COWER", "Cower (Standing)" },
-        { "EAR_TO_TEXT", "Ear to Text" },
-        { "EAR_TO_TEXT_FAT", "Ear to Text (Fat)" },
-    },
-    ANIMALS = {
-        { "WORLD_BOAR_GRAZING", "Boar Grazing" },
-        { "WORLD_CAT_SLEEPING_GROUND", "Cat Sleeping (Ground)"},
-        { "WORLD_CAT_SLEEPING_LEDGE", "Cat Sleeping (Ledge)" },
-        { "WORLD_COW_GRAZING", "Cow Grazing" },
-        { "WORLD_COYOTE_HOWL", "Coyote Howl" },
-        { "WORLD_COYOTE_REST", "Coyote Rest" },
-        { "WORLD_COYOTE_WANDER", "Coyte Wander" },
-        { "WORLD_CHICKENHAWK_FEEDING", "Chicken Hawk Feeding" },
-        { "WORLD_CHICKENHAWK_STANDING", "Chicken Hawk Standing" },
-        { "WORLD_CORMORANT_STANDING", "Cormorant Standing" },
-        { "WORLD_CROW_FEEDING", "Crow Feeding" },
-        { "WORLD_CROW_STANDING", "Crow Standing" },
-        { "WORLD_DEER_GRAZING", "Deer Grazing" },
-        { "WORLD_DOG_BARKING_ROTTWEILER", "Dog Barking (Rottweiler)" },
-        { "WORLD_DOG_BARKING_RETRIEVER", "Dog Barking (Retriever)" },
-        { "WORLD_DOG_BARKING_SHEPHERD", "Dog Barking (Shepherd)" },
-        { "WORLD_DOG_SITTING_ROTTWEILER", "Dog Sitting (Rottweiler)" },
-        { "WORLD_DOG_SITTING_RETRIEVER", "Dog Sitting (Retriever)" },
-        { "WORLD_DOG_SITTING_SHEPHERD", "Dog Sitting (Shepherd)" },
-        { "WORLD_DOG_BARKING_SMALL", "Dog Barking (Small)" },
-        { "WORLD_DOG_SITTING_SMALL", "Dog Sitting (Small)" },
-        { "WORLD_FISH_IDLE", "Fish Idle" },
-        { "WORLD_GULL_FEEDING", "Gull Feeding" },
-        { "WORLD_GULL_STANDING", "Gull Standing" },
-        { "WORLD_HEN_PECKING", "Hen Pecking" },
-        { "WORLD_HEN_STANDING", "Hen Standing" },
-        { "WORLD_MOUNTAIN_LION_REST", "Mountain Lion Rest" },
-        { "WORLD_MOUNTAIN_LION_WANDER", "Mountain Lion Wander" },
-        { "WORLD_PIG_GRAZING", "Pig Grazing" },
-        { "WORLD_PIGEON_FEEDING", "Pigeon Feeding" },
-        { "WORLD_PIGEON_STANDING", "Pigeon Standing" },
-        { "WORLD_RABBIT_EATING", "Rabbit Eating" },
-        { "WORLD_RATS_EATING", "Rats Eating" },
-        { "WORLD_SHARK_SWIM", "Shark Swimming" },
-        { "PROP_BIRD_IN_TREE", "Bird in Tree" },
-        { "PROP_BIRD_TELEGRAPH_POLE", "Bird on pole" },
-    }
-}
+-- Iterates in consistent order a Key/Value
+function pairsByKeys(t, f)
+    local a = {}
+    for n in pairs(t) do
+       table.insert(a, n)
+    end
+    table.sort(a, f)
+    local i = 0 -- iterator variable
+    local iter = function()
+        -- iterator function
+        i = i + 1
+        if a[i] == nil then
+            return nil
+        else
+            return a[i], t[a[i]]
+        end
+    end
+    return iter
+ end
+
+require('actions_data')
+
 -- Messy Globals
 local scenarioCount = 0
-local animationCount = 0
 
 local clearActionImmediately = true
 local favorites = {}
 local favoritesActions = {}
 local recents = {}
-local flags = 1 | 32
+local animFlags = AnimationFlags.ANIM_FLAG_REPEAT | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
 local allowControl = true
 local affectType = 0
 -----------------------
@@ -282,6 +147,7 @@ local affectType = 0
 ----------------------
 
 menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current scenario or animation", function(v)
+    clear_anim_props()
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     if clearActionImmediately then
         TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
@@ -308,20 +174,55 @@ end, clearActionImmediately)
 menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
     affectType = value
 end)
-menu.divider(menu.my_root(), "Stuff")
-local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
-menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", function(on)
-    if on then
-        flags = 1 | 32
+function onControllablePress(value)
+    if value then
+        animFlags = AnimationFlags.ANIM_FLAG_REPEAT | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
     else
-        flags = 1
+        animFlags = AnimationFlags.ANIM_FLAG_REPEAT
     end
-end, allowControl)
+end
+function generateAnimationAction(key, data)
+    return function()
+        util.toast("Playing anim: " .. data[3] or key)
+        util.log(string.format("dict=%s anim=%s name=%s", data[1], data[2], data[3]))
+        play_animation(data[1], data[2], false, data)
+    end
+end
+
+menu.divider(menu.my_root(), "Stuff")
+local specialAnimationsMenu = menu.list(menu.my_root(), "Special Animations", {}, "Special animations that can use props")
+menu.toggle(specialAnimationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
+local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
+menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
+
+
+for key, data in pairsByKeys(SPECIAL_ANIMATIONS) do
+    menu.action(
+        specialAnimationsMenu,
+        data[3] or key,
+        {},
+        string.format("%s %s\nPlay this animation", data[1], data[2]),
+        generateAnimationAction(key, data)
+    )
+end
+
 
 -----------------------
 -- ANIMATIONS
 ----------------------
 local animLoaded = false
+local animAttachments = {}
+function clear_anim_props()
+    for _, ent in ipairs(animAttachments) do
+        ENTITY.DETACH_ENTITY(ent, false)
+    end
+end
+function delete_anim_props()
+    for _, ent in ipairs(animAttachments) do
+        entities.delete(ent)
+    end
+end
+
 local animMenuData = {}
 local resultMenus = {}
 local cloudFavoritesMenu = menu.list(animationsMenu, "Cloud Favorites", {}, "View categorized saved favorites from other users, or store your own.")
@@ -586,74 +487,7 @@ for group, scenarios in pairs(SCENARIOS) do
     end
 end
 HUD.BUSYSPINNER_OFF()
------------------------
--- Speeches
-----------------------
--- START Speech Data
-local SPEECH_PARAMS = {
-    { "Normal", "Speech_Params_Force" },
-    { "In Your Head", "Speech_Params_Force_Frontend", "Plays the voice as if nearby npcs are inside you" },
-    { "Beat", "SPEECH_PARAMS_BEAT" },
-    { "Megaphone", "Speech_Params_Force_Megaphone" },
-    { "Helicopter", "Speech_Params_Force_Heli" },
-    { "Shouted", "Speech_Params_Force_Shouted" },
-    { "Shouted (Critical)", "Speech_Params_Force_Shouted_Critical" },
-}
-local SPEECHES = {
-    { "Greeting", "GENERIC_HI" },
-    { "Farewell", "GENERIC_BYE" },
-    { "Bumped Into", "BUMP" },
-    { "Chat", "CHAT_RESP" },
-    { "Death Moan", "DYING_MOAN" },
-    { "Apology", "APOLOGY_NO_TROUBLE" },
-    { "Thanks", "GENERIC_THANKS" },
-    { "Fuck You", "GENERIC_FUCK_YOU" },
-    { "War Cry", "GENERIC_WAR_CRY" },
-    { "Fallback", "FALL_BACK" },
-    { "Cover Me", "COVER_ME" },
-    { "Swear", "GENERIC_CURSE_HIGH" },
-    { "Insult", "GENERIC_INSULT_HIGH" },
-    { "Shocked", "GENERIC_SHOCKED_HIGH" },
-    { "Frightened", "GENERIC_FRIGHTENED_HIGH" },
-    { "Kiflom", "KIFFLOM_GREET", "Works best with epsilon voice models" },
-}
-local VOICE_MODELS = {
-    FEMALE = {
-        "a_f_m_bevhills_01",
-        "a_f_y_vinewood_01",
-        "a_f_y_hipster_02",
-        "a_f_y_femaleagent",
-        "a_f_y_bevhills_01",
-        "a_f_m_tramp_01",
-        "a_f_m_soucentmc_01",
-        "a_f_m_fatwhite_01",
-        "a_f_y_tourist_01",
-        "a_f_y_gencaspat_01",
-        "a_f_y_smartcaspat_01",
-        "a_f_y_epsilon_01",
-        "a_f_o_salton_01",
-        "a_f_m_beach_01"
-    },
-    MALE = {
-        "a_m_m_beach_01",
-        "a_m_m_hasjew_01",
-        "a_m_m_hillbilly_01",
-        "a_m_m_golfer_01",
-        "a_m_m_genfat_01",
-        "a_m_m_salton_02",
-        "a_m_m_tourist_01",
-        "a_m_m_soucent_01",
-        "a_m_o_tramp_01",
-        "a_m_y_beachvesp_01",
-        "a_m_y_epsilon_01",
-        "a_m_y_epsilon_02",
-        "a_m_y_jetski_01",
-        "a_m_y_vinewood_03",
-        "a_m_m_acult_01",
-        "u_m_m_jesus_01",
-        "s_m_y_sheriff_01_white_full_01"
-    }
-}
+
 local selfSpeechPed = {
     entity = 0,
     lastUsed = util.current_unix_time_millis(),
@@ -662,7 +496,7 @@ local selfSpeechPed = {
 -- Messy globals again
 local speechParam = "Speech_Params_Force"
 local activeSpeech = "GENERIC_HI"
-local duration = 1
+local ambientSpeechDuration = 1
 local speechDelay = 1000
 local repeatEnabled = false
 local ambientSpeechMenu = menu.list(menu.my_root(), "Ambient Speech", {}, "Allow you to play ambient speeches on yourself or other peds")
@@ -675,13 +509,13 @@ for _, pair in ipairs(SPEECHES) do
     menu.action(speechMenu, pair[1], {"speak" .. string.lower(pair[1])}, desc, function(a)
         -- Play single duration for peds
         if affectType > 0 then
-            if duration > 0 then
+            if ambientSpeechDuration > 0 then
                 for _, ped in ipairs(entities.get_all_peds_as_handles()) do
                     if not PED.IS_PED_A_PLAYER(ped) then
-                        if duration > 1 then
+                        if ambientSpeechDuration > 1 then
                             util.create_thread(function()
                                 NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(ped)
-                                for x = 1,duration do
+                                for x = 1,ambientSpeechDuration do
                                     AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, pair[2], speechParam)
                                     util.yield(speechDelay)
                                 end
@@ -702,7 +536,7 @@ for _, pair in ipairs(SPEECHES) do
                 create_self_speech_ped()
             end
             util.create_thread(function()
-                for _ = 1,duration do
+                for _ = 1,ambientSpeechDuration do
                     AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(selfSpeechPed.entity, pair[2], speechParam)
                     util.yield(speechDelay)
                 end
@@ -711,7 +545,7 @@ for _, pair in ipairs(SPEECHES) do
             --TODO: implement
         end
         -- Play repeated for self or peds
-        if duration == 0 then
+        if ambientSpeechDuration == 0 then
             activeSpeech = pair[2]
             if not repeatEnabled then
                 repeatEnabled = true
@@ -764,8 +598,8 @@ for _, model in ipairs(VOICE_MODELS.MALE) do
     end)
 end
 
-menu.slider(ambientSpeechMenu, "Duration", {"speechduration"}, "How many times should the speech be played?\n 0 to play forever, use 'Stop Active Speech' to end.", 0, 100, duration, 1, function(value)
-    duration = value
+menu.slider(ambientSpeechMenu, "Duration", {"speechduration"}, "How many times should the speech be played?\n 0 to play forever, use 'Stop Active Speech' to end.", 0, 100, ambientSpeechDuration, 1, function(value)
+    ambientSpeechDuration = value
 end)
 menu.slider(ambientSpeechMenu, "Speech Interval", {"speechinterval"}, "How many milliseconds per repeat of line?", 100, 30000, speechDelay, 100, function(value)
     speechDelay = value
@@ -940,7 +774,23 @@ function setup_animation_list()
     animLoaded = true
 end
 
-function play_animation(group, anim, ignore)
+function play_animation(group, anim, doNotAddRecent, data)
+    local flags = animFlags -- Keep legacy animation flags
+    local duration = -1
+    if data ~= nil then
+        flags = 0
+        if data.AnimationOptions ~= nil then
+            if data.AnimationOptions.Loop then
+                flags = flags | AnimationFlags.ANIM_FLAG_REPEAT
+            end
+            if data.AnimationOptions.Controllable then
+                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
+            end
+            if data.AnimationOptions.EmoteDuration then
+                duration = data.AnimationOptions.EmoteDuration
+            end
+        end
+    end
     if PAD.IS_CONTROL_PRESSED(2, 209) then
         for i, favorite in ipairs(favorites) do
             if favorite[1] == group and favorite[2] == anim then
@@ -956,6 +806,7 @@ function play_animation(group, anim, ignore)
         save_favorites()
         util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
     else
+        clear_anim_props()
         STREAMING.REQUEST_ANIM_DICT(group)
         while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
             util.yield(100)
@@ -963,7 +814,7 @@ function play_animation(group, anim, ignore)
         local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         
 
-        if not is_anim_in_recent(group, anim) and not ignore then
+        if not is_anim_in_recent(group, anim) and not doNotAddRecent then
             add_anim_to_recent(group, anim)
         end
 
@@ -972,20 +823,51 @@ function play_animation(group, anim, ignore)
             local peds = entities.get_all_peds_as_handles()
             for _, npc in ipairs(peds) do
                 if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
-                    if clearActionImmediately then
-                        TASK.CLEAR_PED_TASKS_IMMEDIATELY(npc)
-                    end
-                    NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(npc)
-                    TASK.TASK_PLAY_ANIM(npc, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false)
+                    _play_animation(npc, group, anim, flags, duration, data.AnimationOptions.Props)
                 end
             end
         end
         -- Play animation on self if enabled:
         if affectType == 0 or affectType == 2 then
-            if clearActionImmediately then
-                TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+            _play_animation(ped, group, anim, flags, duration, data.AnimationOptions.Props)
+        end
+
+        STREAMING.REMOVE_ANIM_DICT(group)
+    end
+end
+
+function _play_animation(ped, group, animation, flags, duration, props)
+    if clearActionImmediately then
+        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    end
+    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
+    local pos = ENTITY.GET_ENTITY_COORDS(ped)
+    if props ~= nil then
+        for _, propData in ipairs(props) do
+            local boneIndex = PED.GET_PED_BONE_INDEX(ped, propData.Bone)
+            local hash = util.joaat(propData.Prop)
+            STREAMING.REQUEST_MODEL(hash)
+            while not STREAMING.HAS_MODEL_LOADED(hash) do
+                util.yield()
             end
-            TASK.TASK_PLAY_ANIM(ped, group, anim, 8.0, 8.0, -1, flags, 1.0, false, false, false)
+            local object = entities.create_object(hash, pos)
+            table.insert(animAttachments, object)
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                object, ped, boneIndex,
+                propData.Placement[1] or 0.0,
+                propData.Placement[2] or 0.0,
+                propData.Placement[3] or 0.0,
+                propData.Placement[4] or 0.0,
+                propData.Placement[5] or 0.0,
+                propData.Placement[6] or 0.0,
+                false,
+                true,
+                false,
+                true,
+                1,
+                true
+            )
+            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end
 end
@@ -1036,6 +918,9 @@ util.on_stop(function(_)
         util.toast("WARN: Unloading animation browse list, prepare for lag.")
         destroy_animations_data()
     end
+    delete_anim_props()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    TASK.CLEAR_PED_TASKS_IMMEDIATELY(my_ped)
 end)
 
 while true do

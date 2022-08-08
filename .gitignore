@@ -23,6 +23,7 @@
 !lib/translations.lua
 !lib/scaleforms.lua
 !lib/jackzvehiclelib.lua
+!lib/actions_data.lua
 
 !.vscode/
 !.vscode/settings.json
