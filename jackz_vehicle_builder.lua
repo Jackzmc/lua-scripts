@@ -1,7 +1,8 @@
 -- Jackz Vehicle Builder
 -- [ Boiler Plate ]--
+-- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.11.0"
+local VERSION = "1.11.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.3"
 ---@alias Handle number
@@ -315,8 +316,7 @@ function _load_saved_list()
                     if preview.id ~= name then
                         remove_preview_custom()
                         preview.id = name
-                        local entity = spawn_custom_vehicle(data, true)
-                        preview.entity = entity
+                        spawn_custom_vehicle(data, true)
                         create_preview_handler_if_not_exists()
                     end
                 end)
@@ -746,9 +746,9 @@ function add_prop_menu(parent, propName)
                 log("Could not create preview for " .. propName .. "(" .. hash .. ")")
                 return
             end
+            preview.entity = entity
             ENTITY.SET_ENTITY_ALPHA(entity, 150)
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
-            preview.entity = entity
             create_preview_handler_if_not_exists()
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
@@ -790,9 +790,9 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
             if entity == 0 then
                 return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
             end
+            preview.entity = entity
             ENTITY.SET_ENTITY_ALPHA(entity, 150)
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
-            preview.entity = entity
             create_preview_handler_if_not_exists()
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
@@ -809,6 +809,11 @@ function remove_preview_custom()
             end
         end
         for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
+            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(preview.entity, entity) then
+                entities.delete_by_handle(entity)
+            end
+        end
+        for _, entity in ipairs(entities.get_all_peds_as_handles()) do
             if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(preview.entity, entity) then
                 entities.delete_by_handle(entity)
             end
@@ -839,7 +844,7 @@ function add_entity_to_list(list, handle, name, pos, rot)
     local type = "OBJECT"
     if STREAMING.IS_MODEL_A_VEHICLE(model) then
         type = "VEHICLE"
-    elseif STREAMING._IS_MODEL_A_PED(model) then
+    elseif STREAMING.IS_MODEL_A_PED(model) then
         type = "PED"
     end
     builder.entities[handle] = {
@@ -1083,6 +1088,9 @@ end
 function spawn_custom_vehicle(data, isPreview)
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
+    if isPreview then
+        preview.entity = baseHandle
+    end
     if data.base.visible == false then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
@@ -1144,7 +1152,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     util.yield()
                 end
                 local handle = isPreview
-                    and OBJECT.CREATE_OBJECT(pedData.model, pos.x, pos.y, pos.z, false, false, 0)
+                    and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
                     or entities.create_ped(0, pedData.model, pos, 0)
 
                 if handle == 0 then
@@ -1190,6 +1198,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
         end
     end
 end
+
 
 -- [ UTILS ]--
 function log(str, mod)
