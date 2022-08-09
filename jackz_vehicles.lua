@@ -1,7 +1,8 @@
 -- Jackz Vehicles
 -- Created By Jackz
+-- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.7.12"
+local VERSION = "3.8.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.3"
 
@@ -1600,6 +1601,11 @@ end)
 local spawned_tows = {}
     -- NEARBY VEHICLES LIST SECTION
     local nearbyListMenu = i18n.menus.list(nearbyMenu, "NEARBY_VEHICLES_LIST", {})
+    local refreshIntervalMs = 1000
+    local nearbyViewVehicle = 0
+    local nearbyListRefreshSelect = menu.slider_float(nearbyListMenu, "Refresh Interval (seconds)", {}, "How quickly to update list of vehicles? In seconds", 020, 1000, 100, 20, function(value)
+        refreshIntervalMs = value * 100
+    end)
     local SEATS = {
         [-2] = "Any Available Seat",
         [-1] = "Driver Seat",
@@ -1617,9 +1623,9 @@ local spawned_tows = {}
         return true
     end
     function add_vehicle_to_list(vehicle)
-        if nearbyVehicleMenus[vehicle] then return end
+        if nearbyVehicleMenus[vehicle] then return false end
         -- Ignore destroyed vehicles
-        if ENTITY.GET_ENTITY_HEALTH(vehicle) == 0 then return end
+        if ENTITY.GET_ENTITY_HEALTH(vehicle) == 0 then return false end
         local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
         -- Ignore moving driving ambient vehicles
         if driver > 0 and not PED.IS_PED_A_PLAYER(driver) and ENTITY.GET_ENTITY_SPEED(vehicle) > 0 then
@@ -1653,42 +1659,68 @@ local spawned_tows = {}
             end)
         end
         nearbyVehicleMenus[vehicle] = { menu = vehMenu, prefix = prefix }
+        return true
     end
     function humanReadableNumber(num)
         return tostring(math.floor(num)):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", "")
     end
 
-    -- Constnatly update and re-populate nearby vehicle list:
-    menu.on_tick_in_viewport(nearbyListMenu, function()
+    -- Constantly update and re-populate nearby vehicle list:
+    local lastTime = 0
+    function refresh_nearby_list()
         if not menu.is_open() then
             return
         end
-        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-        local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, true)
-        for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-            add_vehicle_to_list(vehicle)
-        end
-        for vehicle, info in pairs(nearbyVehicleMenus) do
-            if _check_exists(vehicle) then
-                local pos = ENTITY.GET_ENTITY_COORDS(vehicle, true)
-                local dist = SYSTEM.VDIST(my_pos.x, my_pos.y, my_pos.z, pos.x, pos.y, pos.z)
-                -- TODO: Figure out why veh.menu is wrong?
-                menu.set_menu_name(info.menu, string.format("%s - %s meters", info.prefix, humanReadableNumber(dist)))
+        local time = util.current_time_millis()
+        if time - lastTime >= refreshIntervalMs then
+            lastTime = time
+            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, true)
+            local nearbyVehicles = entities.get_all_vehicles_as_handles()
+            --[[for vehicle, info in pairs(nearbyVehicleMenus) do
+                if _check_exists(vehicle) then
+                    local pos = ENTITY.GET_ENTITY_COORDS(vehicle, true)
+                    local dist = SYSTEM.VDIST(my_pos.x, my_pos.y, my_pos.z, pos.x, pos.y, pos.z)
+                    -- TODO: Figure out why veh.menu is wrong?
+                    menu.set_menu_name(info.menu, string.format("%s - %s meters", info.prefix, humanReadableNumber(dist)))
+                end
+            end--]]
+            for _, m in pairs(nearbyVehicleMenus) do
+                menu.delete(m.menu)
+            end
+            nearbyVehicleMenus = {}
+            table.sort(nearbyVehicles, function(a,b)
+                local pos_a = ENTITY.GET_ENTITY_COORDS(a, true)
+                local pos_b = ENTITY.GET_ENTITY_COORDS(b, true)
+                return SYSTEM.VDIST2(my_pos.x, my_pos.y, my_pos.z, pos_b.x, pos_b.y, pos_b.z) > SYSTEM.VDIST2(my_pos.x, my_pos.y, my_pos.z, pos_a.x, pos_a.y, pos_a.z)
+            end)
+
+            for _, vehicle in ipairs(nearbyVehicles) do
+                if add_vehicle_to_list(vehicle) then
+                    menu.on_tick_in_viewport(nearbyVehicleMenus[vehicle].menu, refresh_nearby_list)
+                    menu.on_focus(nearbyVehicleMenus[vehicle].menu, function()
+                        nearbyViewVehicle = vehicle
+                    end)
+                    local pos = ENTITY.GET_ENTITY_COORDS(vehicle, true)
+                    local dist = SYSTEM.VDIST(my_pos.x, my_pos.y, my_pos.z, pos.x, pos.y, pos.z)
+                    -- TODO: Figure out why veh.menu is wrong?
+                    menu.set_menu_name(nearbyVehicleMenus[vehicle].menu, string.format("%s - %s meters", nearbyVehicleMenus[vehicle].prefix, humanReadableNumber(dist)))
+                    -- Reselect focused
+                    if nearbyViewVehicle == vehicle then
+                        menu.focus(nearbyVehicleMenus[vehicle].menu)
+                    end
+                end
             end
         end
-        util.yield(1000)
-        return true
-    end)
-
+    end
+    menu.on_tick_in_viewport(nearbyListMenu, refresh_nearby_list)
+    menu.on_tick_in_viewport(nearbyListRefreshSelect, refresh_nearby_list)
     -- On hover, cleanup:
     menu.on_focus(nearbyListMenu, function(_)
         for _, m in pairs(nearbyVehicleMenus) do
             menu.delete(m.menu)
         end
         nearbyVehicleMenus = {}
-        for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-            add_vehicle_to_list(vehicle)
-        end
     end)
     -- END NEARBY VEHICLES LIST SECTION
 

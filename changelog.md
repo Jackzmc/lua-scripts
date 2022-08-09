@@ -83,6 +83,11 @@ v3.7.0
 * (3.7.11) Fix some lua bugs, updated translations
 * (3.7.12) Update LSC for new wheel types (Thanks hexarobi)
 
+v3.8.0
+* Fix nearby vehicle list not updating live
+* Sort nearby vehicle list by distance to player
+* Add a refresh interval for vehicle list
+
 # actions (v1)
 
 v1.1
@@ -269,3 +274,5 @@ V1.10.0
 V1.11.0
 
 * Added basic backend support for peds ('peds' json array)
+* (1.11.2) Fix errors, crashing with peds
+* (1.11.3) Fix preview peds not being cleared
