@@ -23,8 +23,9 @@
 !lib/translations.lua
 !lib/scaleforms.lua
 !lib/jackzvehiclelib.lua
-!resources/*
-!resources/jackz_actions/*
+
+!resources/
+!resources/jackz_actions/
 !resources/jackz_actions/*
 
 !.vscode/
