@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.20"
+local VERSION = "1.2.21"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
@@ -158,7 +158,7 @@ function show_busyspinner(text)
   HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 -- begin actual plugin code
-local lastTimestamp = os.millis() * 1000 - 10000
+local lastTimestamp = os.millis() - 10000 -- Get last 10 seconds
 local messages = {}
 local user = SOCIALCLUB._SC_GET_NICKNAME() -- don't be annoying.
 local waiting = false
@@ -171,7 +171,7 @@ local bgColor = { r = 0.0, g = 0.0, b = 0.0, a = 0.3 }
 local chatPos = { x = 0.0, y = 0.4 }
 local textOffsetSize = 0.02
 local textSize = 0.5
-local textTime = 40000
+local textTime = 40000 -- 40 seconds
 local keyhash = menu.get_activation_key_hash()
 
 --[[
@@ -245,7 +245,7 @@ table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_TEXT_SIZE_N
   local _, height = directx.get_text_size("Example", textSize)
   textOffsetSize = height
 end))
-table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_MESSAGE_DURATION_NAME"), {"standchatmsgtime"}, _lang.format("DESIGN_MESSAGE_DURATION_DESC"), 15, 120, textTime / 1000, 1, function(time)
+table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_MESSAGE_DURATION_NAME"), {"standchatmsgtime"}, _lang.format("DESIGN_MESSAGE_DURATION_DESC"), 15, 240, textTime / 1000, 1, function(time)
   textTime = time * 1000
 end))
 for _, submenu in ipairs(submenus) do
@@ -354,7 +354,7 @@ end)
 
 while true do
   local i = 0
-  local now = os.millis() * 1000
+  local now = os.millis()
   local width = 0.0
   for a, msg in ipairs(messages) do
     if now - msg.t > textTime then
