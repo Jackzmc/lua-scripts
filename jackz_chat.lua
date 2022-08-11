@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.19"
+local VERSION = "1.2.20"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
@@ -158,7 +158,7 @@ function show_busyspinner(text)
   HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 -- begin actual plugin code
-local lastTimestamp = util.current_unix_time_millis() * 1000 - 10000
+local lastTimestamp = os.millis() * 1000 - 10000
 local messages = {}
 local user = SOCIALCLUB._SC_GET_NICKNAME() -- don't be annoying.
 local waiting = false
@@ -302,7 +302,7 @@ menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME"), { "chat", "c" }, 
       table.insert(messages, {
         u = user,
         c = args:sub(1,100),
-        t = util.current_unix_time_millis() * 1000,
+        t = os.millis() * 1000,
         l = sendChannel
       })
     elseif result == "MAINTENANCE" then
@@ -354,7 +354,7 @@ end)
 
 while true do
   local i = 0
-  local now = util.current_unix_time_millis() * 1000
+  local now = os.millis() * 1000
   local width = 0.0
   for a, msg in ipairs(messages) do
     if now - msg.t > textTime then

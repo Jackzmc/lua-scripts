@@ -1,9 +1,11 @@
 -- Actions
 -- Created By Jackz
+-- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
 local VERSION = "1.9.40"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
+local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -37,6 +39,29 @@ function download_lib_update(lib)
         util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
     end, function(e)
         util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+        util.stop_script()
+    end)
+    async_http.dispatch()
+end
+function download_resources_update(filepath, destOverwritePath)
+    util.toast("/stand/resources/" .. filepath)
+    async_http.init("jackz.me", "/stand/resources/" .. filepath, function(result)
+        if result:startswith("<") then
+            util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
+            util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
+            return
+        end
+        local file = io.open(filesystem.resources_dir() .. destOverwritePath or filepath, "w")
+        if file == nil then
+            util.toast("Could not write resource file for: " .. filepath .. "\nSee logs for details")
+            util.log(string.format("%s: Resource \"%s\" file could not be created.", SCRIPT_NAME, filepath))
+            return
+        end
+        file:write(result:gsub("\r", "") .. "\n")
+        file:close()
+        util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
+    end, function(e)
+        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. filepath .. ")", 10)
         util.stop_script()
     end)
     async_http.dispatch()
@@ -109,6 +134,8 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+menu.divider(metaList, "-- Credits --")
+menu.hyperlink(metaList, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
 
 -- Iterates in consistent order a Key/Value
 function pairsByKeys(t, f)
@@ -130,7 +157,17 @@ function pairsByKeys(t, f)
     return iter
  end
 
-require('actions_data')
+ SCRIPT_SOURCE = "MANUAL"
+require('resources/jackz_actions/actions_data')
+if ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
+    if SCRIPT_SOURCE == "MANUAL" then
+        download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
+        util.toast("Restart script to use updated resource file")
+    else
+        util.log("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
+        util.stop_script()
+    end
+end
 
 -- Messy Globals
 local scenarioCount = 0
@@ -171,8 +208,8 @@ end)
 menu.toggle(menu.my_root(), "Clear Action Immediately", {"clearimmediately"}, "If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.", function(on)
     lclearActionImmediately = on
 end, clearActionImmediately)
-menu.slider(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", 0, 2, affectType, 1, function(value)
-    affectType = value
+menu.list_select(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", { { "Only yourself" }, { "Only NPCs" }, {"Both"} }, 1, function(index)
+    affectType = index - 1
 end)
 function onControllablePress(value)
     if value then
@@ -196,14 +233,17 @@ local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of anim
 menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
 
 
-for key, data in pairsByKeys(SPECIAL_ANIMATIONS) do
-    menu.action(
-        specialAnimationsMenu,
-        data[3] or key,
-        {},
-        string.format("%s %s\nPlay this animation", data[1], data[2]),
-        generateAnimationAction(key, data)
-    )
+for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
+    local catmenu = menu.list(specialAnimationsMenu, category, {})
+    for key, data in pairsByKeys(rows) do
+        menu.action(
+            catmenu,
+            data[3] or key,
+            {"playanim"..key},
+            string.format("%s %s\nPlay this animation\nAnimation Id: %s", data[1], data[2], key),
+            generateAnimationAction(key, data)
+        )
+    end
 end
 
 
@@ -213,12 +253,16 @@ end
 local animLoaded = false
 local animAttachments = {}
 function clear_anim_props()
-    for _, ent in ipairs(animAttachments) do
-        ENTITY.DETACH_ENTITY(ent, false)
+    for ent, shouldDelete in pairs(animAttachments) do
+        if shouldDelete then
+            entities.delete(ent)
+        else
+            ENTITY.DETACH_ENTITY(ent, false)
+        end
     end
 end
 function delete_anim_props()
-    for _, ent in ipairs(animAttachments) do
+    for ent, _ in pairs(animAttachments) do
         entities.delete(ent)
     end
 end
@@ -490,7 +534,7 @@ HUD.BUSYSPINNER_OFF()
 
 local selfSpeechPed = {
     entity = 0,
-    lastUsed = util.current_unix_time_millis(),
+    lastUsed = os.millis(),
     model = util.joaat("a_f_m_bevhills_01")
 }
 -- Messy globals again
@@ -541,7 +585,7 @@ for _, pair in ipairs(SPEECHES) do
                     util.yield(speechDelay)
                 end
             end)
-            selfSpeechPed.lastUsed = util.current_unix_time_millis()
+            selfSpeechPed.lastUsed = os.millis()
             --TODO: implement
         end
         -- Play repeated for self or peds
@@ -561,7 +605,7 @@ for _, pair in ipairs(SPEECHES) do
                     end
                     if selfSpeechPed.entity > 0 and affectType == 0 or affectType == 2 then
                         AUDIO.PLAY_PED_AMBIENT_SPEECH_NATIVE(selfSpeechPed.entity, activeSpeech, speechParam)
-                        selfSpeechPed.lastUsed = util.current_unix_time_millis()
+                        selfSpeechPed.lastUsed = os.millis()
                     end
                     util.yield(speechDelay)
                     return repeatEnabled
@@ -635,7 +679,7 @@ function create_self_speech_ped()
     ENTITY.SET_ENTITY_VISIBLE(ped, false, 0)
     NETWORK._NETWORK_SET_ENTITY_INVISIBLE_TO_NETWORK(ped, true)
     selfSpeechPed.entity = ped
-    selfSpeechPed.lastUsed = util.current_unix_time_millis()
+    selfSpeechPed.lastUsed = os.millis()
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
 end
 -----------------------
@@ -806,6 +850,11 @@ function play_animation(group, anim, doNotAddRecent, data)
         save_favorites()
         util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
     else
+        local props = nil
+        if data.AnimationOptions.Props then
+            props = data.AnimationOptions.Props
+        end
+
         clear_anim_props()
         STREAMING.REQUEST_ANIM_DICT(group)
         while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
@@ -823,15 +872,14 @@ function play_animation(group, anim, doNotAddRecent, data)
             local peds = entities.get_all_peds_as_handles()
             for _, npc in ipairs(peds) do
                 if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
-                    _play_animation(npc, group, anim, flags, duration, data.AnimationOptions.Props)
+                    _play_animation(npc, group, anim, flags, duration, props)
                 end
             end
         end
         -- Play animation on self if enabled:
         if affectType == 0 or affectType == 2 then
-            _play_animation(ped, group, anim, flags, duration, data.AnimationOptions.Props)
+            _play_animation(ped, group, anim, flags, duration, props)
         end
-
         STREAMING.REMOVE_ANIM_DICT(group)
     end
 end
@@ -840,7 +888,6 @@ function _play_animation(ped, group, animation, flags, duration, props)
     if clearActionImmediately then
         TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
     end
-    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
     local pos = ENTITY.GET_ENTITY_COORDS(ped)
     if props ~= nil then
         for _, propData in ipairs(props) do
@@ -851,7 +898,7 @@ function _play_animation(ped, group, animation, flags, duration, props)
                 util.yield()
             end
             local object = entities.create_object(hash, pos)
-            table.insert(animAttachments, object)
+            animAttachments[object] = propData.DeleteOnEnd ~= nil
             ENTITY.ATTACH_ENTITY_TO_ENTITY(
                 object, ped, boneIndex,
                 propData.Placement[1] or 0.0,
@@ -870,6 +917,7 @@ function _play_animation(ped, group, animation, flags, duration, props)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end
+    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
 end
 
 ------------------------------
@@ -924,7 +972,7 @@ util.on_stop(function(_)
 end)
 
 while true do
-    if selfSpeechPed.entity > 0 and util.current_unix_time_millis() - selfSpeechPed.lastUsed > 20 then
+    if selfSpeechPed.entity > 0 and os.millis() - selfSpeechPed.lastUsed > 20 then
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
             entities.delete(selfSpeechPed.entity)
         end
