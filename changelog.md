@@ -161,6 +161,7 @@ v1.10.0
 * Added "Special Animations" with support of some curated animations that include props
 * Changed Action Targets to a list
 * Move a lot of data (scenarios, etc) to separate file
+* (1.10.3) Don't kick players out of vehicle on stop
 
 # jackz chat (v1)
 

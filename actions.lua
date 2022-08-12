@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-local VERSION = "1.10.0"
+local VERSION = "1.10.3"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -956,7 +956,10 @@ util.on_stop(function(_)
     end
     delete_anim_props()
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    TASK.CLEAR_PED_TASKS_IMMEDIATELY(my_ped)
+    -- TODO: Check if playing animation from this script 
+    if not PED.IS_PED_IN_ANY_VEHICLE(my_ped) then
+        TASK.CLEAR_PED_TASKS_IMMEDIATELY(my_ped)
+    end
 end)
 
 while true do
