@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-local VERSION = "1.2.21"
+local VERSION = "1.2.22"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
 --#P:MANUAL_ONLY
@@ -144,6 +144,7 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/271932")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
 if _lang ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(metaList)
@@ -158,7 +159,7 @@ function show_busyspinner(text)
   HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 -- begin actual plugin code
-local lastTimestamp = os.millis() - 10000 -- Get last 10 seconds
+local lastTimestamp = os.unixseconds() - 10000 -- Get last 10 seconds
 local messages = {}
 local user = SOCIALCLUB._SC_GET_NICKNAME() -- don't be annoying.
 local waiting = false
@@ -246,7 +247,7 @@ table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_TEXT_SIZE_N
   textOffsetSize = height
 end))
 table.insert(submenus, menu.slider(optionsMenu, _lang.format("DESIGN_MESSAGE_DURATION_NAME"), {"standchatmsgtime"}, _lang.format("DESIGN_MESSAGE_DURATION_DESC"), 15, 240, textTime / 1000, 1, function(time)
-  textTime = time * 1000
+  textTime = time * 1000 -- convert seconds to ms
 end))
 for _, submenu in ipairs(submenus) do
   menu.on_focus(submenu, function(_)
@@ -302,7 +303,7 @@ menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME"), { "chat", "c" }, 
       table.insert(messages, {
         u = user,
         c = args:sub(1,100),
-        t = os.millis() * 1000,
+        t = os.unixseconds() * 1000,
         l = sendChannel
       })
     elseif result == "MAINTENANCE" then
@@ -354,7 +355,7 @@ end)
 
 while true do
   local i = 0
-  local now = os.millis()
+  local now = os.unixseconds() * 1000
   local width = 0.0
   for a, msg in ipairs(messages) do
     if now - msg.t > textTime then

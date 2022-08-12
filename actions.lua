@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-local VERSION = "1.9.40"
+local VERSION = "1.10.0"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -134,6 +134,7 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
 menu.divider(metaList, "-- Credits --")
 menu.hyperlink(metaList, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
 
@@ -156,15 +157,13 @@ function pairsByKeys(t, f)
     end
     return iter
  end
-
- SCRIPT_SOURCE = "MANUAL"
 require('resources/jackz_actions/actions_data')
 if ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
         download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
         util.toast("Restart script to use updated resource file")
     else
-        util.log("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
+        util.toast("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
         util.stop_script()
     end
 end
@@ -722,7 +721,6 @@ function add_anim_to_recent(group, anim)
     end)
     table.insert(recents, { group, anim, action })
 end
---#P:MANUAl_ONLY
 function download_animation_data()
     local loading = true
     show_busyspinner("Downloading animation data")
@@ -744,7 +742,6 @@ function download_animation_data()
     end
     HUD.BUSYSPINNER_OFF()
 end
---#P:END
 function destroy_animations_data()
     for category, data in pairs(animMenuData) do
         pcall(menu.delete, data.list)
@@ -767,12 +764,7 @@ function setup_animation_list()
     end
     -- Download animation file if does not exist
     if not filesystem.exists(ANIMATIONS_DATA_FILE) then
-        if SCRIPT_SOURCE == "MANUAL" then
-            download_animation_data()
-        else
-            util.toast("Missing animations.txt")
-            util.stop_script()
-        end
+        download_animation_data()
     end
     -- Parse the file
     local isHeaderRead = false
@@ -805,12 +797,8 @@ function setup_animation_list()
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                if SCRIPT_SOURCE == "MANUAL" then
-                    util.toast("Animation data out of date, updating...")
-                    download_animation_data()
-                else
-                    util.toast("animations.txt out of date. Please report this.")
-                end
+                util.toast("Animation data out of date, updating...")
+                download_animation_data()
             end
             isHeaderRead = true
         end

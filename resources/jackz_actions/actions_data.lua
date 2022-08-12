@@ -7,7 +7,7 @@ AnimationFlags = {
    ANIM_FLAG_ENABLE_PLAYER_CONTROL = 32,
    ANIM_FLAG_CANCELABLE = 120
 }
-ANIMATION_DATA_VERSION = "1.1.0"
+ANIMATION_DATA_VERSION = "1.0.0"
 SPECIAL_ANIMATIONS = {
    Interaction = {
        ["handshake"] = {

@@ -156,6 +156,12 @@ v1.9.0
 * (1.9.7) Update cloud url
 * (1.9.8) Fix outdated code prompting lang meta menu
 
+v1.10.0
+
+* Added "Special Animations" with support of some curated animations that include props
+* Changed Action Targets to a list
+* Move a lot of data (scenarios, etc) to separate file
+
 # jackz chat (v1)
 
 V1.1.0
@@ -180,6 +186,8 @@ V1.2.0
 * (1.2.16) Added korean translations (Thanks IceDoomfist)
 * (1.2.17) Updated translations lib
 * (1.2.18) Switched chat server to fix script not working
+* (1.2.21) Fix some deprecated and weird time based bugs
+* (1.2.22) Actually fix it (fixes messages not clearing)
 
 # train control (v1)
 
