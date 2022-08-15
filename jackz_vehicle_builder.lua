@@ -1023,6 +1023,7 @@ end
 
 -- [ ENTITY EDITING HANDLING ]
 function add_entity_to_list(list, handle, name, pos, rot)
+    autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
@@ -1206,7 +1207,14 @@ function load_vehicle_from_file(filename)
     end
 end
 
-function autosave()
+local lastAutosave
+function autosave(onDemand)
+    if onDemand then
+        if lastAutosave - os.seconds() < 5 then
+            return
+        end
+        lastAutosave = os.seconds()
+    end
     local name = string.format("_autosave%d.json", autosaveIndex)
     local success = save_vehicle(name)
     if success then
