@@ -303,3 +303,4 @@ V1.12.0
 * Added ability to clone all entities
 * (1.12.1) Moved preview entity closer and disabled collision
 * (1.12.1) Added more settings for base vehicle
+* (1.12.1) Add an auto save feature

@@ -146,14 +146,19 @@ if _lang ~= nil then
 end
 
 -- [ Begin actual script ]--
+local AUTOSAVE_INTERVAL_SEC = 10 * 60 -- 10 minutes 
+local MAX_AUTOSAVES = 4
+local autosaveNextTime = 0
+local autosaveIndex = 1
 local BUILDER_VERSION = "Jackz Custom Vehicle 1.2.0" -- For version diff warnings
 local builder = nil
 
 ---@param baseHandle Handle
 -- Returns a new builder instance
 function new_builder(baseHandle)
-
+    autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     return { -- All data needed for builder
+        name = nil,
         base = {
             handle = baseHandle,
             visible = true,
@@ -442,6 +447,7 @@ function setup_builder_menus(name)
     end
     mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() end, _destroy_prop_previewer)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as", function(name)
+        builder.name = name
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
         end
@@ -1199,6 +1205,20 @@ function load_vehicle_from_file(filename)
         error("Could not read file '" .. SAVE_DIRECTORY .. "/" .. filename .. "'")
     end
 end
+
+function autosave()
+    local name = string.format("_autosave%d.json", autosaveIndex)
+    local success = save_vehicle(name)
+    if success then
+        util.draw_debug_text("Auto saved %s", name)
+    else
+        util.toast("Auto save has failed")
+    end
+    autosaveIndex = autosaveIndex + 1
+    if autosaveIndex > MAX_AUTOSAVES then
+        autosaveIndex = 0
+    end
+end
 function builder_to_json()
     local objects = {}
     local vehicles = {}
@@ -1239,6 +1259,7 @@ function builder_to_json()
     end
 
     local serialized = {
+        name = builder.name,
         version = BUILDER_VERSION,
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
@@ -1442,7 +1463,7 @@ function dump_table(o)
     else
        return tostring(o)
     end
- end
+end
  
 
 function attach_entity(parent, handle, pos, rot)
@@ -1489,6 +1510,11 @@ util.on_stop(function()
 end)
 
 while true do
+    local seconds = os.seconds()
+    if autosaveNextTime >= seconds then
+        autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
+        autosave()
+    end
     if highlightedHandle ~= nil then
         highlight_object(highlightedHandle)
         show_marker(highlightedHandle, 0)
