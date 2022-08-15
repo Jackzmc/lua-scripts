@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.3.1",
-    LIB_VERSION = "1.1.3",
+    LIB_VERSION = "1.1.4",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -252,9 +252,8 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     end
     if saveData.Extras then
         for x = 1, vehiclelib.MAX_EXTRAS do
-            if saveData.Extras[tostring(x)] or saveData.Extras[x] then -- If true, set to 0 (its flipped for some reason)
-                VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, false)
-            end
+            local state = saveData.Extras[tostring(x)] or saveData.Extras[x]
+            VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, not state)
         end
     end
 

@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-local VERSION = "1.10.3"
+local VERSION = "1.10.8"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -43,6 +43,7 @@ function download_lib_update(lib)
     end)
     async_http.dispatch()
 end
+--#P:END
 function download_resources_update(filepath, destOverwritePath)
     util.toast("/stand/resources/" .. filepath)
     async_http.init("jackz.me", "/stand/resources/" .. filepath, function(result)
@@ -66,7 +67,6 @@ function download_resources_update(filepath, destOverwritePath)
     end)
     async_http.dispatch()
 end
---#P:END
 
 ----------------------------------------------------------------
 -- Version Check
@@ -395,7 +395,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
                     util.yield()
                 end
                 cloud_loading = true
-                async_http.init('jackz.me', '/stand/actions/list?method=dicts&scname=' .. user, function(body)
+                async_http.init('jackz.me', '/stand/cloud/actions/list?method=dicts&scname=' .. user, function(body)
                     cloud_loading = false
                     if body:sub(1, 1) == "<" then
                         cloudvehicle_fetch_error("RATELIMITED")
@@ -464,12 +464,8 @@ end, function(args)
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                if SCRIPT_SOURCE == "MANUAL" then
-                    util.toast("Animation data out of date, updating...")
-                    download_animation_data()
-                else
-                    util.toast("animations.txt out of date. Please report this.")
-                end
+                util.toast("Animation data out of date, updating...")
+                download_animation_data()
             end
             isHeaderRead = true
         end
@@ -809,18 +805,22 @@ end
 function play_animation(group, anim, doNotAddRecent, data)
     local flags = animFlags -- Keep legacy animation flags
     local duration = -1
+    local props
     if data ~= nil then
-        flags = 0
+        flags = AnimationFlags.ANIM_FLAG_NORMAL
         if data.AnimationOptions ~= nil then
             if data.AnimationOptions.Loop then
                 flags = flags | AnimationFlags.ANIM_FLAG_REPEAT
             end
             if data.AnimationOptions.Controllable then
-                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
+                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL | AnimationFlags.ANIM_FLAG_UPPERBODY
             end
             if data.AnimationOptions.EmoteDuration then
                 duration = data.AnimationOptions.EmoteDuration
             end
+        end
+        if data.AnimationOptions and data.AnimationOptions.Props then
+            props = data.AnimationOptions.Props
         end
     end
     if PAD.IS_CONTROL_PRESSED(2, 209) then
@@ -838,10 +838,7 @@ function play_animation(group, anim, doNotAddRecent, data)
         save_favorites()
         util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
     else
-        local props = nil
-        if data.AnimationOptions.Props then
-            props = data.AnimationOptions.Props
-        end
+       
 
         clear_anim_props()
         STREAMING.REQUEST_ANIM_DICT(group)

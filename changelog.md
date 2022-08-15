@@ -84,9 +84,15 @@ v3.7.0
 * (3.7.12) Update LSC for new wheel types (Thanks hexarobi)
 
 v3.8.0
+
 * Fix nearby vehicle list not updating live
 * Sort nearby vehicle list by distance to player
 * Add a refresh interval for vehicle list
+
+v3.9.0
+
+* Allow turning off refresh interval for nearby vehicles
+* Supposedly fix jackzvehiclelib improperly doing extras
 
 # actions (v1)
 
@@ -162,6 +168,10 @@ v1.10.0
 * Changed Action Targets to a list
 * Move a lot of data (scenarios, etc) to separate file
 * (1.10.3) Don't kick players out of vehicle on stop
+* (1.10.4) Fix some special actions erroring
+* (1.10.6) Fix cloud favorites > browse failing
+* (1.10.7) Allow moving during special animations
+* (1.10.8) Auto download animations.txt
 
 # jackz chat (v1)
 
@@ -285,3 +295,11 @@ V1.11.0
 * Added basic backend support for peds ('peds' json array)
 * (1.11.2) Fix errors, crashing with peds
 * (1.11.3) Fix preview peds not being cleared
+
+V1.12.0
+
+* Fix vehicle previews falling through the floor
+* Add ped spawning options
+* Added ability to clone all entities
+* (1.12.1) Moved preview entity closer and disabled collision
+* (1.12.1) Added more settings for base vehicle

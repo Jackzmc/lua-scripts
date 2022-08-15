@@ -4,7 +4,7 @@
 local SCRIPT = "jackz_vehicles"
 local VERSION = "3.8.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.3"
+local VEHICLELIB_TARGET_VERSION = "1.1.4"
 
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
@@ -1604,7 +1604,7 @@ local spawned_tows = {}
     local nearbyListMenu = i18n.menus.list(nearbyMenu, "NEARBY_VEHICLES_LIST", {})
     local refreshIntervalMs = 1000
     local nearbyViewVehicle = 0
-    local nearbyListRefreshSelect = menu.slider_float(nearbyListMenu, "Refresh Interval (seconds)", {}, "How quickly to update list of vehicles? In seconds", 020, 1000, 100, 20, function(value)
+    local nearbyListRefreshSelect = menu.slider_float(nearbyListMenu, "Refresh Interval (seconds)", {}, "How quickly to update list of vehicles? In seconds", 000, 1000, 100, 20, function(value)
         refreshIntervalMs = value * 100
     end)
     local SEATS = {
@@ -1673,7 +1673,7 @@ local spawned_tows = {}
             return
         end
         local time = util.current_time_millis()
-        if time - lastTime >= refreshIntervalMs then
+        if refreshIntervalMs > 0 and time - lastTime >= refreshIntervalMs then
             lastTime = time
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             local my_pos = ENTITY.GET_ENTITY_COORDS(my_ped, true)
