@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.13.3"
+local VERSION = "1.13.4"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -1289,7 +1289,9 @@ function builder_to_json()
         end
     end
 
-    baseSerialized.offset = nil
+    if baseSerialized then
+        baseSerialized.offset = nil
+    end
     
     local serialized = {
         name = builder.name,

@@ -313,3 +313,4 @@ V1.13.0
 * (1.13.2) Fix some bugs
 * (1.13.3) Fix creating entity autosave bug
 * (1.13.3) Fix vehicles/peds being improperly saved
+* (1.13.4) Fix serialization bug
