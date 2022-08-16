@@ -310,4 +310,5 @@ V1.13.0
 * Add an auto save feature
 * Add ability to set a vehicle's author
 * (1.13.1) Fix format version being incorrect
-* (1.13.1)
+* (1.13.2) Fix some bugs
+  
