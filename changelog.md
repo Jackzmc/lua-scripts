@@ -301,6 +301,13 @@ V1.12.0
 * Fix vehicle previews falling through the floor
 * Add ped spawning options
 * Added ability to clone all entities
-* (1.12.1) Moved preview entity closer and disabled collision
-* (1.12.1) Added more settings for base vehicle
-* (1.12.1) Add an auto save feature
+
+V1.13.0
+
+* Moved vehicle preview entity closer and disabled collision
+* Moved custom vehicle preview further
+* Added more settings for base vehicle
+* Add an auto save feature
+* Add ability to set a vehicle's author
+* (1.13.1) Fix format version being incorrect
+* (1.13.1)

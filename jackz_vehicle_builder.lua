@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.12.1"
+local VERSION = "1.13.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -146,12 +146,12 @@ if _lang ~= nil then
 end
 
 -- [ Begin actual script ]--
-local AUTOSAVE_INTERVAL_SEC = 10 * 60 -- 10 minutes 
+local AUTOSAVE_INTERVAL_SEC = 60 * 5 -- 10 minutes 
 local MAX_AUTOSAVES = 4
 local autosaveNextTime = 0
 local autosaveIndex = 1
 local BUILDER_VERSION = "1.2.0" -- For version diff warnings
-local FORMAT_VERSION = "Jackz custom Vehicle " .. BUILDER_VERSION
+local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 
 ---@param baseHandle Handle
@@ -302,6 +302,7 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
+                util.draw_debug_text("dist: " .. preview.isCustomVehicle and 40 or 5)
                 pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
@@ -367,16 +368,20 @@ function _load_saved_list()
 
                 local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
                 local authorText = data.author and (string.format("Vehicle Author: %s\n", data.author)) or ""
-                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s" .. versionText, createdText, authorText),
+                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText),
                     function()
                         clear_menu_table(optionsMenuHandles)
                         local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
+                            lastAutosave = os.seconds()
+                            autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
                             remove_preview_custom()
                             spawn_custom_vehicle(data, false)
                         end)
                         table.insert(optionsMenuHandles, m)
             
                         m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
+                            lastAutosave = os.seconds()
+                            autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
                             import_vehicle_to_builder(data, name:sub(1, -6))
                             menu.focus(builder.entitiesMenuList)
                         end)
@@ -467,7 +472,7 @@ function setup_builder_menus(name)
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
         end
     end, name or "")
-    menu.text_input(mainMenu, "Author", {"savecustomvehicle"}, "Set the author of the vehicle. None is set by default.", function(input)
+    menu.text_input(mainMenu, "Author", {"customvehicleauthor"}, "Set the author of the vehicle. None is set by default.", function(input)
         builder.author = input
         util.toast("Set the vehicle's author to: " .. input)
     end, builder.author or "")
@@ -1234,10 +1239,10 @@ function autosave(onDemand)
         end
         lastAutosave = os.seconds()
     end
-    local name = string.format("_autosave%d.json", autosaveIndex)
+    local name = string.format("_autosave%d", autosaveIndex)
     local success = save_vehicle(name)
     if success then
-        util.draw_debug_text("Auto saved %s", name)
+        util.draw_debug_text("Auto saved " .. name)
     else
         util.toast("Auto save has failed")
     end
@@ -1289,7 +1294,7 @@ function builder_to_json()
         name = builder.name,
         author = builder.author,
         created = os.unixseconds(),
-        version = BUILDER_VERSION,
+        version = FORMAT_VERSION,
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
             data = baseSerialized,
@@ -1328,7 +1333,7 @@ function spawn_vehicle(vehicleData, isPreview)
         util.yield()
     end
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 1.0)
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
     local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
 
     local handle
@@ -1363,7 +1368,7 @@ function spawn_custom_vehicle(data, isPreview)
     if isPreview then
         preview.entity = baseHandle
     end
-    if data.base.data.visible == false then
+    if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
     ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
@@ -1542,7 +1547,7 @@ end)
 
 while true do
     local seconds = os.seconds()
-    if autosaveNextTime >= seconds then
+    if builder ~= nil and seconds >= autosaveNextTime then
         autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
         autosave()
     end
