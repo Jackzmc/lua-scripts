@@ -252,8 +252,8 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     end
     if saveData.Extras then
         for x = 1, vehiclelib.MAX_EXTRAS do
-            local state = saveData.Extras[tostring(x)] or saveData.Extras[x]
-            VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, not state)
+            local state = saveData.Extras[tostring(x)] == true or saveData.Extras[x] == true
+            VEHICLE.SET_VEHICLE_EXTRA(vehicle, x, state and false or true)
         end
     end
 

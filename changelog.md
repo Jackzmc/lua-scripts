@@ -311,4 +311,5 @@ V1.13.0
 * Add ability to set a vehicle's author
 * (1.13.1) Fix format version being incorrect
 * (1.13.2) Fix some bugs
-  
+* (1.13.3) Fix creating entity autosave bug
+* (1.13.3) Fix vehicles/peds being improperly saved

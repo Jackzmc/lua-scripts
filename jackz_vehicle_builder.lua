@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.13.2"
+local VERSION = "1.13.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -303,7 +303,6 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
-                util.draw_debug_text("dist: " .. preview.isCustomVehicle and 40 or 5)
                 pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
@@ -916,10 +915,7 @@ function add_prop_menu(parent, propName)
                 log("Could not create preview for " .. propName .. "(" .. hash .. ")")
                 return
             end
-            preview.entity = entity
-            ENTITY.SET_ENTITY_ALPHA(entity, 150)
-            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
-            create_preview_handler_if_not_exists()
+            set_preview(entity, propName)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
@@ -956,10 +952,7 @@ function add_ped_menu(parent, pedName, displayName)
                 log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
                 return
             end
-            preview.entity = entity
-            ENTITY.SET_ENTITY_ALPHA(entity, 150)
-            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
-            create_preview_handler_if_not_exists()
+            set_preview(entity, pedName)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
@@ -1000,10 +993,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
             if entity == 0 then
                 return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
             end
-            preview.entity = entity
-            create_preview_handler_if_not_exists()
-            ENTITY.SET_ENTITY_ALPHA(entity, 150)
-            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
+            set_preview(entity, vehicleID)
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
@@ -1011,6 +1001,14 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
 end
 --[ Previewer Stuff ]--
 
+function set_preview(entity, id)
+    preview.entity = entity
+    preview.id = id
+    create_preview_handler_if_not_exists()
+    ENTITY.SET_ENTITY_ALPHA(entity, 150)
+    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
+    ENTITY.SET_ENTITY_INVINCIBLE(entity, true)
+end
 function remove_preview_custom()
     if preview.entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
         for _, entity in ipairs(entities.get_all_objects_as_handles()) do
@@ -1053,21 +1051,21 @@ function add_entity_to_list(list, handle, name, pos, rot)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
     local type = "OBJECT"
-    if STREAMING.IS_MODEL_A_VEHICLE(model) then
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         type = "VEHICLE"
-    elseif STREAMING.IS_MODEL_A_PED(model) then
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
         type = "PED"
     end
     builder.entities[handle] = {
         name = name or "(no name)",
-        type,
+        type = type,
         model = model,
         list = nil,
         listMenus = {},
         pos = pos or { x = 0.0, y = 0.0, z = 0.0 },
         rot = rot or { x = 0.0, y = 0.0, z = 0.0 },
         visible = true,
-        godmode = STREAMING.IS_MODEL_A_VEHICLE(model) and true or nil
+        godmode = (type ~= "OBJECT") and true or nil
     }
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot)
     builder.entities[handle].list = menu.list(
@@ -1232,7 +1230,7 @@ function load_vehicle_from_file(filename)
     end
 end
 
-local lastAutosave
+local lastAutosave = os.seconds()
 function autosave(onDemand)
     if onDemand then
         if lastAutosave - os.seconds() < 5 then
@@ -1291,6 +1289,8 @@ function builder_to_json()
         end
     end
 
+    baseSerialized.offset = nil
+    
     local serialized = {
         name = builder.name,
         author = builder.author,
@@ -1367,7 +1367,7 @@ function spawn_custom_vehicle(data, isPreview)
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
     if isPreview then
-        preview.entity = baseHandle
+        set_preview(baseHandle, "_base")
     end
     if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
