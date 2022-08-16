@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.13.4"
+local VERSION = "1.14.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -283,6 +283,8 @@ end
 local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
 local PEDS_PATH = join_path(filesystem.resources_dir(), "peds.txt")
 local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
+local AUTOSAVE_DIRECTORY = join_path(SAVE_DIRECTORY, "autosaves")
+local DOWNLOADS_DIRECTORY = join_path(SAVE_DIRECTORY, "downloads")
 if not filesystem.exists(PROPS_PATH) then
     util.toast("jackz_vehicle_builder: objects.txt in resources folder does not exist. Please properly install this script.", TOAST_ALL)
     util.log("Resources directory: ".. PROPS_PATH)
@@ -292,12 +294,16 @@ if not filesystem.exists(PEDS_PATH) then
     util.log(SCRIPT_NAME .. ": Downloading resource update for peds.txt")
     download_resources_update("peds.txt")
 end
+if not filesystem.exists(AUTOSAVE_DIRECTORY) then
+    io.makedir(AUTOSAVE_DIRECTORY)
+end
 
 function create_preview_handler_if_not_exists()
     if preview.thread == nil then
         preview.thread = util.create_thread(function()
             local heading = 0
             while preview.entity ~= 0 do
+                util.draw_debug_text("PREVIEWER ACTIVE " .. preview.entity)
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 heading = heading + 2
                 if heading == 360 then
@@ -306,8 +312,6 @@ function create_preview_handler_if_not_exists()
                 pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
-                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(preview.entity, true, false)
-                CAM._DISABLE_CAM_COLLISION_FOR_ENTITY(preview.entity)
 
                 util.yield(15)
             end
@@ -320,103 +324,366 @@ function clear_menu_table(t)
         t[k] = nil
     end
 end
+function pairsByKeys(t, f)
+    local a = {}
+    for n in pairs(t) do
+       table.insert(a, n)
+    end
+    table.sort(a, f)
+    local i = 0 -- iterator variable
+    local iter = function()
+        -- iterator function
+        i = i + 1
+        if a[i] == nil then
+            return nil
+        else
+            return a[i], t[a[i]]
+        end
+    end
+    return iter
+end
+local cloudData = {}
+local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Vehicles", {}, "Browse & upload custom built vehicles", function() _fetch_cloud_users() end, function() 
+    for _, data in pairs(cloudData) do
+        menu.delete(data.parentList)
+    end
+    cloudData = {}
+end)
+local cloudSearchList = menu.list(cloudRootMenuList, "Search Vehicles", {}, "Search all uploaded custom vehicles")
+local cloudSearchResults = {}
+local cloudQuery = menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
+    show_busyspinner("Searching vehicles...")
+    for _, data in pairs(cloudSearchResults) do
+        menu.delete(data.list)
+    end
+    cloudSearchResults = {}
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body)
+        HUD.BUSYSPINNER_OFF()
+        if body[1] == "{" then
+            local results = json.decode(body).results
+            for _, vehicle in ipairs(results) do
+                
+                local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader)
+                local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
+                    _setup_cloud_vehicle_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name)
+                end)
+                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
+                    list = vehicleList,
+                    data = nil
+                }
+                menu.on_focus(vehicleList, function()
+                    _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
+                end)
+            end
+        else
+            log("invalid server response : " .. body, "_fetch_cloud_users")
+            util.toast("Server returned invalid response")
+        end
+    end)
+    async_http.dispatch()
+end)
+menu.divider(cloudRootMenuList, "Users")
+function _fetch_cloud_users()
+    show_busyspinner("Fetching cloud data...")
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body)
+        HUD.BUSYSPINNER_OFF()
+        if body[1] == "{" then
+            cloudData = json.decode(body).users
+            for user, vehicles in pairsByKeys(cloudData) do
+                local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d vehicles", #vehicles), function()
+                    _load_cloud_vehicles(user)
+                end, function()
+                    cloudData[user].vehicleData = {}
+                end)
+                cloudData[user] = {
+                    vehicles = vehicles,
+                    vehicleData = {},
+                    parentList = userList
+                }
+            end
+        else
+            log("invalid server response : " .. body, "_fetch_cloud_users")
+            util.toast("Server returned invalid response")
+        end
+    end)
+    async_http.dispatch()
+end
+function _load_cloud_vehicles(user) 
+    if not cloudData[user] then
+        util.toast("Error: Missing cloud data for user " .. user)
+    else
+        clear_menu_table(cloudData[user].vehicleMenuIds)
+        for _, vehicle in ipairs(cloudData[user].vehicles) do
+            local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.author)
+            local vehicleMenuRoot
+            vehicleMenuRoot = menu.list(cloudData[user].parentList, vehicle.name, {}, description or "<invalid vehicle metadata>", function()
+                _setup_cloud_vehicle_menu(vehicleMenuRoot, user, vehicle.name, cloudData[user].vehicles[vehicle.name])
+            end)
+            menu.on_focus(vehicleMenuRoot, function()
+                _fetch_vehicle_data(cloudData[user].vehicles[vehicle.name], user, vehicle.name)
+            end)
+
+            table.insert(cloudData[user].vehicleMenuIds, vehicleMenuRoot)
+
+        end
+    end
+end
+function _fetch_vehicle_data(table, user, vehicleName)
+    show_busyspinner("Fetching vehicle info...")
+    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
+        HUD.BUSYSPINNER_OFF()
+        if body[1] == "{" then
+            remove_preview_custom()
+            table = json.decode(body).vehicle
+            spawn_custom_vehicle(table, true)
+        else
+            log("invalid server response : " .. body, "_fetch_cloud_users")
+            util.toast("Server returned invalid response")
+        end
+    end)
+    async_http.dispatch()
+end
+function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
+    if not vehicleData then
+        util.toast("race condition")
+    end
+    menu.action(rootList, "Spawn", {}, "", function()
+        remove_preview_custom()
+        spawn_custom_vehicle(vehicleData, false)
+    end)
+
+    menu.action(rootList, "Edit", {}, "", function()
+        import_vehicle_to_builder(vehicleData, vehicleName)
+        menu.focus(builder.entitiesMenuList)
+    end)
+    menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
+        if not filesystem.exists(DOWNLOADS_DIRECTORY) then
+            filesystem.mkdir(DOWNLOADS_DIRECTORY)
+        end
+        local file = io.open(join_path(DOWNLOADS_DIRECTORY, filename), "w")
+        if file then
+            file:write(json.encode(vehicleData))
+            file:flush()
+            file:close()
+            util.toast(string.format("Downloaded %s to downloads directory", vehicleName))
+        else
+            util.toast("Could download file")
+        end
+    end, vehicleName .. ".json")
+end
 --[ SAVED VEHICLES LIST ]
 local savedVehicleList = menu.list(menu.my_root(), "Saved Custom Vehicles", {}, "",
     function() _load_saved_list() end,
     function() _destroy_saved_list() end
 )
+local folderLists = {}
 local xmlMenusHandles = {}
 local spawnInVehicle = true
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle", function(on)
     spawnInVehicle = on
 end, spawnInVehicle)
 local xmlList = menu.list(savedVehicleList, "Convert XML Vehicles", {}, "Convert XML vehicle (including menyoo) to a compatible format")
-menu.divider(savedVehicleList, "Vehicles")
+menu.divider(savedVehicleList, "Folders")
 local optionsMenuHandles = {}
 local optionParentMenus = {}
+
+function _load_vehicles_from_dir(parentList, directory)
+    local queue = {} -- Queue non-folders so folders show first
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+        if filesystem.is_dir(filepath) then
+            local folderList = menu.list(parentList, filename, {}, "")
+            _load_vehicles_from_dir(folderList, filepath)
+            table.insert(folderLists, folderList)
+        else
+            if ext == "json" then
+                table.insert(queue, function() _setup_spawn_list_entry(parentList, filepath) end)
+            elseif ext == "xml" then
+                filename = filename:sub(1, -5)
+                local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
+                xmlMenusHandles[filename] = menu.action(xmlList, filename, {}, "Click to convert to a compatible format.", function()
+                    if filesystem.exists(newPath) then
+                        menu.show_warning(xmlMenusHandles[filename], CLICK_COMMAND, "This file already exists, do you want to overwrite " .. filename .. ".json?", function() 
+                            convert_file(filename, filename, newPath)
+                        end)
+                        return
+                    end
+                    convert_file(filename, filename, newPath)
+                end)
+            end
+        end
+    end
+    table.insert(folderLists, menu.divider(parentList, "Vehicles"))
+    for _, queueFunc in ipairs(queue) do
+        queueFunc()
+    end
+end
+function _format_vehicle_info(version, timestamp, author)
+    local versionText
+    if version then
+        local m = {}
+        for match in version:gmatch("([^%s]+)") do
+            table.insert(m, match)
+        end
+        local fileVersion = m[#m]
+        local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
+        if versionDiff == 1 then
+            versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
+        elseif versionDiff == -1 then
+            versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
+        else
+            versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
+        end
+
+        local createdText = timestamp and (os.date("%Y-%m-%d at %X", timestamp) .. " UTC") or "-unknown-"
+        local authorText = author and (string.format("Vehicle Author: %s\n", author)) or ""
+
+        return string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText)
+    else
+        return nil
+    end
+end
+function _setup_spawn_list_entry(parentList, filepath)
+    local _, filename = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+    local status, data = pcall(get_vehicle_data_from_file, filepath)
+    if status and data ~= nil then
+        if not data.base or not data.objects then
+            log("Skipping invalid vehicle: " .. filepath)
+            return
+        end
+        
+        local description = _format_vehicle_info(data.version, data.created, data.author)
+
+        optionParentMenus[filepath] = menu.list(parentList, filename, {}, description or "<INVALID METADATA>",
+            function()
+                clear_menu_table(optionsMenuHandles)
+                local m = menu.action(optionParentMenus[filepath], "Spawn", {}, "", function()
+                    lastAutosave = os.seconds()
+                    autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
+                    remove_preview_custom()
+                    spawn_custom_vehicle(data, false)
+                end)
+                table.insert(optionsMenuHandles, m)
+    
+                m = menu.action(optionParentMenus[filepath], "Edit", {}, "", function()
+                    lastAutosave = os.seconds()
+                    autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
+                    import_vehicle_to_builder(data, filename:sub(1, -6))
+                    menu.focus(builder.entitiesMenuList)
+                end)
+                table.insert(optionsMenuHandles, m)
+
+                m = menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
+                    util.toast("<not implemented>")
+                end)
+                table.insert(optionsMenuHandles, m)
+            end,
+            function() _destroy_options_menu() end
+        )
+        
+        -- Spawn custom vehicle handler
+        menu.on_focus(optionParentMenus[filepath], function()
+            if preview.id ~= filename then
+                remove_preview_custom()
+                preview.id = filename
+                spawn_custom_vehicle(data, true)
+                create_preview_handler_if_not_exists()
+            end
+        end)
+    else
+        log(string.format("Skipping vehicle \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
+    end
+end
 function _load_saved_list()
     remove_preview_custom()
     clear_menu_table(optionParentMenus)
     clear_menu_table(xmlMenusHandles)
-    for _, path in ipairs(filesystem.list_files(SAVE_DIRECTORY)) do
-        local _, name, ext = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
-        if ext == "json" then
-            local status, data = pcall(load_vehicle_from_file, name)
-            if status and data ~= nil then
-                local versionText = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
-                if data.version then
-                    local m = {}
-                    for match in data.version:gmatch("([^%s]+)") do
-                        table.insert(m, match)
-                    end
-                    local fileVersion = m[#m]
-                    local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
-                    if versionDiff == 1 then
-                        versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
-                    elseif versionDiff == -1 then
-                        versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
-                    else
-                        versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
-                    end
-                else
-                    log("Vehicle has no version" .. name)
-                end
-                if not data.base or not data.objects then
-                    log("Skipping invalid vehicle: " .. name)
-                    return
-                end
-
-                local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
-                local authorText = data.author and (string.format("Vehicle Author: %s\n", data.author)) or ""
-                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText),
-                    function()
-                        clear_menu_table(optionsMenuHandles)
-                        local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
-                            lastAutosave = os.seconds()
-                            autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
-                            remove_preview_custom()
-                            spawn_custom_vehicle(data, false)
-                        end)
-                        table.insert(optionsMenuHandles, m)
-            
-                        m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
-                            lastAutosave = os.seconds()
-                            autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
-                            import_vehicle_to_builder(data, name:sub(1, -6))
-                            menu.focus(builder.entitiesMenuList)
-                        end)
-                        table.insert(optionsMenuHandles, m)
-                    end,
-                    function() _destroy_options_menu() end
-                )
-                
-                -- Spawn custom vehicle handler
-                menu.on_focus(optionParentMenus[name], function()
-                    if preview.id ~= name then
-                        remove_preview_custom()
-                        preview.id = name
-                        spawn_custom_vehicle(data, true)
-                        create_preview_handler_if_not_exists()
-                    end
-                end)
-            else
-                util.log("Ignoring invalid vehicle '" .. name .. "': " .. (data or "<EMPTY FILE>"), TOAST_ALL)
-            end
-        elseif ext == "xml" then
-            local filename = name:sub(1, -5)
-            local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
-            xmlMenusHandles[name] = menu.action(xmlList, name, {}, "Click to convert to a compatible format.", function()
-                if filesystem.exists(newPath) then
-                    menu.show_warning(xmlMenusHandles[name], CLICK_COMMAND, "This file already exists, do you want to overwrite " .. filename .. ".json?", function() 
-                        convert_file(path, filename, newPath)
-                    end)
-                    return
-                end
-                convert_file(path, filename, newPath)
-            end)
-        end
-    end
+    clear_menu_table(folderLists)
+    _load_vehicles_from_dir(savedVehicleList, SAVE_DIRECTORY)
 end
+-- function _load_saved_list(dir)
+--     remove_preview_custom()
+--     clear_menu_table(optionParentMenus)
+--     clear_menu_table(xmlMenusHandles)
+--     for _, path in ipairs(filesystem.list_files(SAVE_DIRECTORY)) do
+--         local _, name, ext = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+--         if ext == "json" then
+--             local status, data = pcall(get_vehicle_data_from_file, name)
+--             if status and data ~= nil then
+--                 local versionText = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
+--                 if data.version then
+--                     local m = {}
+--                     for match in data.version:gmatch("([^%s]+)") do
+--                         table.insert(m, match)
+--                     end
+--                     local fileVersion = m[#m]
+--                     local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
+--                     if versionDiff == 1 then
+--                         versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
+--                     elseif versionDiff == -1 then
+--                         versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
+--                     else
+--                         versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
+--                     end
+--                 else
+--                     log("Vehicle has no version" .. name)
+--                 end
+--                 if not data.base or not data.objects then
+--                     log("Skipping invalid vehicle: " .. name)
+--                     return
+--                 end
+
+--                 local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
+--                 local authorText = data.author and (string.format("Vehicle Author: %s\n", data.author)) or ""
+--                 optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText),
+--                     function()
+--                         clear_menu_table(optionsMenuHandles)
+--                         local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
+--                             lastAutosave = os.seconds()
+--                             autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
+--                             remove_preview_custom()
+--                             spawn_custom_vehicle(data, false)
+--                         end)
+--                         table.insert(optionsMenuHandles, m)
+            
+--                         m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
+--                             lastAutosave = os.seconds()
+--                             autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
+--                             import_vehicle_to_builder(data, name:sub(1, -6))
+--                             menu.focus(builder.entitiesMenuList)
+--                         end)
+--                         table.insert(optionsMenuHandles, m)
+--                     end,
+--                     function() _destroy_options_menu() end
+--                 )
+                
+--                 -- Spawn custom vehicle handler
+--                 menu.on_focus(optionParentMenus[name], function()
+--                     if preview.id ~= name then
+--                         remove_preview_custom()
+--                         preview.id = name
+--                         spawn_custom_vehicle(data, true)
+--                         create_preview_handler_if_not_exists()
+--                     end
+--                 end)
+--             else
+--                 util.log("Ignoring invalid vehicle '" .. name .. "': " .. (data or "<EMPTY FILE>"), TOAST_ALL)
+--             end
+--         elseif ext == "xml" then
+--             local filename = name:sub(1, -5)
+--             local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
+--             xmlMenusHandles[name] = menu.action(xmlList, name, {}, "Click to convert to a compatible format.", function()
+--                 if filesystem.exists(newPath) then
+--                     menu.show_warning(xmlMenusHandles[name], CLICK_COMMAND, "This file already exists, do you want to overwrite " .. filename .. ".json?", function() 
+--                         convert_file(path, filename, newPath)
+--                     end)
+--                     return
+--                 end
+--                 convert_file(path, filename, newPath)
+--             end)
+--         end
+--     end
+-- end
 function convert_file(path, name, newPath)
     local file = io.open(path, "r")
     show_busyspinner("Converting " .. name)
@@ -1008,6 +1275,12 @@ function set_preview(entity, id)
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
     ENTITY.SET_ENTITY_INVINCIBLE(entity, true)
+    ENTITY.SET_ENTITY_ALPHA(entity, 150)
+    ENTITY.SET_ENTITY_HAS_GRAVITY(entity, false)
+    if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
+        VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(entity)
+        VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
+    end
 end
 function remove_preview_custom()
     if preview.entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
@@ -1190,9 +1463,12 @@ function create_entity_section(tableref, handle, options)
 end
 
 --[ Save Data ]
-function save_vehicle(saveName)
-    filesystem.mkdirs(SAVE_DIRECTORY)
-    local file = io.open(SAVE_DIRECTORY .. "/" .. saveName .. ".json", "w")
+function save_vehicle(saveName, folder)
+    if not folder then
+        folder = SAVE_DIRECTORY
+    end
+    filesystem.mkdirs(folder)
+    local file = io.open(folder .. "/" .. saveName .. ".json", "w")
     if file then
         local data = builder_to_json()
         if data then
@@ -1207,15 +1483,15 @@ function save_vehicle(saveName)
         error("Could not create file ' " .. saveName .. ".json'")
     end
 end
-function load_vehicle_from_file(filename)
-    local file = io.open(SAVE_DIRECTORY .. "/" .. filename, "r")
+function get_vehicle_data_from_file(filepath)
+    local file = io.open(filepath, "r")
     if file then
         local data = json.decode(file:read("*a"))
         if data.Format then
-            log("Ignoring jackz_vehicles vehicle \"" .. filename .. "\": Use jackz_vehicles to spawn", "load_vehicle_from_file")
+            log("Ignoring jackz_vehicles vehicle \"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_vehicle_from_file")
             return nil
         elseif not data.version then
-            log("Ignoring invalid vehicle (no version meta) \"" .. filename .. "\"", "load_vehicle_from_file")
+            log("Ignoring invalid vehicle (no version meta) \"" .. filepath .. "\"", "load_vehicle_from_file")
             return nil
         else
             if data.base.visible == nil then
@@ -1226,7 +1502,7 @@ function load_vehicle_from_file(filename)
         file:close()
         return data
     else
-        error("Could not read file '" .. SAVE_DIRECTORY .. "/" .. filename .. "'")
+        error("Could not read file '" .. filepath .. "'")
     end
 end
 
@@ -1239,7 +1515,7 @@ function autosave(onDemand)
         lastAutosave = os.seconds()
     end
     local name = string.format("_autosave%d", autosaveIndex)
-    local success = save_vehicle(name)
+    local success = save_vehicle(name, AUTOSAVE_DIRECTORY)
     if success then
         util.draw_debug_text("Auto saved " .. name)
     else
@@ -1342,12 +1618,7 @@ function spawn_vehicle(vehicleData, isPreview)
     local handle
     if isPreview then
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
-        ENTITY.SET_ENTITY_ALPHA(handle, 150)
-        ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
-        VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(handle)
-        VEHICLE.SET_VEHICLE_GRAVITY(handle, false)
-        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(handle, false, false)
-        create_preview_handler_if_not_exists()
+        set_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         if vehicleData.visible == false then

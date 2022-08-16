@@ -122,3 +122,8 @@ V1.13.0
 * (1.13.3) Fix creating entity autosave bug
 * (1.13.3) Fix vehicles/peds being improperly saved
 * (1.13.4) Fix serialization bug
+
+V1.14.0
+
+* Added support for nested folders
+* Move autosaves to dedicated autosaves folder
