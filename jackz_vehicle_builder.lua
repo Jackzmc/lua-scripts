@@ -150,7 +150,8 @@ local AUTOSAVE_INTERVAL_SEC = 10 * 60 -- 10 minutes
 local MAX_AUTOSAVES = 4
 local autosaveNextTime = 0
 local autosaveIndex = 1
-local BUILDER_VERSION = "Jackz Custom Vehicle 1.2.0" -- For version diff warnings
+local BUILDER_VERSION = "1.2.0" -- For version diff warnings
+local FORMAT_VERSION = "Jackz custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 
 ---@param baseHandle Handle
@@ -340,19 +341,31 @@ function _load_saved_list()
         if ext == "json" then
             local status, data = pcall(load_vehicle_from_file, name)
             if status and data ~= nil then
-                local versionDiff
+                local versionText = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
                 if data.version then
-                    versionDiff = (data.version == BUILDER_VERSION) and ("Latest (" .. BUILDER_VERSION .. ")") or data.version
+                    local m = {}
+                    for match in data.version:gmatch("([^%s]+)") do
+                        table.insert(m, match)
+                    end
+                    local fileVersion = m[#m]
+                    local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
+                    if versionDiff == 1 then
+                        versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
+                    elseif versionDiff == -1 then
+                        versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
+                    else
+                        versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
+                    end
                 else
                     log("Vehicle has no version" .. name)
-                    versionDiff = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
                 end
                 if not data.base or not data.objects then
-                    log("Not adding invalid vehicle: " .. name)
+                    log("Skipping invalid vehicle: " .. name)
                     return
                 end
 
-                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, "Format Version: " .. versionDiff,
+                local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
+                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s" .. versionText, createdText),
                     function()
                         clear_menu_table(optionsMenuHandles)
                         local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
@@ -1268,6 +1281,7 @@ function builder_to_json()
 
     local serialized = {
         name = builder.name,
+        created = os.unixseconds(),
         version = BUILDER_VERSION,
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
