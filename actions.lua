@@ -135,6 +135,7 @@ menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/265763")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
 menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
+menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 menu.divider(metaList, "-- Credits --")
 menu.hyperlink(metaList, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
 

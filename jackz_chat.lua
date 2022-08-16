@@ -145,6 +145,7 @@ menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/271932")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
 menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
+menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 if _lang ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(metaList)
