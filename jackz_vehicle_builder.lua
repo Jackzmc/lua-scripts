@@ -160,6 +160,7 @@ function new_builder(baseHandle)
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     return { -- All data needed for builder
         name = nil,
+        author = nil,
         base = {
             handle = baseHandle,
             visible = true,
@@ -365,7 +366,8 @@ function _load_saved_list()
                 end
 
                 local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
-                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s" .. versionText, createdText),
+                local authorText = data.author and (string.format("Vehicle Author: %s\n", data.author)) or ""
+                optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s" .. versionText, createdText, authorText),
                     function()
                         clear_menu_table(optionsMenuHandles)
                         local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
@@ -465,6 +467,10 @@ function setup_builder_menus(name)
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
         end
     end, name or "")
+    menu.text_input(mainMenu, "Author", {"savecustomvehicle"}, "Set the author of the vehicle. None is set by default.", function(input)
+        builder.author = input
+        util.toast("Set the vehicle's author to: " .. input)
+    end, builder.author or "")
 
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "")
     menu.on_focus(builder.entitiesMenuList, function() highlightedHandle = nil end)
@@ -1281,6 +1287,7 @@ function builder_to_json()
 
     local serialized = {
         name = builder.name,
+        author = builder.author,
         created = os.unixseconds(),
         version = BUILDER_VERSION,
         base = {
@@ -1307,7 +1314,9 @@ end
 function import_vehicle_to_builder(data, name)
     local baseHandle = spawn_vehicle(data.base)
     builder = new_builder(baseHandle)
-    builder.base.visible = data.base.visible or builder.base.visible
+    builder.name = name
+    builder.author = data.author
+    builder.base.data = data.base.data
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
     setup_builder_menus(name)
