@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.14.0"
+local VERSION = "1.15.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -324,6 +324,12 @@ function clear_menu_table(t)
         t[k] = nil
     end
 end
+function clear_menu_array(t)
+    for _, h in ipairs(t) do
+        pcall(menu.delete, h)
+    end
+    t = {}
+end
 function pairsByKeys(t, f)
     local a = {}
     for n in pairs(t) do
@@ -351,7 +357,7 @@ local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Vehicles", {}, "Brows
 end)
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Vehicles", {}, "Search all uploaded custom vehicles")
 local cloudSearchResults = {}
-local cloudQuery = menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
+menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
     show_busyspinner("Searching vehicles...")
     for _, data in pairs(cloudSearchResults) do
         menu.delete(data.list)
@@ -364,13 +370,14 @@ local cloudQuery = menu.text_input(cloudSearchList, "Search", {"customvehiclesea
             for _, vehicle in ipairs(results) do
                 
                 local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader)
-                local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
-                    _setup_cloud_vehicle_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name)
-                end)
                 cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
-                    list = vehicleList,
+                    list = nil,
                     data = nil
                 }
+                local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
+                    _setup_cloud_vehicle_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
+                end)
+                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
                 menu.on_focus(vehicleList, function()
                     _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
                 end)
@@ -398,7 +405,8 @@ function _fetch_cloud_users()
                 cloudData[user] = {
                     vehicles = vehicles,
                     vehicleData = {},
-                    parentList = userList
+                    parentList = userList,
+                    vehicleMenuIds = {}
                 }
             end
         else
@@ -412,10 +420,11 @@ function _load_cloud_vehicles(user)
     if not cloudData[user] then
         util.toast("Error: Missing cloud data for user " .. user)
     else
-        clear_menu_table(cloudData[user].vehicleMenuIds)
+        clear_menu_array(cloudData[user].vehicleMenuIds)
         for _, vehicle in ipairs(cloudData[user].vehicles) do
             local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.author)
             local vehicleMenuRoot
+            cloudData[user].vehicles[vehicle.name] = {}
             vehicleMenuRoot = menu.list(cloudData[user].parentList, vehicle.name, {}, description or "<invalid vehicle metadata>", function()
                 _setup_cloud_vehicle_menu(vehicleMenuRoot, user, vehicle.name, cloudData[user].vehicles[vehicle.name])
             end)
@@ -428,14 +437,14 @@ function _load_cloud_vehicles(user)
         end
     end
 end
-function _fetch_vehicle_data(table, user, vehicleName)
+function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching vehicle info...")
     async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             remove_preview_custom()
-            table = json.decode(body).vehicle
-            spawn_custom_vehicle(table, true)
+            tableref['vehicle'] = json.decode(body).vehicle
+            spawn_custom_vehicle(tableref['vehicle'], true)
         else
             log("invalid server response : " .. body, "_fetch_cloud_users")
             util.toast("Server returned invalid response")
@@ -444,16 +453,23 @@ function _fetch_vehicle_data(table, user, vehicleName)
     async_http.dispatch()
 end
 function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
-    if not vehicleData then
+    local tries = 0
+    if not vehicleData['vehicle'] then
         util.toast("race condition")
     end
+    log(dump_table(vehicleData['vehicle']))
+    while not vehicleData and tries < 30 do
+        util.yield(500)
+        tries = tries + 1
+    end
+    if tries == 30 then return end
     menu.action(rootList, "Spawn", {}, "", function()
         remove_preview_custom()
-        spawn_custom_vehicle(vehicleData, false)
+        spawn_custom_vehicle(vehicleData['vehicle'], false)
     end)
 
     menu.action(rootList, "Edit", {}, "", function()
-        import_vehicle_to_builder(vehicleData, vehicleName)
+        import_vehicle_to_builder(vehicleData['vehicle'], vehicleName)
         menu.focus(builder.entitiesMenuList)
     end)
     menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
@@ -462,7 +478,7 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
         end
         local file = io.open(join_path(DOWNLOADS_DIRECTORY, filename), "w")
         if file then
-            file:write(json.encode(vehicleData))
+            file:write(json.encode(vehicleData['vehicle']))
             file:flush()
             file:close()
             util.toast(string.format("Downloaded %s to downloads directory", vehicleName))
@@ -574,7 +590,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                 table.insert(optionsMenuHandles, m)
 
                 m = menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
-                    util.toast("<not implemented>")
+                    upload_vehicle(filename, data)
                 end)
                 table.insert(optionsMenuHandles, m)
             end,
@@ -737,6 +753,17 @@ function setup_builder_menus(name)
         builder.name = name
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
+        end
+    end, name or "")
+    local uploadMenu
+    uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
+        builder.name = name
+        if not builder.author then
+            menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set", function()
+                upload_vehicle(name, builder_to_json())
+            end)
+        else
+            upload_vehicle(name, builder_to_json())
         end
     end, name or "")
     menu.text_input(mainMenu, "Author", {"customvehicleauthor"}, "Set the author of the vehicle. None is set by default.", function(input)
@@ -1482,6 +1509,17 @@ function save_vehicle(saveName, folder)
     else
         error("Could not create file ' " .. saveName .. ".json'")
     end
+end
+function upload_vehicle(name, data)
+    show_busyspinner("Uploading vehicle")
+    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s", SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()), function()
+        HUD.BUSYSPINNER_OFF()
+        util.toast("Successfully uploaded vehicle")
+    end, function()
+        util.toast("Failed to upload your vehicle (" .. name .. ")")
+    end)
+    async_http.set_post("application/json", json.encode(data))
+    async_http.dispatch()
 end
 function get_vehicle_data_from_file(filepath)
     local file = io.open(filepath, "r")

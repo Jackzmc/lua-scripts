@@ -127,3 +127,7 @@ V1.14.0
 
 * Added support for nested folders
 * Move autosaves to dedicated autosaves folder
+
+V1.15.0
+
+* Added cloud vehicles
