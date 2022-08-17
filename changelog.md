@@ -131,3 +131,8 @@ V1.14.0
 V1.15.0
 
 * Added cloud vehicles
+* (1.15.1) Fix double extension bug
+* (1.15.2) Fix preview issue
+* (1.15.2) Add rating system
+* (1.15.3) Fix broken uploading (double encoded json)
+* (1.15.3) Fix name being incorrect (lua sucks)

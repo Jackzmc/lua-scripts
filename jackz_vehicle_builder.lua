@@ -2,8 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.15.0"
-local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
+local VERSION = "1.15.23ON = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
 ---@alias MenuHandle number
@@ -303,7 +302,7 @@ function create_preview_handler_if_not_exists()
         preview.thread = util.create_thread(function()
             local heading = 0
             while preview.entity ~= 0 do
-                util.draw_debug_text("PREVIEWER ACTIVE " .. preview.entity)
+                -- util.draw_debug_text("PREVIEWER ACTIVE " .. preview.entity)
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 heading = heading + 2
                 if heading == 360 then
@@ -369,7 +368,7 @@ menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a sea
             local results = json.decode(body).results
             for _, vehicle in ipairs(results) do
                 
-                local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader)
+                local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
                 cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
                     list = nil,
                     data = nil
@@ -422,7 +421,7 @@ function _load_cloud_vehicles(user)
     else
         clear_menu_array(cloudData[user].vehicleMenuIds)
         for _, vehicle in ipairs(cloudData[user].vehicles) do
-            local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.author)
+            local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.author, vehicle.rating)
             local vehicleMenuRoot
             cloudData[user].vehicles[vehicle.name] = {}
             vehicleMenuRoot = menu.list(cloudData[user].parentList, vehicle.name, {}, description or "<invalid vehicle metadata>", function()
@@ -443,21 +442,31 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             remove_preview_custom()
-            tableref['vehicle'] = json.decode(body).vehicle
+            local data = json.decode(body)
+            if not data.vehicle then
+                log(body, "_fetch_vehicle_data")
+                util.toast("Invalid vehicle data was fetched")
+                return
+            end
+            tableref['vehicle'] = data.vehicle
             spawn_custom_vehicle(tableref['vehicle'], true)
         else
             log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned invalid response")
+            util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
         end
     end)
     async_http.dispatch()
 end
 function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
     local tries = 0
-    if not vehicleData['vehicle'] then
-        util.toast("race condition")
+    while not vehicleData['vehicle'] and tries < 10 do
+        util.yield(500)
+        tries = tries + 1
     end
-    log(dump_table(vehicleData['vehicle']))
+    if tries > 10 then
+        util.toast("Vehicle data timed out")
+        return
+    end
     while not vehicleData and tries < 30 do
         util.yield(500)
         tries = tries + 1
@@ -486,6 +495,36 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
             util.toast("Could download file")
         end
     end, vehicleName .. ".json")
+
+    menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded vehicle with 1-5 stars", 1, 5, 5, 1, function(rating)
+        rate_vehicle(user, vehicleName, rating)
+    end)
+end
+function rate_vehicle(user, vehicleName, rating)
+    if not user or not vehicleName or rating < 0 or rating > 5 then
+        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "_setup_cloud_vehicle_menu/rate")
+        return false
+    end
+    -- SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()
+    async_http.init("jackz.me", 
+        string.format("/stand/cloud/custom-vehicles2.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+            user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
+        ),
+    function(body)
+        local data = json.decode(body)
+        if data.success then
+            util.toast("Rating submitted")
+        else
+            log(body)
+            util.toast("Failed to submit rating, see logs")
+        end
+
+    end, function()
+        util.toast("Failed to submit rating")
+    end)
+    async_http.set_post("application/json", "")
+    async_http.dispatch()
+    return true
 end
 --[ SAVED VEHICLES LIST ]
 local savedVehicleList = menu.list(menu.my_root(), "Saved Custom Vehicles", {}, "",
@@ -534,7 +573,7 @@ function _load_vehicles_from_dir(parentList, directory)
         queueFunc()
     end
 end
-function _format_vehicle_info(version, timestamp, author)
+function _format_vehicle_info(version, timestamp, author, rating)
     local versionText
     if version then
         local m = {}
@@ -553,14 +592,18 @@ function _format_vehicle_info(version, timestamp, author)
 
         local createdText = timestamp and (os.date("%Y-%m-%d at %X", timestamp) .. " UTC") or "-unknown-"
         local authorText = author and (string.format("Vehicle Author: %s\n", author)) or ""
+        local ratingText = rating and (
+            rating ~= "0.0" and (string.format("\nRating: %s / 5 stars ", rating))
+                or "No user ratings"
+        ) or ""
 
-        return string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText)
+        return string.format("Format Version: %s\nCreated: %s\n%s\n%s", versionText, createdText, authorText, ratingText)
     else
         return nil
     end
 end
 function _setup_spawn_list_entry(parentList, filepath)
-    local _, filename = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+    local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
     local status, data = pcall(get_vehicle_data_from_file, filepath)
     if status and data ~= nil then
         if not data.base or not data.objects then
@@ -590,7 +633,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                 table.insert(optionsMenuHandles, m)
 
                 m = menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
-                    upload_vehicle(filename, data)
+                    upload_vehicle(filename:sub(1, -6), json.encode(data))
                 end)
                 table.insert(optionsMenuHandles, m)
             end,
@@ -1310,25 +1353,26 @@ function set_preview(entity, id)
     end
 end
 function remove_preview_custom()
-    if preview.entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
+    local old_entity = preview.entity
+    preview.entity = 0
+    preview.id = nil
+    if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
         for _, entity in ipairs(entities.get_all_objects_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(preview.entity, entity) then
+            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
                 entities.delete_by_handle(entity)
             end
         end
         for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(preview.entity, entity) then
+            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
                 entities.delete_by_handle(entity)
             end
         end
         for _, entity in ipairs(entities.get_all_peds_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(preview.entity, entity) then
+            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
                 entities.delete_by_handle(entity)
             end
         end
-        entities.delete_by_handle(preview.entity)
-        preview.entity = 0
-        preview.id = nil
+        entities.delete_by_handle(old_entity)
     end
 end
 
@@ -1518,7 +1562,7 @@ function upload_vehicle(name, data)
     end, function()
         util.toast("Failed to upload your vehicle (" .. name .. ")")
     end)
-    async_http.set_post("application/json", json.encode(data))
+    async_http.set_post("application/json", data)
     async_http.dispatch()
 end
 function get_vehicle_data_from_file(filepath)
@@ -1634,6 +1678,7 @@ end
 
 --[ Savedata Options ]--
 function import_vehicle_to_builder(data, name)
+    remove_preview_custom()
     local baseHandle = spawn_vehicle(data.base)
     builder = new_builder(baseHandle)
     builder.name = name
@@ -1677,9 +1722,6 @@ function spawn_custom_vehicle(data, isPreview)
     -- TODO: Implement all base data
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
-    if isPreview then
-        set_preview(baseHandle, "_base")
-    end
     if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
@@ -1786,6 +1828,8 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             end
         end
     end
+    -- spawn_vehicle removes preview
+    set_preview(baseHandle, "_base")
 end
 
 
