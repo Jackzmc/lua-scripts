@@ -138,6 +138,10 @@ function create_blip_for_entity(entity, type, name)
     end
     return blip
 end
+local scriptSettings = {
+    autosaveEnabled = true,
+    showOverlay = true
+}
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
     id = nil,
@@ -318,7 +322,7 @@ function create_preview_handler_if_not_exists()
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
-                if preview.rendercb then
+                if scriptSettings.showOverlay and preview.rendercb then
                     preview.rendercb(pos, preview.renderdata)
                 end
 
@@ -404,10 +408,7 @@ end
 --[[
     SETTINGS
 ]]--
-local scriptSettings = {
-    autosaveEnabled = true,
-    showOverlay = true
-}
+
 local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change settings of script")
 menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
     scriptSettings.autosaveEnabled = value
