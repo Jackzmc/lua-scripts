@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.16.3"
+local VERSION = "1.16.4"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -11,7 +11,7 @@ local VEHICLELIB_TARGET_VERSION = "1.1.4"
 --#P:MANUAL_ONLY
 -- Check for updates & auto-update:
 -- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
+async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
     local chunks = {}
     for substring in string.gmatch(result, "%S+") do
         table.insert(chunks, substring)
@@ -33,7 +33,7 @@ end)
 async_http.dispatch()
 
 function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
+    async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=lib/" .. lib .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
         local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
@@ -47,7 +47,7 @@ end
 --#P:END
 function download_resources_update(filepath, destOverwritePath)
     util.toast("/stand/resources/" .. filepath)
-    async_http.init("jackz.me", "/stand/resources/" .. filepath, function(result)
+    async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
         if result:startswith("<") then
             util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
             util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
@@ -105,7 +105,7 @@ for line in versionFile:lines("l") do
 end
 if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
     if versions[SCRIPT] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
             util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
         end, function() util.log(SCRIPT ..": Could not get changelog") end)
         async_http.dispatch()
