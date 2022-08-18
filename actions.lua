@@ -874,8 +874,8 @@ function _play_animation(ped, group, animation, flags, duration, props)
     if clearActionImmediately then
         TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
     end
-    local pos = ENTITY.GET_ENTITY_COORDS(ped)
     if props ~= nil then
+        local pos = ENTITY.GET_ENTITY_COORDS(ped)
         for _, propData in ipairs(props) do
             local boneIndex = PED.GET_PED_BONE_INDEX(ped, propData.Bone)
             local hash = util.joaat(propData.Prop)

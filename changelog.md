@@ -136,3 +136,11 @@ V1.15.0
 * (1.15.2) Add rating system
 * (1.15.3) Fix broken uploading (double encoded json)
 * (1.15.3) Fix name being incorrect (lua sucks)
+
+V1.16.0
+
+* Made custom vehicle previews further back
+* Hopefully actually fix preview issues... for realsies
+* Remove previews when exiting cloud preview
+* Add settings option (allow to disable autosave)
+* Add utilities list (clear peds/vehs/objs)

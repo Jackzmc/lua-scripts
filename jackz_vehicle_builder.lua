@@ -2,7 +2,8 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.15.23ON = "1.3.3" -- Target version of translations.lua lib
+local VERSION = "1.16.0"
+local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
 ---@alias MenuHandle number
@@ -138,7 +139,7 @@ local metaList = menu.list(menu.my_root(), "Script Meta")
 menu.divider(metaList, SCRIPT .. " V" .. VERSION)
 menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/294853")
 menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
+menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 if _lang ~= nil then
     menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
@@ -146,13 +147,14 @@ if _lang ~= nil then
 end
 
 -- [ Begin actual script ]--
-local AUTOSAVE_INTERVAL_SEC = 60 * 5 -- 10 minutes 
+local AUTOSAVE_INTERVAL_SEC = 60 * 3
 local MAX_AUTOSAVES = 4
 local autosaveNextTime = 0
 local autosaveIndex = 1
 local BUILDER_VERSION = "1.2.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
+local editorActive = false
 
 ---@param baseHandle Handle
 -- Returns a new builder instance
@@ -206,7 +208,8 @@ end
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
     id = nil,
-    thread = nil
+    thread = nil,
+    range = -1
 }
 local highlightedHandle = nil -- Will highlight the handle with this ID
 local mainMenu -- TODO: Rename to better name
@@ -308,7 +311,7 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
-                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 5, 0.3)
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 5.0, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
@@ -347,6 +350,65 @@ function pairsByKeys(t, f)
     end
     return iter
 end
+--[[
+    UTILS
+]]--
+local utilsMenu = menu.list(menu.my_root(), "Utilities", {"builderutils"}, "Some utilities such as clearing entities")
+menu.action(utilsMenu, "Delete Preview", {"jvbstoppreview"}, "Removes currently active preview.", function()
+    if preview.entity == 0 then
+        util.toast("No preview is active")
+    end
+    remove_preview_custom()
+end)
+menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"jvbclearvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 500, 6000, function(range)
+    local vehicles = entities.get_all_vehicles_as_handles()
+    local count = _clear_ents(vehicles, range)
+    util.toast("Deleted " .. count .. " vehicles")
+end)
+menu.click_slider(utilsMenu, "Clear Nearby Objects", {"jvbclearobjs"}, "Clears all nearby objects within defined range", 500, 100000, 500, 6000, function(range)
+    local vehicles = entities.get_all_objects_as_handles()
+    local count = _clear_ents(vehicles, range)
+    util.toast("Deleted " .. count .. " objects")
+end)
+
+menu.click_slider(utilsMenu, "Clear Nearby Peds", {"jvbclearpeds"}, "Clears all nearby peds within defined range", 500, 100000, 500, 6000, function(range)
+    local vehicles = entities.get_all_peds_as_handles()
+    local count = _clear_ents(vehicles, range)
+    util.toast("Deleted " .. count .. " peds")
+end)
+
+function _clear_ents(list, range)
+    local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
+
+    local count = 0
+    for _, entity in ipairs(list) do
+        local pos2 = ENTITY.GET_ENTITY_COORDS(entity, 1)
+        local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
+        if dist <= range then
+            util.draw_debug_text(string.format("deleted entity %d - %f m away", entity, dist))
+            entities.delete_by_handle(entity)
+            count = count + 1
+        end
+    end
+    return count
+end
+--[[
+    SETTINGS
+]]--
+local scriptSettings = {
+    autosaveEnabled = true
+}
+local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change settings of script")
+menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
+    scriptSettings.autosaveEnabled = value
+end, scriptSettings.autosaveEnabled)
+
+menu.divider(menu.my_root(), "")
+
+--[[
+    CLOUD DATA
+]]--
 local cloudData = {}
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Vehicles", {}, "Browse & upload custom built vehicles", function() _fetch_cloud_users() end, function() 
     for _, data in pairs(cloudData) do
@@ -401,6 +463,7 @@ function _fetch_cloud_users()
                 end, function()
                     cloudData[user].vehicleData = {}
                 end)
+                menu.on_focus(userList, remove_preview_custom)
                 cloudData[user] = {
                     vehicles = vehicles,
                     vehicleData = {},
@@ -791,7 +854,12 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.prop_list_active then
         return
     end
-    mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() end, _destroy_prop_previewer)
+    mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() 
+        editorActive = true
+    end, function()
+        editorActive = false
+        _destroy_prop_previewer()
+    end)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as", function(name)
         builder.name = name
         if save_vehicle(name) then
@@ -1338,9 +1406,10 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
 end
 --[ Previewer Stuff ]--
 
-function set_preview(entity, id)
+function set_preview(entity, id, range)
     preview.entity = entity
     preview.id = id
+    preview.range = range or -1
     create_preview_handler_if_not_exists()
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
@@ -1556,7 +1625,10 @@ function save_vehicle(saveName, folder)
 end
 function upload_vehicle(name, data)
     show_busyspinner("Uploading vehicle")
-    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s", SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()), function()
+    async_http.init("jackz.me", 
+        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
+        SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
+    ), function()
         HUD.BUSYSPINNER_OFF()
         util.toast("Successfully uploaded vehicle")
     end, function()
@@ -1590,6 +1662,7 @@ end
 
 local lastAutosave = os.seconds()
 function autosave(onDemand)
+    if not scriptSettings.autosaveEnabled then return end
     if onDemand then
         if lastAutosave - os.seconds() < 5 then
             return
@@ -1701,7 +1774,7 @@ function spawn_vehicle(vehicleData, isPreview)
     local handle
     if isPreview then
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
-        set_preview(handle)
+        -- set_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         if vehicleData.visible == false then
@@ -1722,6 +1795,9 @@ function spawn_custom_vehicle(data, isPreview)
     -- TODO: Implement all base data
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
+    if isPreview then
+        set_preview(baseHandle, "_base", 100.0)
+    end
     if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
         ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
     end
@@ -1819,6 +1895,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
             end
             ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
+            ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
             table.insert(handles, handle)
 
             if addToBuilder then
@@ -1828,8 +1905,6 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             end
         end
     end
-    -- spawn_vehicle removes preview
-    set_preview(baseHandle, "_base")
 end
 
 
@@ -1903,7 +1978,7 @@ end)
 
 while true do
     local seconds = os.seconds()
-    if builder ~= nil and seconds >= autosaveNextTime then
+    if scriptSettings.autosaveEnabled and builder ~= nil and menu.is_open() and seconds >= autosaveNextTime then
         autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
         autosave()
     end
