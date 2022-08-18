@@ -723,89 +723,6 @@ function _load_saved_list()
     clear_menu_table(folderLists)
     _load_vehicles_from_dir(savedVehicleList, SAVE_DIRECTORY)
 end
--- function _load_saved_list(dir)
---     remove_preview_custom()
---     clear_menu_table(optionParentMenus)
---     clear_menu_table(xmlMenusHandles)
---     for _, path in ipairs(filesystem.list_files(SAVE_DIRECTORY)) do
---         local _, name, ext = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
---         if ext == "json" then
---             local status, data = pcall(get_vehicle_data_from_file, name)
---             if status and data ~= nil then
---                 local versionText = "(UNKNOWN VERSION, UNSUPPORTED OR INVALID VEHICLE)"
---                 if data.version then
---                     local m = {}
---                     for match in data.version:gmatch("([^%s]+)") do
---                         table.insert(m, match)
---                     end
---                     local fileVersion = m[#m]
---                     local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
---                     if versionDiff == 1 then
---                         versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
---                     elseif versionDiff == -1 then
---                         versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
---                     else
---                         versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
---                     end
---                 else
---                     log("Vehicle has no version" .. name)
---                 end
---                 if not data.base or not data.objects then
---                     log("Skipping invalid vehicle: " .. name)
---                     return
---                 end
-
---                 local createdText = data.created and (os.date("%Y-%m-%d at %X", data.created) .. " UTC") or "-unknown-"
---                 local authorText = data.author and (string.format("Vehicle Author: %s\n", data.author)) or ""
---                 optionParentMenus[name] = menu.list(savedVehicleList, name, {}, string.format("Format Version: %s\nCreated: %s\n%s", versionText, createdText, authorText),
---                     function()
---                         clear_menu_table(optionsMenuHandles)
---                         local m = menu.action(optionParentMenus[name], "Spawn", {}, "", function()
---                             lastAutosave = os.seconds()
---                             autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
---                             remove_preview_custom()
---                             spawn_custom_vehicle(data, false)
---                         end)
---                         table.insert(optionsMenuHandles, m)
-            
---                         m = menu.action(optionParentMenus[name], "Edit", {}, "", function()
---                             lastAutosave = os.seconds()
---                             autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
---                             import_vehicle_to_builder(data, name:sub(1, -6))
---                             menu.focus(builder.entitiesMenuList)
---                         end)
---                         table.insert(optionsMenuHandles, m)
---                     end,
---                     function() _destroy_options_menu() end
---                 )
-                
---                 -- Spawn custom vehicle handler
---                 menu.on_focus(optionParentMenus[name], function()
---                     if preview.id ~= name then
---                         remove_preview_custom()
---                         preview.id = name
---                         spawn_custom_vehicle(data, true)
---                         create_preview_handler_if_not_exists()
---                     end
---                 end)
---             else
---                 util.log("Ignoring invalid vehicle '" .. name .. "': " .. (data or "<EMPTY FILE>"), TOAST_ALL)
---             end
---         elseif ext == "xml" then
---             local filename = name:sub(1, -5)
---             local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
---             xmlMenusHandles[name] = menu.action(xmlList, name, {}, "Click to convert to a compatible format.", function()
---                 if filesystem.exists(newPath) then
---                     menu.show_warning(xmlMenusHandles[name], CLICK_COMMAND, "This file already exists, do you want to overwrite " .. filename .. ".json?", function() 
---                         convert_file(path, filename, newPath)
---                     end)
---                     return
---                 end
---                 convert_file(path, filename, newPath)
---             end)
---         end
---     end
--- end
 function convert_file(path, name, newPath)
     local file = io.open(path, "r")
     show_busyspinner("Converting " .. name)
@@ -870,7 +787,7 @@ function setup_builder_menus(name)
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
         builder.name = name
         if not builder.author then
-            menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set", function()
+            menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
                 upload_vehicle(name, builder_to_json())
             end)
         else
