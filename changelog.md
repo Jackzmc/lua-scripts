@@ -144,3 +144,6 @@ V1.16.0
 * Remove previews when exiting cloud preview
 * Add settings option (allow to disable autosave)
 * Add utilities list (clear peds/vehs/objs)
+* (1.16.1) Catch server upload errors
+* (1.16.2) Catch invalid models
+* (1.16.3) Fix false error on successful upload

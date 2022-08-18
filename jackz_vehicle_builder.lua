@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.16.0"
+local VERSION = "1.16.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
@@ -1324,6 +1324,7 @@ end
 --[ Previewer Stuff ]--
 
 function set_preview(entity, id, range)
+    remove_preview_custom()
     preview.entity = entity
     preview.id = id
     preview.range = range or -1
@@ -1545,9 +1546,21 @@ function upload_vehicle(name, data)
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
-    ), function()
+    ), function(body)
+        local response = json.decode(body)
+        if response.error then
+            log(string.format("name:%s, vehicle: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
+            util.toast("Upload error: " .. response.message)
+        elseif response.status then
+            if response.status == "updated" then
+                util.toast("Successfully updated vehicle")
+            else
+                util.toast("Successfully uploaded vehicle")
+            end
+        else
+            util.toast("Server sent invalid response")
+        end
         HUD.BUSYSPINNER_OFF()
-        util.toast("Successfully uploaded vehicle")
     end, function()
         util.toast("Failed to upload your vehicle (" .. name .. ")")
     end)
@@ -1670,16 +1683,25 @@ end
 function import_vehicle_to_builder(data, name)
     remove_preview_custom()
     local baseHandle = spawn_vehicle(data.base)
-    builder = new_builder(baseHandle)
-    builder.name = name
-    builder.author = data.author
-    builder.base.data = data.base.data
-    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
-    setup_builder_menus(name)
-    add_attachments(baseHandle, data, true, false)
+    if baseHandle then
+        builder = new_builder(baseHandle)
+        builder.name = name
+        builder.author = data.author
+        builder.base.data = data.base.data
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+        setup_builder_menus(name)
+        add_attachments(baseHandle, data, true, false)
+    else
+        util.toast("Cannot create base vehicle, editing not possible.")
+    end
 end
 function spawn_vehicle(vehicleData, isPreview)
+    if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
+        log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
+        util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(vehicleData.model)
     while not STREAMING.HAS_MODEL_LOADED(vehicleData.model) do
         util.yield()
@@ -1712,20 +1734,24 @@ function spawn_custom_vehicle(data, isPreview)
     -- TODO: Implement all base data
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
-    if isPreview then
-        set_preview(baseHandle, "_base", 100.0)
+    if baseHandle then
+        if isPreview then
+            set_preview(baseHandle, "_base", 100.0)
+        end
+        if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
+            ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
+        end
+        ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
+        add_attachments(baseHandle, data, false, isPreview)
+        if spawnInVehicle and not isPreview then
+            util.yield()
+            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+        end
+        return baseHandle
+    else
+        util.toast("Could not spawn base vehicle")
     end
-    if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
-        ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
-    end
-    ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
-    add_attachments(baseHandle, data, false, isPreview)
-    if spawnInVehicle and not isPreview then
-        util.yield()
-        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-        TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
-    end
-    return baseHandle
 end
 
 function add_attachments(baseHandle, data, addToBuilder, isPreview)
