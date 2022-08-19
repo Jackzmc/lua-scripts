@@ -8,118 +8,9 @@ local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
 ---@alias MenuHandle number
 
---#P:MANUAL_ONLY
--- Check for updates & auto-update:
--- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-    local chunks = {}
-    for substring in string.gmatch(result, "%S+") do
-        table.insert(chunks, substring)
-    end
-    if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-32) to disable auto updates
-        async_http.init("jackz.me", "/stand/get-lua2.php?script=" .. SCRIPT .. "&source=manual", function(result)
-            local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
-            file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            file:close()
-            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function()
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-    end
-end)
-async_http.dispatch()
+--#P:TEMPLATE('common')
+--#P:TEMPLATE(SCRIPT_SOURCE)
 
-function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/getlua2.php?ucv=2&script=lib/" .. lib .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-        file:write(result:gsub("\r", "") .. "\n")
-        file:close()
-        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
-    end, function(e)
-        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-        util.stop_script()
-    end)
-    async_http.dispatch()
-end
---#P:END
-function download_resources_update(filepath, destOverwritePath)
-    util.toast("/stand/resources/" .. filepath)
-    async_http.init("jackz.me", "/stand/getlua2.php?ucv=2&script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-        if result:startswith("<") then
-            util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
-            util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
-            return
-        end
-        local file = io.open(filesystem.resources_dir() .. (destOverwritePath or filepath), "w")
-        if file == nil then
-            util.toast("Could not write resource file for: " .. filepath .. "\nSee logs for details")
-            util.log(string.format("%s: Resource \"%s\" file could not be created.", SCRIPT_NAME, filepath))
-            return
-        end
-        file:write(result:gsub("\r", "") .. "\n")
-        file:close()
-        util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
-    end, function(e)
-        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. filepath .. ")", 10)
-        util.stop_script()
-    end)
-    async_http.dispatch()
-end
-
-----------------------------------------------------------------
--- Version Check
-function get_version_info(version)
-    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
-    return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
-    }
-end
-function compare_version(a, b)
-    local av = get_version_info(a)
-    local bv = get_version_info(b)
-    if av.major > bv.major then return 1
-    elseif av.major < bv.major then return -1
-    elseif av.minor > bv.minor then return 1
-    elseif av.minor < bv.minor then return -1
-    elseif av.patch > bv.patch then return 1
-    elseif av.patch < bv.patch then return -1
-    else return 0 end
-end
-local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
-if not filesystem.exists(VERSION_FILE_PATH) then
-    local versionFile = io.open(VERSION_FILE_PATH, "w")
-    versionFile:close()
-end
-local versionFile = io.open(VERSION_FILE_PATH, "r+")
-local versions = {}
-for line in versionFile:lines("l") do
-    local script, version = line:match("(%g+): (%g+)")
-    if script then
-        versions[script] = version
-    end
-end
-if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-    if versions[SCRIPT] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-        end, function() util.log(SCRIPT ..": Could not get changelog") end)
-        async_http.dispatch()
-    end
-    versions[SCRIPT] = VERSION
-    versionFile:seek("set", 0)
-    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-    for script, version in pairs(versions) do
-        versionFile:write(script .. ": " .. version .. "\n")
-    end
-end
-versionFile:close()
--- END Version Check
-------------------------------------------------------------------
 util.require_natives(1627063482)
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
@@ -134,17 +25,6 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     end
 end
 
-
-local metaList = menu.list(menu.my_root(), "Script Meta")
-menu.divider(metaList, SCRIPT .. " V" .. VERSION)
-menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/294853")
-menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
-menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
-if _lang ~= nil then
-    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    _lang.add_language_selector_to_menu(metaList)
-end
 
 -- [ Begin actual script ]--
 local AUTOSAVE_INTERVAL_SEC = 60 * 3

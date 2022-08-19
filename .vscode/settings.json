@@ -85,7 +85,8 @@
         "SCRIPT_SOURCE",
         "MODULE_SOURCE",
         "i18n",
-        "_lang"
+        "_lang",
+        "SCRIPT_BRANCH"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"
