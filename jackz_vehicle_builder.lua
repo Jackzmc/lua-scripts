@@ -1135,7 +1135,7 @@ function add_ped_menu(parent, pedName, displayName)
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_ped(0, hash, pos, 0)
-        add_entity_to_list(builder.entitiesMenuList, entity, pedName)
+        local data = add_entity_to_list(builder.entitiesMenuList, entity, pedName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -1291,6 +1291,7 @@ function add_entity_to_list(list, handle, name, pos, rot)
     )
     menu.focus(builder.entities[handle].list)
     create_entity_section(builder.entities[handle], handle)
+    return builder.entities[handle]
 end
 
 function clone_entity(handle, name)
@@ -1684,6 +1685,14 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 local handle = isPreview
                     and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
                     or entities.create_ped(0, pedData.model, pos, 0)
+
+                if pedData.animdata then
+                    STREAMING.REMOVE_ANIM_DICT(pedData.animdata[1])
+                    while not STREAMING.HAS_ANIM_DICT_LOADED(pedData.animdata[1]) do
+                        util.yield()
+                    end
+                    TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1.0, 1, 0.0, false, false, false)
+                end
 
                 if handle == 0 then
                     util.toast("Ped failed to spawn: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
