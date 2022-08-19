@@ -4,8 +4,8 @@ local SCRIPT = "jackz_chat"
 local VERSION = "1.2.22"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
---#P:TEMPLATE("common")
 --#P:TEMPLATE("_SOURCE")
+--#P:TEMPLATE("common")
 
 util.require_natives(1627063482)
 

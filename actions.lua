@@ -7,8 +7,8 @@ local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/anima
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
 
---#P:TEMPLATE("common")
 --#P:TEMPLATE("_SOURCE")
+--#P:TEMPLATE("common")
 
 util.require_natives(1627063482)
 

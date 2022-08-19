@@ -8,8 +8,8 @@ local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
 ---@alias MenuHandle number
 
---#P:TEMPLATE("common")
 --#P:TEMPLATE("_SOURCE")
+--#P:TEMPLATE("common")
 
 util.require_natives(1627063482)
 local json = require("json")
