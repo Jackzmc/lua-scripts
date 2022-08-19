@@ -1772,11 +1772,6 @@ function attach_entity(parent, handle, pos, rot)
     end
 
 end
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
-end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
 function highlight_object(handle)
     local pos = ENTITY.GET_ENTITY_COORDS(handle)

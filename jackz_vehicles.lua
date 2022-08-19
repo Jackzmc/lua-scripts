@@ -6,118 +6,8 @@ local VERSION = "3.9.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 
---#P:MANUAL_ONLY
--- Check for updates & auto-update:
--- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
-    local chunks = {}
-    for substring in string.gmatch(result, "%S+") do
-        table.insert(chunks, substring)
-    end
-    if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-32) to disable auto updates
-        async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
-            local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
-            if file == nil then
-                util.toast(SCRIPT .. " could not auto update, most likely due to a permission issue.")
-                return
-            end
-            file:write(result:gsub("\r", "") .. "\n")
-            file:close()
-            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function()
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-    end
-end)
-async_http.dispatch()
-
-function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-        if file == nil then
-            util.toast(SCRIPT .. " could not automatically update library " .. lib .. "most likely due to a permission issue.")
-            return
-        end
-        file:write(result:gsub("\r", "") .. "\n")
-        file:close()
-        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
-    end, function(e)
-        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-        util.stop_script()
-    end)
-    async_http.dispatch()
-end
---#P:END
-
-----------------------------------------------------------------
--- Version Check
-function get_version_info(version)
-    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
-    return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
-    }
-end
-function compare_version(a, b)
-    local av = get_version_info(a)
-    local bv = get_version_info(b)
-    if av.major > bv.major then return 1
-    elseif av.major < bv.major then return -1
-    elseif av.minor > bv.minor then return 1
-    elseif av.minor < bv.minor then return -1
-    elseif av.patch > bv.patch then return 1
-    elseif av.patch < bv.patch then return -1
-    else return 0 end
-end
-local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
-if not filesystem.exists(VERSION_FILE_PATH) then
-    local versionFile = io.open(VERSION_FILE_PATH, "w")
-    if versionFile == nil then
-        util.log(SCRIPT .. ": Could not create jackz_versions.txt")
-        return
-    end
-    versionFile:close()
-end
-local wasUpdated = false
-local versionFile = io.open(VERSION_FILE_PATH, "r+")
-if versionFile == nil then
-    util.log(SCRIPT .. ": Could not read jackz_versions.txt, skipping changelog system")
-else
-    -- Get all versions from file
-    local versions = {}
-    for line in versionFile:lines("l") do
-        local script, version = line:match("(%g+): (%g+)")
-        if script then
-            versions[script] = version
-        end
-    end
-
-    -- If version is older or non existenant
-    if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-        if versions[SCRIPT] ~= nil then
-            -- If the version was older, show changelog since then
-            async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
-                util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-            end, function() util.log(string.format(SCRIPT ..": Failed to acquire changelog (since %s, version %s)", versions[SCRIPT], VERSION)) end)
-            async_http.dispatch()
-            wasUpdated = true
-        end
-        -- Update the version in the version file
-        versions[SCRIPT] = VERSION
-        versionFile:seek("set", 0)
-        versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-        for script, version in pairs(versions) do
-            versionFile:write(script .. ": " .. version .. "\n")
-        end
-    end
-    versionFile:close()
-end
--- END Version Check
-------------------------------------------------------------------
+--#P:TEMPLATE("common")
+--#P:TEMPLATE("_SOURCE")
 
 util.require_natives(1627063482)
 local json = require("json")
@@ -153,21 +43,6 @@ i18n.set_autodownload_uri("jackz.me", "/stand/translations/")
 i18n.load_translation_file(SCRIPT)
 if wasUpdated then
     i18n.update_translation_file(SCRIPT)
-end
-
-local metaList = menu.list(menu.my_root(), "Script Meta")
-menu.divider(metaList, SCRIPT .. " V" .. VERSION)
-menu.hyperlink(metaList, "View guilded post", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/264612")
-menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
-menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help or suggest additions to my scripts")
-menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
-if i18n ~= nil then
-    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    i18n.add_language_selector_to_menu(metaList)
-    menu.divider(metaList, "--[[ Credits ]]--")
-    menu.divider(metaList, "hiers - Translator")
-    menu.divider(metaList, "voyager - Translator")
-    menu.divider(metaList, "Icedoomfist - Translator")
 end
 
 -- CONSTANTS
@@ -1160,12 +1035,6 @@ function setup_player_menu(pid)
             ENTITY.SET_ENTITY_INVINCIBLE(vehicle, on)
         end)
     end, false)
-end
-
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 ----------------------------
 -- CLOUD VEHICLES SECTION
