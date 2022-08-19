@@ -27,6 +27,8 @@
 !resources/
 !resources/jackz_actions/
 !resources/jackz_actions/*
+!resources/translations
+!resources/translations/*
 
 !.vscode/
 !.vscode/settings.json
