@@ -147,3 +147,8 @@ V1.16.0
 * (1.16.1) Catch server upload errors
 * (1.16.2) Catch invalid models
 * (1.16.3) Fix false error on successful upload
+
+V1.17.0
+
+* Allowed changing to a dev release channel
+* Added backend support for ped animations
