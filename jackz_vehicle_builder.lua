@@ -1770,35 +1770,37 @@ end
 function add_attachments(baseHandle, data, addToBuilder, isPreview)
     local pos = ENTITY.GET_ENTITY_COORDS(baseHandle)
     local handles = {}
-    for _, entityData in ipairs(data.objects) do
-        local name = entityData.name or "<nil>"
-        if not STREAMING.IS_MODEL_VALID(entityData.model) then
-            util.toast("Object has invalid model: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
-        else
-            STREAMING.REQUEST_MODEL(entityData.model)
-            while not STREAMING.HAS_MODEL_LOADED(entityData.model) do
-                util.yield()
-            end
-            local handle = isPreview
-                and OBJECT.CREATE_OBJECT(entityData.model, pos.x, pos.y, pos.z, false, false, 0)
-                or entities.create_object(entityData.model, pos)
-
-            if handle == 0 then
-                util.toast("Object failed to spawn: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
+    if data.objects then
+        for _, entityData in ipairs(data.objects) do
+            local name = entityData.name or "<nil>"
+            if not STREAMING.IS_MODEL_VALID(entityData.model) then
+                util.toast("Object has invalid model: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
             else
-                if entityData.visible == false then
-                    ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+                STREAMING.REQUEST_MODEL(entityData.model)
+                while not STREAMING.HAS_MODEL_LOADED(entityData.model) do
+                    util.yield()
                 end
-                for _, handle2 in ipairs(handles) do
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
-                end
-                ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
-                table.insert(handles, handle)
+                local handle = isPreview
+                    and OBJECT.CREATE_OBJECT(entityData.model, pos.x, pos.y, pos.z, false, false, 0)
+                    or entities.create_object(entityData.model, pos)
 
-                if addToBuilder then
-                    add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
+                if handle == 0 then
+                    util.toast("Object failed to spawn: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
                 else
-                    attach_entity(baseHandle, handle, entityData.offset, entityData.rotation)
+                    if entityData.visible == false then
+                        ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+                    end
+                    for _, handle2 in ipairs(handles) do
+                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+                    end
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
+                    table.insert(handles, handle)
+
+                    if addToBuilder then
+                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
+                    else
+                        attach_entity(baseHandle, handle, entityData.offset, entityData.rotation)
+                    end
                 end
             end
         end
