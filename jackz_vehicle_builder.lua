@@ -858,7 +858,7 @@ end
 function set_builder_vehicle(handle)
     builder.base.handle = handle
     if HUD.DOES_BLIP_EXIST(builder.blip) then
-        HUD.REMOVE_BLIP(entities.handle_to_pointer(builder.blip))
+        util.remove_blip(builder.blip)
     end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Vehicle")
 end
@@ -1342,6 +1342,7 @@ function remove_preview_custom()
     local old_entity = preview.entity
     preview.entity = 0
     preview.id = nil
+    log("pre-remove", "remove_preview_custom")
     if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
         for _, entity in ipairs(entities.get_all_objects_as_handles()) do
             if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
@@ -1358,9 +1359,11 @@ function remove_preview_custom()
                 entities.delete_by_handle(entity)
             end
         end
-        if old_entity > 0 then
+        log("pre-delete-preview", "remove_preview_custom")
+        if ENTITY.DOES_ENTITY_EXIST(old_entity) then
             entities.delete_by_handle(old_entity)
         end
+        log("post", "remove_preview_custom")
     end
 end
 
@@ -1939,7 +1942,7 @@ setup_pre_menu()
 
 util.on_stop(function()
     if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
-        HUD.REMOVE_BLIP(entities.handle_to_pointer(builder.blip))
+        util.remove_blip(builder.blip)
     end
     remove_preview_custom()
 end)
