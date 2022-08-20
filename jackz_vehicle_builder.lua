@@ -1834,7 +1834,8 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     table.insert(handles, handle)
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation)
+                        datatable.animdata = pedData.animdata
                     else
                         attach_entity(baseHandle, handle, pedData.offset, pedData.rotation)
                     end
