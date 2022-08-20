@@ -165,7 +165,7 @@ local CURATED_PEDS = {
     { "ig_agatha", "Agtha" }
 }
 
-local BLIPS = {
+local BLIP_ICONS = {
     { 64, "Helicopter (Black)" },
     { 56, "Police Car" },
     { 58, "Star " },
@@ -800,7 +800,7 @@ function setup_builder_menus(name)
             godmode = true
         }
         local blipList = menu.list(settingsList, "Blip Icon", {"jvbicon"}, "Changes the blip icon for this custom vehicle.")
-        for _, icon in ipairs(BLIPS) do
+        for _, icon in ipairs(BLIP_ICONS) do
             menu.action(blipList, icon[2], {"jvbicon" .. icon[1]}, "Blip ID: " .. icon[1], function()
                 builder.blip_icon = icon[1]
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
