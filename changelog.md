@@ -152,5 +152,5 @@ V1.17.0
 
 * Allowed changing to a dev release channel
 * Added backend support for ped animations
-* Add blip icons to vehicles with ability to change
+* Add blip icons to vehicles with ability to change (base vehicle -> settings -> blip icon)
 * (1.17.1) Fix some bugs with invalid exceptions

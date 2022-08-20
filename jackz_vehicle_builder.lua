@@ -204,7 +204,18 @@ local BLIP_ICONS = {
     { 523, "Sports Car"},
     { 533, "Industrial Vehicle"},
     { 533, "Vehicle 6"},
-    { 534, "Vehicle 7"}
+    { 534, "Vehicle 7"},
+    { 401, "Blimp" },
+    { 824, "Champion" },
+    { 818, "Patriot" },
+    { 820, "Jubilee"},
+    { 821, "Granger"},
+    { 799, "Slamvan"},
+    { 750, "Military Truck"},
+    { 735, "Buggy" },
+    { 724, "Limo" },
+    { 748, "Gokart" }
+
 }
 
 function join_path(parent, child)
