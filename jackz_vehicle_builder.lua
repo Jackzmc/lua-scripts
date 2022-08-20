@@ -63,6 +63,7 @@ local BUILDER_VERSION = "1.3.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
+local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 ---@param baseHandle Handle
 -- Returns a new builder instance
@@ -130,7 +131,8 @@ local preview = { -- Handles preview tracking and clearing
     entity = 0,
     id = nil,
     thread = nil,
-    range = -1
+    range = -1,
+    rendercb = nil -- Function to render a text preview 
 }
 local highlightedHandle = nil -- Will highlight the handle with this ID
 local mainMenu -- TODO: Rename to better name
@@ -278,6 +280,10 @@ function create_preview_handler_if_not_exists()
                 pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 5.0, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
+
+                if preview.rendercb then
+                    preview.rendercb()
+                end
 
                 util.yield(15)
             end
@@ -743,6 +749,10 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
+        if name == "" then
+            util.toast("Not saving empty name")
+            return
+        end
         set_builder_name(name)
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
@@ -750,6 +760,10 @@ function setup_builder_menus(name)
     end, name or "")
     local uploadMenu
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
+        if name == "" then
+            util.toast("Not uploading empty name")
+            return
+        end
         set_builder_name(name)
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
@@ -1319,11 +1333,14 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
 end
 --[ Previewer Stuff ]--
 
-function set_preview(entity, id, range)
+function set_preview(entity, id, range, renderfunc)
     remove_preview_custom()
     preview.entity = entity
     preview.id = id
     preview.range = range or -1
+    if renderfunc then
+        preview.rendercb = renderfunc
+    end
     create_preview_handler_if_not_exists()
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
@@ -1334,6 +1351,7 @@ function set_preview(entity, id, range)
         VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(entity)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
+    
 end
 function remove_all_attachments(handle)
     for _, entity in ipairs(entities.get_all_objects_as_handles()) do
@@ -1376,11 +1394,46 @@ function _destroy_prop_previewer()
     builder.prop_list_active = false
 end
 
+function get_entity_lookat(distance, radius, flags, callback)
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
+    local dest = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, distance, 1.0)
+    local p_bool = memory.alloc(8)
+    local p_endPos = memory.alloc(24)
+    local p_surfaceNormal = memory.alloc(24)
+    local p_entityHit = memory.alloc(8)
+    if not flags then
+        flags = 2 | 8 | 16
+    end
+    local handle = SHAPETEST.START_SHAPE_TEST_CAPSULE(pos.x, pos.y, pos.z, dest.x, dest.y, dest.z, radius, flags, my_ped, 7)
+    util.create_thread(function()
+        while SHAPETEST.GET_SHAPE_TEST_RESULT(handle, p_bool, p_endPos, p_surfaceNormal, p_entityHit) == 1 do
+            util.yield()
+        end
+        local did_hit = memory.read_byte(p_bool)
+        local entity = nil
+        local endCoords = nil
+        local surfaceNormal = nil
+        if did_hit == 1 then
+            entity = memory.read_int(p_entityHit)
+            endCoords = memory.read_vector3(p_endPos)
+            surfaceNormal = memory.read_vector3(p_surfaceNormal)
+        end
+        memory.free(p_bool)
+        memory.free(p_endPos)
+        memory.free(p_surfaceNormal)
+        memory.free(p_entityHit)
+        callback(did_hit, entity, endCoords, surfaceNormal)
+    end)
+end
+
 -- [ ENTITY EDITING HANDLING ]
 function add_entity_to_list(list, handle, name, pos, rot)
     autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
+    ENTITY.SET_ENTITY_AS_MISSION_ENTITY(handle)
+    ENTITY._SET_ENTITY_CLEANUP_BY_ENGINE(handle, false)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
     local type = "OBJECT"
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
@@ -1969,14 +2022,112 @@ util.on_stop(function()
     if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
     end
+    for k in pairs(hud_coords) do
+        memory.free(hud_coords[k])
+    end
     remove_preview_custom()
 end)
 
+function compute_builder_stats()
+    local peds = 0
+    local objects = 0
+    local vehicles = 0
+    for handle, data in pairs(builder.entities) do
+        if handle ~= builder.base.handle then
+            if data.type == "PED" then
+                peds = peds + 1
+            elseif data.type == "VEHICLE" then
+                vehicles = vehicles + 1
+            else
+                objects = objects + 1
+            end
+        end
+    end
+    return vehicles, objects, peds
+end
+
+--[[
+local hudbox = {}
+
+function set_origin(x, y, padding)
+    hudbox = {
+        origin = { x = x, y = y },
+        offset = { x = 0, y = 0 },
+        padding = padding or 0.1,
+        width = 0.0,
+        height = 0.0
+    }
+end
+function add_text(content, size, color, align)
+    local w, h = directx.get_text_size(content, size)
+    hudbox.offset.y = hudbox.offset.y + h
+    if w > hudbox.width then
+        hudbox.width = w + hudbox.padding
+    end
+    if h > hudbox.height then
+        hudbox.height = h + hudbox.padding
+    end
+    directx.draw_text(hudbox.origin.x + hudbox.offset.x, hudbox.origin.y + hudbox.offset.y , content, align or ALIGN_TOP_LEFT, size, color or { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+end
+
+function add_vertical_space(height)
+    hudbox.offset.y = hudbox.offset.y + height
+end
+
+function draw_background(min_width, min_height, color)
+    local width = hudbox.width
+    local height = hudbox.height
+    if min_width and width < min_width then width = min_width end
+    if min_height and height < min_height then height = min_height end
+    directx.draw_rect(hudbox.origin.x - 0.01, hudbox.origin.y, width, height, color or { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+end
+
+set_origin(hudPos.x, hudPos.y)
+add_text(builder.name or "Unnamed custom vehicle", 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+add_text(authorText, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+add_vertical_space(0.01)
+add_text(string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+draw_background()
+]]--
+
+
 while true do
     local seconds = os.seconds()
-    if scriptSettings.autosaveEnabled and builder ~= nil and menu.is_open() and seconds >= autosaveNextTime then
-        autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
-        autosave()
+    
+    if builder ~= nil then
+        if scriptSettings.autosaveEnabled and menu.is_open() and seconds >= autosaveNextTime then
+            autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
+            autosave()
+        end
+        get_entity_lookat(100.0, 10.0, nil, function(did_hit, entity, pos)
+            if did_hit and builder.entities[entity] then
+                GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(pos.x, pos.y, pos.z, hud_coords.x, hud_coords.y, hud_coords.z)
+                local hudPos = {}
+                for k in pairs(hud_coords) do
+                    hudPos[k] = memory.read_float(hud_coords[k])
+                end
+
+                local entData = builder.entities[entity]
+
+                local is_base = builder.base.handle == entity
+                directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+
+
+                if is_base then
+                    local vehicleCount, objectCount, pedCount = compute_builder_stats()
+                    local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Custom Vehicle", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                else
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                end
+                
+            end
+        end)
     end
     if highlightedHandle ~= nil then
         highlight_object(highlightedHandle)
