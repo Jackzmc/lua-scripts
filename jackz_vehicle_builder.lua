@@ -1818,14 +1818,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
                     or entities.create_ped(0, pedData.model, pos, 0)
 
-                if pedData.animdata then
-                    STREAMING.REQUEST_ANIM_DICT(pedData.animdata[1])
-                    while not STREAMING.HAS_ANIM_DICT_LOADED(pedData.animdata[1]) do
-                        util.yield()
-                    end
-                    TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1.0, 1, 0.0, false, false, false)
-                end
-
+                
                 if handle == 0 then
                     util.toast("Ped failed to spawn: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
                 else
@@ -1843,6 +1836,16 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     else
                         attach_entity(baseHandle, handle, pedData.offset, pedData.rotation)
                     end
+                end
+
+                if pedData.animdata then
+                    STREAMING.REQUEST_ANIM_DICT(pedData.animdata[1])
+                    while not STREAMING.HAS_ANIM_DICT_LOADED(pedData.animdata[1]) do
+                        util.yield()
+                    end
+                    TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
+                    PED.SET_PED_KEEP_TASK(handle, true)
+                    ENTITY.FREEZE_ENTITY_POSITION(handle, true)
                 end
             end
         end
