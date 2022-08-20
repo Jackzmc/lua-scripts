@@ -796,21 +796,11 @@ function setup_builder_menus(name)
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
         end)
         menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
-            for handle, data in pairs(builder.entities) do
+            remove_all_attachments(builder.base.handle)
+            for _, data in pairs(builder.entities) do
                 menu.delete(data.list)
-                entities.delete_by_handle(handle)
             end
             builder.entities = {}
-            for _, entity in ipairs(entities.get_all_objects_as_handles()) do
-                if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(builder.base.handle, entity) then
-                    entities.delete_by_handle(entity)
-                end
-            end
-            for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
-                if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(builder.base.handle, entity) then
-                    entities.delete_by_handle(entity)
-                end
-            end
             highlightedHandle = nil
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
@@ -1338,32 +1328,32 @@ function set_preview(entity, id, range)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
 end
+function remove_all_attachments(handle)
+    for _, entity in ipairs(entities.get_all_objects_as_handles()) do
+        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
+            entities.delete_by_handle(entity)
+        end
+    end
+    for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
+        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
+            entities.delete_by_handle(entity)
+        end
+    end
+    for _, entity in ipairs(entities.get_all_peds_as_handles()) do
+        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
+            entities.delete_by_handle(entity)
+        end
+    end
+end
 function remove_preview_custom()
     local old_entity = preview.entity
     preview.entity = 0
     preview.id = nil
-    log("pre-remove", "remove_preview_custom")
     if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
-        for _, entity in ipairs(entities.get_all_objects_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
-                entities.delete_by_handle(entity)
-            end
-        end
-        for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
-                entities.delete_by_handle(entity)
-            end
-        end
-        for _, entity in ipairs(entities.get_all_peds_as_handles()) do
-            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(old_entity, entity) then
-                entities.delete_by_handle(entity)
-            end
-        end
-        log("pre-delete-preview", "remove_preview_custom")
+        remove_all_attachments(old_entity)
         if ENTITY.DOES_ENTITY_EXIST(old_entity) then
             entities.delete_by_handle(old_entity)
         end
-        log("post", "remove_preview_custom")
     end
 end
 
@@ -1418,10 +1408,26 @@ function add_entity_to_list(list, handle, name, pos, rot)
     return builder.entities[handle]
 end
 
-function clone_entity(handle, name)
+function clone_entity(handle, name, mirror_axis)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
     local entity
-    local pos = ENTITY.GET_ENTITY_COORDS(handle)
+    local pos
+    if mirror_axis then
+        if not builder.entities[handle] then
+            log("clone_entity with mirror_axis set on non-builder entity", "clone_entity")
+            return false
+        end
+        pos = builder.entities[handle].pos
+        if mirror_axis == 1 then
+            pos.x = -pos.x
+        elseif mirror_axis == 2 then
+            pos.y = -pos.y
+        elseif mirror_axis == 3 then
+            pos.z = -pos.z
+        end
+    else
+        pos = ENTITY.GET_ENTITY_COORDS(handle)
+    end
     if ENTITY.IS_ENTITY_A_PED(handle) then
         entity = entities.create_ped(0, model, pos, 0)
     elseif ENTITY.IS_ENTITY_A_VEHICLE(handle) then
@@ -1429,8 +1435,9 @@ function clone_entity(handle, name)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(builder.entitiesMenuList, entity, name)
+    add_entity_to_list(builder.entitiesMenuList, entity, name, pos)
     highlightedHandle = entity
+    return entity
 end
 
 function create_entity_section(tableref, handle, options)
@@ -1512,9 +1519,20 @@ function create_entity_section(tableref, handle, options)
             ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
         end, tableref.godmode))
     end
-    table.insert(tableref.listMenus, menu.action(entityroot, "Clone", {}, "Clone the entity", function()
-        clone_entity(handle, tableref.name)
-    end))
+    local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
+    table.insert(tableref.listMenus, cloneList)
+        menu.action(cloneList, "Clone In-place", {}, "Clones the entity where it is", function()
+            clone_entity(handle, tableref.name, 0)
+        end)
+        menu.action(cloneList, "Mirror (X-Axis)", {}, "Clones the entity, mirrored on the x-axis", function()
+            clone_entity(handle, tableref.name, 1)
+        end)
+        menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
+            clone_entity(handle, tableref.name, 2)
+        end)
+        menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
+            clone_entity(handle, tableref.name, 3)
+        end)
     table.insert(tableref.listMenus, menu.action(entityroot, "Delete", {}, "Delete the entity", function()
         if highlightedHandle == handle then
             highlightedHandle = nil
