@@ -1358,7 +1358,9 @@ function remove_preview_custom()
                 entities.delete_by_handle(entity)
             end
         end
-        entities.delete_by_handle(old_entity)
+        if old_entity > 0 then
+            entities.delete_by_handle(old_entity)
+        end
     end
 end
 
@@ -1817,7 +1819,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     or entities.create_ped(0, pedData.model, pos, 0)
 
                 if pedData.animdata then
-                    STREAMING.REMOVE_ANIM_DICT(pedData.animdata[1])
+                    STREAMING.REQUEST_ANIM_DICT(pedData.animdata[1])
                     while not STREAMING.HAS_ANIM_DICT_LOADED(pedData.animdata[1]) do
                         util.yield()
                     end
@@ -1930,7 +1932,7 @@ end
 setup_pre_menu()
 
 util.on_stop(function()
-    if HUD.DOES_BLIP_EXIST(builder.blip) then
+    if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
         HUD.REMOVE_BLIP(entities.handle_to_pointer(builder.blip))
     end
     remove_preview_custom()
