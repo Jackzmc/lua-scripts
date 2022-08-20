@@ -1612,6 +1612,8 @@ function builder_to_json()
             else
                 serialized.godmode = data.godmode
             end
+        elseif ENTITY.IS_ENTITY_A_PED(handle) then
+            serialized.animdata = data.animdata
         end
 
         if handle == builder.base.handle then
