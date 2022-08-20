@@ -31,7 +31,7 @@ local AUTOSAVE_INTERVAL_SEC = 60 * 3
 local MAX_AUTOSAVES = 4
 local autosaveNextTime = 0
 local autosaveIndex = 1
-local BUILDER_VERSION = "1.2.0" -- For version diff warnings
+local BUILDER_VERSION = "1.3.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -84,6 +84,17 @@ function new_builder(baseHandle)
         },
         prop_list_active = false
     }
+end
+function create_blip_for_entity(entity, type, name)
+    local blip = HUD.ADD_BLIP_FOR_ENTITY(entity)
+    if type then
+       HUD.SET_BLIP_SPRITE(blip, type) 
+    end
+    if name then
+        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME(name)
+        HUD.END_TEXT_COMMAND_SET_BLIP_NAME(blip)
+    end
+    return blip
 end
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
@@ -152,6 +163,38 @@ local CURATED_PEDS = {
     { "ig_devin", "Devin" },
     { "ig_tomcasino", "Tom" },
     { "ig_agatha", "Agtha" }
+}
+
+local BLIPS = {
+    { 64, "Helicopter (Black)" },
+    { 56, "Police Car" },
+    { 58, "Star " },
+    { 67, "Van " },
+    { 85, "Truck" },
+    { 90, "Plane (Black)" },
+    { 198, "Taxi "},
+    { 225, "Car" },
+    { 318, "Garbage" },
+    { 404, "Dinghy" },
+    { 410, "Boat", },
+    { 421, "Tank" },
+    { 422, "Helicopter (White)"},
+    { 423, "Plane (White)"},
+    { 424, "Jet" },
+    { 426, "Gun Vehicle"},
+    { 427, "Player Boat"},
+    { 455, "Yacht" },
+    { 477, "Truck" },
+    { 481, "Cargobob" },
+    { 479, "Trailer" },
+    { 512, "Quad"},
+    { 513, "Bus"},
+    { 522, "Deadline Bike"},
+    { 531, "Racecar"},
+    { 523, "Sports Car"},
+    { 533, "Industrial Vehicle"},
+    { 533, "Vehicle 6"},
+    { 534, "Vehicle 7"}
 }
 
 function join_path(parent, child)
@@ -639,6 +682,7 @@ function setup_pre_menu()
         if vehicle > 0 then
             builder = new_builder(vehicle)
             load_recents()
+            set_builder_vehicle(vehicle)
             setup_builder_menus()
         else
             util.toast("You are not in a vehicle.")
@@ -658,14 +702,14 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as", function(name)
-        builder.name = name
+        set_builder_name(name)
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
         end
     end, name or "")
     local uploadMenu
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
-        builder.name = name
+        set_builder_name(name)
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
                 upload_vehicle(name, builder_to_json())
@@ -735,10 +779,10 @@ function setup_builder_menus(name)
                     util.toast("This vehicle is already the base vehicle.")
                 else
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
-                    builder.base.handle = vehicle
                     for handle, data in pairs(builder.entities) do
                         attach_entity(vehicle, handle, data.pos, data.rot)
                     end
+                    set_builder_vehicle(vehicle)
                 end
             else
                 util.toast("You are not in a vehicle.")
@@ -755,7 +799,33 @@ function setup_builder_menus(name)
             visible = true,
             godmode = true
         }
+        local blipList = menu.list(settingsList, "Blip Icon", {"jvbicon"}, "Changes the blip icon for this custom vehicle.")
+        for _, icon in ipairs(BLIPS) do
+            menu.action(blipList, icon[2], {"jvbicon" .. icon[1]}, "Blip ID: " .. icon[1], function()
+                builder.blip_icon = icon[1]
+                if HUD.DOES_BLIP_EXIST(builder.blip) then
+                    HUD.REMOVE_BLIP(builder.blip)
+                end
+                set_builder_vehicle(builder.base.handle)
+            end)
+        end
         create_entity_section(builder.entities[builder.base.handle], builder.base.handle, { noRename = true } )
+end
+
+function set_builder_vehicle(handle)
+    builder.base.handle = handle
+    if HUD.DOES_BLIP_EXIST(builder.blip) then
+        HUD.REMOVE_BLIP(builder.blip)
+    end
+    builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Vehicle")
+end
+
+function set_builder_name(name)
+    builder.name = name
+    if HUD.DOES_BLIP_EXIST(builder.blip) then
+        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME(name)
+        HUD.END_TEXT_COMMAND_SET_BLIP_NAME()
+    end
 end
 
 function create_object_spawner_list(root)
@@ -1545,6 +1615,7 @@ function builder_to_json()
             data = baseSerialized,
             savedata = vehiclelib.Serialize(builder.base.handle)
         },
+        blip_icon = builder.blip_icon,
         objects = objects,
         vehicles = vehicles,
         peds = peds
@@ -1569,9 +1640,11 @@ function import_vehicle_to_builder(data, name)
         builder.name = name
         builder.author = data.author
         builder.base.data = data.base.data
+        builder.blip_icon = data.blip_icon
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
         setup_builder_menus(name)
+        set_builder_vehicle(baseHandle)
         add_attachments(baseHandle, data, true, false)
     else
         util.toast("Cannot create base vehicle, editing not possible.")
@@ -1618,6 +1691,8 @@ function spawn_custom_vehicle(data, isPreview)
     if baseHandle then
         if isPreview then
             set_preview(baseHandle, "_base", 100.0)
+        else
+            create_blip_for_entity(baseHandle, data.blip_icon, data.name)
         end
         if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
