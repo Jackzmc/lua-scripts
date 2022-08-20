@@ -742,7 +742,7 @@ function setup_builder_menus(name)
         editorActive = false
         _destroy_prop_previewer()
     end)
-    menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as", function(name)
+    menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
         set_builder_name(name)
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
@@ -821,6 +821,13 @@ function setup_builder_menus(name)
             else
                 util.toast("You are not in a vehicle.")
             end
+        end)
+        local deleteMenu
+        deleteMenu = menu.action(baseList, "Delete Custom Vehicle", {}, "Deletes the active builder with all settings and entities cleared", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom vehicle? All settings and entities will be wiped.", function()
+                remove_all_attachments(builder.base.handle)
+                builder = nil
+            end)
         end)
 
         builder.entities[builder.base.handle] = {
