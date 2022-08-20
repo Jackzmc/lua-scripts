@@ -2,11 +2,19 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.0"
+local VERSION = "1.17.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.4"
 ---@alias Handle number
 ---@alias MenuHandle number
+
+--#P:DEBUG_ONLY
+function show_busyspinner(text)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
+--#P:END
 
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
@@ -82,16 +90,18 @@ function new_builder(baseHandle)
                 items = {}
             }
         },
-        prop_list_active = false
+        prop_list_active = false,
+        blip_icon = 225
     }
 end
 function create_blip_for_entity(entity, type, name)
     local blip = HUD.ADD_BLIP_FOR_ENTITY(entity)
     if type then
-       HUD.SET_BLIP_SPRITE(blip, type) 
+       HUD.SET_BLIP_SPRITE(blip, type)
     end
     if name then
-        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME(name)
+        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME("STRING")
+        HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(name)
         HUD.END_TEXT_COMMAND_SET_BLIP_NAME(blip)
     end
     return blip
@@ -779,10 +789,13 @@ function setup_builder_menus(name)
                     util.toast("This vehicle is already the base vehicle.")
                 else
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
+                    builder.entities[vehicle] = builder.entities[builder.base.handle]
+                    builder.entities[builder.base.handle] = nil
+                    builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
+                    set_builder_vehicle(vehicle)
                     for handle, data in pairs(builder.entities) do
                         attach_entity(vehicle, handle, data.pos, data.rot)
                     end
-                    set_builder_vehicle(vehicle)
                 end
             else
                 util.toast("You are not in a vehicle.")
@@ -804,9 +817,8 @@ function setup_builder_menus(name)
             menu.action(blipList, icon[2], {"jvbicon" .. icon[1]}, "Blip ID: " .. icon[1], function()
                 builder.blip_icon = icon[1]
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
-                    HUD.REMOVE_BLIP(builder.blip)
+                    HUD.SET_BLIP_SPRITE(builder.blip, icon[1])
                 end
-                set_builder_vehicle(builder.base.handle)
             end)
         end
         create_entity_section(builder.entities[builder.base.handle], builder.base.handle, { noRename = true } )
@@ -815,7 +827,7 @@ end
 function set_builder_vehicle(handle)
     builder.base.handle = handle
     if HUD.DOES_BLIP_EXIST(builder.blip) then
-        HUD.REMOVE_BLIP(builder.blip)
+        HUD.REMOVE_BLIP(entities.handle_to_pointer(builder.blip))
     end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Vehicle")
 end
@@ -823,8 +835,9 @@ end
 function set_builder_name(name)
     builder.name = name
     if HUD.DOES_BLIP_EXIST(builder.blip) then
-        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME(name)
-        HUD.END_TEXT_COMMAND_SET_BLIP_NAME()
+        HUD.BEGIN_TEXT_COMMAND_SET_BLIP_NAME("STRING")
+        HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(name)
+        HUD.END_TEXT_COMMAND_SET_BLIP_NAME(builder.blip)
     end
 end
 
@@ -1692,7 +1705,7 @@ function spawn_custom_vehicle(data, isPreview)
         if isPreview then
             set_preview(baseHandle, "_base", 100.0)
         else
-            create_blip_for_entity(baseHandle, data.blip_icon, data.name)
+            create_blip_for_entity(baseHandle, data.blip_icon, data.name or "Custom Vehicle")
         end
         if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
@@ -1875,6 +1888,9 @@ end
 setup_pre_menu()
 
 util.on_stop(function()
+    if HUD.DOES_BLIP_EXIST(builder.blip) then
+        HUD.REMOVE_BLIP(entities.handle_to_pointer(builder.blip))
+    end
     remove_preview_custom()
 end)
 
