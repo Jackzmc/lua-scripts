@@ -1223,13 +1223,18 @@ function add_ped_menu(parent, pedName, displayName)
         remove_preview_custom()
         -- Increment recent usage
         if builder.pedSpawner.recents.items[pedName] ~= nil then
-            builder.pedSpawner.recents.items[pedName] = builder.pedSpawner.recents.items[pedName] + 1
-        else builder.pedSpawner.recents.items[pedName] = 0 end
+            builder.pedSpawner.recents.items[pedName].count = builder.pedSpawner.recents.items[pedName].count + 1
+        else
+            builder.pedSpawner.recents.items[pedName] = {
+                name = displayName,
+                count = 0
+            }
+        end
 
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_ped(0, hash, pos, 0)
-        local data = add_entity_to_list(builder.entitiesMenuList, entity, pedName)
+        add_entity_to_list(builder.entitiesMenuList, entity, pedName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
