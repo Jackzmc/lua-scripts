@@ -1496,6 +1496,10 @@ function create_entity_section(tableref, handle, options)
         end
         menu.delete(entityroot)
         tableref = nil
+        -- Fix deleting not working
+        if builder.entities[handle] then
+            builder.entities[handle] = nil
+        end
         entities.delete_by_handle(handle)
     end))
 end
