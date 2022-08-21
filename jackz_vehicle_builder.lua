@@ -842,6 +842,9 @@ function setup_builder_menus(name)
                 remove_all_attachments(builder.base.handle)
                 builder = nil
             end)
+            if HUD.DOES_BLIP_EXIST(builder.blip) then
+                util.remove_blip(builder.blip)
+            end
         end)
 
         builder.entities[builder.base.handle] = {
