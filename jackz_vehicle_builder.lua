@@ -1265,6 +1265,8 @@ function add_ped_menu(parent, pedName, displayName)
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_ped(0, hash, pos, 0)
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         add_entity_to_list(builder.entitiesMenuList, entity, pedName)
         highlightedHandle = entity
     end)
@@ -1280,6 +1282,8 @@ function add_ped_menu(parent, pedName, displayName)
             end
             if preview.id ~= pedName then return end
             local entity = PED.CREATE_PED(0, hash, pos.x, pos.y, pos.z, 0, false, false);
+            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
             if entity == 0 then
                 log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
                 return
@@ -1490,6 +1494,8 @@ function clone_entity(handle, name, mirror_axis)
     end
     if ENTITY.IS_ENTITY_A_PED(handle) then
         entity = entities.create_ped(0, model, pos, 0)
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
     elseif ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         entity = entities.create_vehicle(model, pos, 0)
     else
@@ -1900,6 +1906,8 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 local handle = isPreview
                     and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
                     or entities.create_ped(0, pedData.model, pos, 0)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
 
                 
                 if handle == 0 then
@@ -1928,6 +1936,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                         util.yield()
                     end
                     TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
+                    TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
                     PED.SET_PED_KEEP_TASK(handle, true)
                     ENTITY.FREEZE_ENTITY_POSITION(handle, true)
                 end
@@ -2099,6 +2108,7 @@ while true do
             autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
             autosave()
         end
+        -- TODO: Setup for highlightedHandle
         get_entity_lookat(100.0, 10.0, nil, function(did_hit, entity, pos)
             if did_hit and builder.entities[entity] then
                 GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(pos.x, pos.y, pos.z, hud_coords.x, hud_coords.y, hud_coords.z)
