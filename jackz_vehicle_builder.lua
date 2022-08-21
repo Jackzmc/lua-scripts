@@ -369,12 +369,16 @@ end
     SETTINGS
 ]]--
 local scriptSettings = {
-    autosaveEnabled = true
+    autosaveEnabled = true,
+    showOverlay = true
 }
 local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change settings of script")
 menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
     scriptSettings.autosaveEnabled = value
 end, scriptSettings.autosaveEnabled)
+menu.toggle(settingsList, "Show Overlay", {"jvboverlay"}, "Shows an overlay on the currently entity you are editing. Only shown when menu is open", function(value)
+    scriptSettings.showOverlay = value
+end, scriptSettings.showOverlay)
 
 menu.divider(menu.my_root(), "")
 
@@ -391,6 +395,7 @@ end)
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Vehicles", {}, "Search all uploaded custom vehicles")
 local cloudSearchResults = {}
 menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
+    if query == "" then return end
     show_busyspinner("Searching vehicles...")
     for _, data in pairs(cloudSearchResults) do
         menu.delete(data.list)
@@ -517,6 +522,7 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
         menu.focus(builder.entitiesMenuList)
     end)
     menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
+        if filename == "" then return end
         if not filesystem.exists(DOWNLOADS_DIRECTORY) then
             filesystem.mkdir(DOWNLOADS_DIRECTORY)
         end
@@ -751,10 +757,7 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
-        if name == "" then
-            util.toast("Not saving empty name")
-            return
-        end
+        if name == "" then return end
         set_builder_name(name)
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
@@ -762,10 +765,7 @@ function setup_builder_menus(name)
     end, name or "")
     local uploadMenu
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
-        if name == "" then
-            util.toast("Not uploading empty name")
-            return
-        end
+        if name == "" then return end
         set_builder_name(name)
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
@@ -780,8 +780,7 @@ function setup_builder_menus(name)
         util.toast("Set the vehicle's author to: " .. input)
     end, builder.author or "")
 
-    builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "")
-    menu.on_focus(builder.entitiesMenuList, function() highlightedHandle = nil end)
+    builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "", function() highlightedHandle = nil end)
     menu.slider(builder.entitiesMenuList, "Coordinate Sensitivity", {"offsetsensitivity"}, "Sets the sensitivity of changing the offset coordinates of an entity", 1, 20, POS_SENSITIVITY, 1, function(value)
         POS_SENSITIVITY = value
         if not value then
@@ -822,7 +821,9 @@ function setup_builder_menus(name)
                     builder.entities[handle] = nil
                 end
             end
-            highlightedHandle = nil
+            if highlightedHandle ~= builder.base.handle then
+                highlightedHandle = nil
+            end
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
@@ -942,7 +943,8 @@ function create_ped_spawner_list(root)
                 util.yield()
             end
             local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
-            local entity = entities.create_ped(0, hash, pos)
+            local entity = entities.create_ped(0, hash, { x = 0, y = 0, z = 0})
+            ENTITY.SET_ENTITY_COORDS(entity, pos)
             add_entity_to_list(builder.entitiesMenuList, entity, query)
             highlightedHandle = entity
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
@@ -1275,7 +1277,7 @@ function add_ped_menu(parent, pedName, displayName)
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_ped(0, hash, {x = 0, y = 0, z = 0}, 0)
-        ENTITY.SET_ENTITY_COORDS(entity, pos)
+        ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
         -- TODO: Spawn ped somewhere else and teleport to correct location
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
@@ -1295,7 +1297,7 @@ function add_ped_menu(parent, pedName, displayName)
             end
             if preview.id ~= pedName then return end
             local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
-            ENTITY.SET_ENTITY_COORDS(entity, pos)
+            ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
             ENTITY.FREEZE_ENTITY_POSITION(entity)
             PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
             TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
@@ -1509,7 +1511,7 @@ function clone_entity(handle, name, mirror_axis)
     end
     if ENTITY.IS_ENTITY_A_PED(handle) then
         entity = entities.create_ped(0, model, {x = 0, y = 0, z = 0}, 0)
-        ENTITY.SET_ENTITY_COORDS(entity, pos)
+        ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         ENTITY.FREEZE_ENTITY_POSITION(entity)
@@ -2147,15 +2149,8 @@ while true do
             autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
             autosave()
         end
-        -- TODO: Setup for highlightedHandle
-        get_entity_lookat(100.0, 10.0, nil, function(did_hit, entity, pos)
-            if did_hit and builder.entities[entity] then
-                
-                
-            end
-        end)
         if highlightedHandle ~= nil then
-            if menu.is_open() or FREE_EDIT then
+            if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(pos.x, pos.y, pos.z, hud_coords.x, hud_coords.y, hud_coords.z)
                 local hudPos = {}
