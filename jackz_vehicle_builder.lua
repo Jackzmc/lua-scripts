@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.0"
+local VERSION = "1.17.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.5"
 ---@alias Handle number
@@ -589,7 +589,7 @@ function rate_vehicle(user, vehicleName, rating)
     end
     -- SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()
     async_http.init("jackz.me", 
-        string.format("/stand/cloud/custom-vehicles2.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
     function(body)
