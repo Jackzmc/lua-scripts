@@ -63,6 +63,8 @@ local BUILDER_VERSION = "1.3.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
+local pedAnimCache = {}
+local pedAnimThread
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 ---@param baseHandle Handle
@@ -1272,9 +1274,12 @@ function add_ped_menu(parent, pedName, displayName)
 
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
-        local entity = entities.create_ped(0, hash, pos, 0)
+        local entity = entities.create_ped(0, hash, {x = 0, y = 0, z = 0}, 0)
+        ENTITY.SET_ENTITY_COORDS(entity, pos)
+        -- TODO: Spawn ped somewhere else and teleport to correct location
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+        ENTITY.FREEZE_ENTITY_POSITION(entity)
         add_entity_to_list(builder.entitiesMenuList, entity, pedName)
         highlightedHandle = entity
     end)
@@ -1289,7 +1294,9 @@ function add_ped_menu(parent, pedName, displayName)
                 util.yield()
             end
             if preview.id ~= pedName then return end
-            local entity = PED.CREATE_PED(0, hash, pos.x, pos.y, pos.z, 0, false, false);
+            local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
+            ENTITY.SET_ENTITY_COORDS(entity, pos)
+            ENTITY.FREEZE_ENTITY_POSITION(entity)
             PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
             TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
             if entity == 0 then
@@ -1501,9 +1508,11 @@ function clone_entity(handle, name, mirror_axis)
         pos = ENTITY.GET_ENTITY_COORDS(handle)
     end
     if ENTITY.IS_ENTITY_A_PED(handle) then
-        entity = entities.create_ped(0, model, pos, 0)
+        entity = entities.create_ped(0, model, {x = 0, y = 0, z = 0}, 0)
+        ENTITY.SET_ENTITY_COORDS(entity, pos)
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+        ENTITY.FREEZE_ENTITY_POSITION(entity)
     elseif ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         entity = entities.create_vehicle(model, pos, 0)
     else
@@ -1911,6 +1920,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 while not STREAMING.HAS_MODEL_LOADED(pedData.model) do
                     util.yield()
                 end
+
                 local handle = isPreview
                     and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
                     or entities.create_ped(0, pedData.model, pos, 0)
@@ -1918,6 +1928,14 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
 
                 
+                if pedData.visible == false then
+                    ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+                end
+                if not pedData.godmode then
+                    pedData.godmode = true
+                end
+                ENTITY.SET_ENTITY_INVINCIBLE(handle, pedData.godmode)
+
                 if handle == 0 then
                     util.toast("Ped failed to spawn: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
                 else
@@ -1944,9 +1962,19 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                         util.yield()
                     end
                     TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
-                    TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
-                    PED.SET_PED_KEEP_TASK(handle, true)
-                    ENTITY.FREEZE_ENTITY_POSITION(handle, true)
+                    table.insert(pedAnimCache, { handle = handle, animdata = pedData.animdata })
+                    if not pedAnimThread then
+                        pedAnimThread = util.create_thread(function()
+                            while #pedAnimCache > 0 do
+                                for _, entry in ipairs(pedAnimCache) do
+                                    if not ENTITY.IS_ENTITY_PLAYING_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 3) then
+                                        TASK.TASK_PLAY_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
+                                    end
+                                end
+                                util.yield(4000)
+                            end
+                        end)
+                    end
                 end
             end
         end
@@ -1958,7 +1986,10 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             if vehData.visible == false then
                 ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
             end
-            ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
+            if not vehData.godmode then
+                vehData.godmode = true
+            end
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, vehData.godmode)
             for _, handle2 in ipairs(handles) do
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
             end
