@@ -8,8 +8,8 @@ local VEHICLELIB_TARGET_VERSION = "1.1.5"
 ---@alias Handle number
 ---@alias MenuHandle number
 
--- Still needed for local dev
 --#P:DEBUG_ONLY
+-- Still needed for local dev
 function show_busyspinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
