@@ -14,4 +14,5 @@ Exmaple: https://jackz.me/stand/get-lua.php?script=jackz_vehicle_builder&source=
 ## Branches
 
 release - The public version that all end users download from
+
 master - The main development branch where breaking changes may occur
