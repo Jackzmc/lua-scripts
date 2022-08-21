@@ -944,7 +944,7 @@ function create_ped_spawner_list(root)
             end
             local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
             local entity = entities.create_ped(0, hash, { x = 0, y = 0, z = 0})
-            ENTITY.SET_ENTITY_COORDS(entity, pos)
+            ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
             add_entity_to_list(builder.entitiesMenuList, entity, query)
             highlightedHandle = entity
             STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
