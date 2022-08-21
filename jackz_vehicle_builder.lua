@@ -805,16 +805,21 @@ function setup_builder_menus(name)
 
     local baseList = menu.list(mainMenu, "Base Vehicle", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
+        menu.on_focus(settingsList, function()
+            highlightedHandle = builder.base.handle
+        end)
         menu.action(baseList, "Teleport Into", {}, "Teleport into the base vehicle", function()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
         end)
         menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
             remove_all_attachments(builder.base.handle)
-            for _, data in pairs(builder.entities) do
-                menu.delete(data.list)
+            for handle, data in pairs(builder.entities) do
+                if handle ~= builder.base.handle then
+                    menu.delete(data.list)
+                    builder.entities[handle] = nil
+                end
             end
-            builder.entities = {}
             highlightedHandle = nil
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
@@ -2114,15 +2119,22 @@ while true do
         -- TODO: Setup for highlightedHandle
         get_entity_lookat(100.0, 10.0, nil, function(did_hit, entity, pos)
             if did_hit and builder.entities[entity] then
+                
+                
+            end
+        end)
+        if highlightedHandle ~= nil then
+            if menu.is_open() or FREE_EDIT then
+                local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(pos.x, pos.y, pos.z, hud_coords.x, hud_coords.y, hud_coords.z)
                 local hudPos = {}
                 for k in pairs(hud_coords) do
                     hudPos[k] = memory.read_float(hud_coords[k])
                 end
 
-                local entData = builder.entities[entity]
+                local entData = builder.entities[highlightedHandle]
 
-                local is_base = builder.base.handle == entity
+                local is_base = builder.base.handle == highlightedHandle
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
@@ -2138,75 +2150,74 @@ while true do
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                 end
-                
-            end
-        end)
-    end
-    if highlightedHandle ~= nil then
-        highlight_object(highlightedHandle)
-        show_marker(highlightedHandle, 0)
-        local pos = builder.entities[highlightedHandle].pos
-        local rot = builder.entities[highlightedHandle].rot
-        if FREE_EDIT and (not isInEntityMenu or not menu.is_open()) then
-            local posSensitivity = POS_SENSITIVITY / 100
-            local update = false
-            -- POS
-            if PAD.IS_CONTROL_PRESSED(2, 32) then --W
-                pos.y = pos.y + posSensitivity
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 33) then --S
-                pos.y = pos.y - posSensitivity
-                update = true
-            end
-            if PAD.IS_CONTROL_PRESSED(2, 34) then --A
-                pos.x = pos.x - posSensitivity
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 35) then --D
-                pos.x = pos.x + posSensitivity
-                update = true
-            end
-            if PAD.IS_CONTROL_PRESSED(2, 61) and not PAD.IS_CONTROL_PRESSED(2, 111) then --SHIFT
-                pos.z = pos.z + posSensitivity
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 62) and not PAD.IS_CONTROL_PRESSED(2, 112)  then--CTRL
-                pos.z = pos.z - posSensitivity
-                update = true
-            end
-            -- ROT
-            if PAD.IS_CONTROL_PRESSED(2, 111) then --NUM 8
-                rot.y = rot.y - ROT_SENSITIVITY
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 112) then --NUM 5
-                rot.y = rot.y + ROT_SENSITIVITY
-                update = true
-            end
-            if PAD.IS_CONTROL_PRESSED(2, 108) then --NUM 4
-                rot.x = rot.x + ROT_SENSITIVITY
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 109) then -- NUM 6
-                rot.x = rot.x - ROT_SENSITIVITY
-                update = true
-            end
-            if PAD.IS_CONTROL_PRESSED(2, 117) then --NUM 7
-                rot.z = rot.z - ROT_SENSITIVITY
-                update = true
-            elseif PAD.IS_CONTROL_PRESSED(2, 119) then --NUM 9
-                rot.z = rot.z + ROT_SENSITIVITY
-                update = true
             end
 
-            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            if not update then
-                ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
-                ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
+            highlight_object(highlightedHandle)
+            show_marker(highlightedHandle, 0)
+            local pos = builder.entities[highlightedHandle].pos
+            local rot = builder.entities[highlightedHandle].rot
+            if FREE_EDIT and (not isInEntityMenu or not menu.is_open()) then
+                local posSensitivity = POS_SENSITIVITY / 100
+                local update = false
+                -- POS
+                if PAD.IS_CONTROL_PRESSED(2, 32) then --W
+                    pos.y = pos.y + posSensitivity
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 33) then --S
+                    pos.y = pos.y - posSensitivity
+                    update = true
+                end
+                if PAD.IS_CONTROL_PRESSED(2, 34) then --A
+                    pos.x = pos.x - posSensitivity
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 35) then --D
+                    pos.x = pos.x + posSensitivity
+                    update = true
+                end
+                if PAD.IS_CONTROL_PRESSED(2, 61) and not PAD.IS_CONTROL_PRESSED(2, 111) then --SHIFT
+                    pos.z = pos.z + posSensitivity
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 62) and not PAD.IS_CONTROL_PRESSED(2, 112)  then--CTRL
+                    pos.z = pos.z - posSensitivity
+                    update = true
+                end
+                -- ROT
+                if PAD.IS_CONTROL_PRESSED(2, 111) then --NUM 8
+                    rot.y = rot.y - ROT_SENSITIVITY
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 112) then --NUM 5
+                    rot.y = rot.y + ROT_SENSITIVITY
+                    update = true
+                end
+                if PAD.IS_CONTROL_PRESSED(2, 108) then --NUM 4
+                    rot.x = rot.x + ROT_SENSITIVITY
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 109) then -- NUM 6
+                    rot.x = rot.x - ROT_SENSITIVITY
+                    update = true
+                end
+                if PAD.IS_CONTROL_PRESSED(2, 117) then --NUM 7
+                    rot.z = rot.z - ROT_SENSITIVITY
+                    update = true
+                elseif PAD.IS_CONTROL_PRESSED(2, 119) then --NUM 9
+                    rot.z = rot.z + ROT_SENSITIVITY
+                    update = true
+                end
+
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                if not update then
+                    ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
+                    ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
+                end
+                if update then
+                    ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, true)
+                    ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
+                    attach_entity(builder.base.handle, highlightedHandle, pos, rot)
+                end
             end
-            if update then
-                ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, true)
-                ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
-                attach_entity(builder.base.handle, highlightedHandle, pos, rot)
-            end
+            util.draw_debug_text(string.format("%d pos(%.1f, %.1f, %.1f) rot(%.0f, %.0f, %.0f)", highlightedHandle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z))
         end
-        util.draw_debug_text(string.format("%d pos(%.1f, %.1f, %.1f) rot(%.0f, %.0f, %.0f)", highlightedHandle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z))
     end
+
     util.yield()
 end
