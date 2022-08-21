@@ -1972,6 +1972,9 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                                     if not ENTITY.IS_ENTITY_PLAYING_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 3) then
                                         TASK.TASK_PLAY_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
                                     end
+                                    if builder and builder.entities[entry.handle] then
+                                        attach_entity(builder.base.handle, entry.handle, builder.entities[entry.handle].pos, builder.entities[entry.handle].rot)
+                                    end
                                 end
                                 util.yield(4000)
                             end
