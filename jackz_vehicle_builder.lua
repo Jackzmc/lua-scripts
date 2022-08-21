@@ -243,6 +243,17 @@ local BLIP_ICONS = {
 
 }
 
+local FAVORITES = {
+    objects = {},
+    vehicles = {},
+    peds = {}
+}
+local FAVORITES_PATH = os.fil
+
+function save_favorites_list()
+
+end
+
 function join_path(parent, child)
     local sub = parent:sub(-1)
     if sub == "/" or sub == "\\" then
@@ -1215,6 +1226,12 @@ function save_recents()
         file:write(id .. "," .. data.name .. "," .. (data.dlc or "") .. "," .. data.count .. "\n")
     end
     file:close()
+
+    file = io.open(RECENTS_DIR .. "peds.txt", "w+")
+    for id, data in pairs(builder.pedSpawner.recents.items) do
+        file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
+    end
+    file:close()
 end
 
 function load_recents()
@@ -1241,6 +1258,20 @@ function load_recents()
                     count = count,
                     name = name,
                     dlc = dlc or ""
+                }
+            end
+        end
+        file:close()
+    end
+
+    file = io.open(RECENTS_DIR .. "peds.txt", "r+")
+    if file then
+        for line in file:lines("l") do
+            local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
+            if id then
+                builder.vehSpawner.recents.items[id] = {
+                    count = count,
+                    name = name
                 }
             end
         end
