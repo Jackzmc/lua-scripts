@@ -134,7 +134,8 @@ local preview = { -- Handles preview tracking and clearing
     id = nil,
     thread = nil,
     range = -1,
-    rendercb = nil -- Function to render a text preview 
+    rendercb = nil, -- Function to render a text preview 
+    renderdata = nil
 }
 local highlightedHandle = nil -- Will highlight the handle with this ID
 local mainMenu -- TODO: Rename to better name
@@ -273,7 +274,6 @@ function create_preview_handler_if_not_exists()
         preview.thread = util.create_thread(function()
             local heading = 0
             while preview.entity ~= 0 do
-                -- util.draw_debug_text("PREVIEWER ACTIVE " .. preview.entity)
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 heading = heading + 2
                 if heading == 360 then
@@ -284,11 +284,12 @@ function create_preview_handler_if_not_exists()
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
                 if preview.rendercb then
-                    preview.rendercb()
+                    preview.rendercb(pos, preview.renderdata)
                 end
 
-                util.yield(15)
+                util.yield(12)
             end
+            preview.thread = nil
         end)
     end
 end
@@ -489,7 +490,11 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                 return
             end
             tableref['vehicle'] = data.vehicle
-            spawn_custom_vehicle(tableref['vehicle'], true)
+            if not data.vehicle.name then
+                data.vehicle.name = vehicleName
+            end
+            data.uploader = user
+            spawn_custom_vehicle(tableref['vehicle'], true, _render_cloud_vehicle_overlay, data)
         else
             log("invalid server response : " .. body, "_fetch_cloud_users")
             util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
@@ -684,15 +689,35 @@ function _setup_spawn_list_entry(parentList, filepath)
         -- Spawn custom vehicle handler
         menu.on_focus(optionParentMenus[filepath], function()
             if preview.id ~= filename then
-                remove_preview_custom()
-                preview.id = filename
-                spawn_custom_vehicle(data, true)
-                create_preview_handler_if_not_exists()
+                data.filename = filename
+                spawn_custom_vehicle(data, true, _render_saved_vehicle_overlay, data)
             end
         end)
     else
         log(string.format("Skipping vehicle \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
     end
+end
+function _render_saved_vehicle_overlay(pos, data)
+    local hudPos = get_screen_coords(pos)
+    directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.105, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+    local authorText = data.author and ("Created by " .. data.author) or "Unknown creator"
+
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, data.name or data.filename, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, data.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("%d vehicles, %d objects, %d peds", data.vehicles and #data.vehicles or 0, data.objects and #data.objects or 0, data.peds and #data.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+end
+function _render_cloud_vehicle_overlay(pos, data)
+    local hudPos = get_screen_coords(pos)
+    directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.12, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+    local authorText = data.vehicle.author and ("Created by " .. data.vehicle.author) or "Unknown creator"
+
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, data.vehicle.name, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.025, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.042, "Uploaded by " .. data.uploader, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.065, data.vehicle.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.08, string.format("%d vehicles, %d objects, %d peds", data.vehicle.vehicles and #data.vehicle.vehicles or 0, data.vehicle.objects and #data.vehicle.objects or 0, data.vehicle.peds and #data.vehicle.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%d star rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
 end
 function _load_saved_list()
     remove_preview_custom()
@@ -1354,14 +1379,13 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc)
 end
 --[ Previewer Stuff ]--
 
-function set_preview(entity, id, range, renderfunc)
+function set_preview(entity, id, range, renderfunc, renderdata)
     remove_preview_custom()
     preview.entity = entity
     preview.id = id
     preview.range = range or -1
-    if renderfunc then
-        preview.rendercb = renderfunc
-    end
+    preview.rendercb = renderfunc
+    preview.renderdata = renderdata
     create_preview_handler_if_not_exists()
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
@@ -1397,9 +1421,7 @@ function remove_preview_custom()
     preview.id = nil
     if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
         remove_all_attachments(old_entity)
-        if ENTITY.DOES_ENTITY_EXIST(old_entity) then
-            entities.delete_by_handle(old_entity)
-        end
+        entities.delete_by_handle(old_entity)
     end
 end
 
@@ -1847,13 +1869,13 @@ function spawn_vehicle(vehicleData, isPreview)
     return handle, pos
 end
 
-function spawn_custom_vehicle(data, isPreview)
+function spawn_custom_vehicle(data, isPreview, previewFunc, previewData)
     -- TODO: Implement all base data
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
     if baseHandle then
         if isPreview then
-            set_preview(baseHandle, "_base", 100.0)
+            set_preview(baseHandle, "_base", 100.0, previewFunc, previewData)
         else
             create_blip_for_entity(baseHandle, data.blip_icon, data.name or "Custom Vehicle")
         end
@@ -2143,6 +2165,15 @@ add_text(string.format("%d vehicles, %d objects, %d peds attached", vehicleCount
 draw_background()
 ]]--
 
+function get_screen_coords(worldPos)
+    GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(worldPos.x, worldPos.y, worldPos.z, hud_coords.x, hud_coords.y, hud_coords.z)
+    local hudPos = {}
+    for k in pairs(hud_coords) do
+        hudPos[k] = memory.read_float(hud_coords[k])
+    end
+    return hudPos
+end
+
 
 while true do
     local seconds = os.seconds()
@@ -2152,14 +2183,27 @@ while true do
             autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
             autosave()
         end
+        get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
+            if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                local hudPos = get_screen_coords(pos)
+                local type = "OBJECT"
+                if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
+                    type = "VEHICLE"
+                elseif ENTITY.IS_ENTITY_A_PED(entity) then
+                    type = "PED"
+                end
+                directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, type, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                if util.is_key_down(0x4A) then
+                    add_entity_to_list(builder.entitiesMenuList, entity, "Pre-existing Vehicle")
+                end
+            end
+        end)
         if highlightedHandle ~= nil then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
-                GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(pos.x, pos.y, pos.z, hud_coords.x, hud_coords.y, hud_coords.z)
-                local hudPos = {}
-                for k in pairs(hud_coords) do
-                    hudPos[k] = memory.read_float(hud_coords[k])
-                end
+                local hudPos = get_screen_coords(pos)
 
                 local entData = builder.entities[highlightedHandle]
 
