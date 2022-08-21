@@ -1,6 +1,6 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
-    FORMAT_VERSION = "JSTAND 1.3.1",
+    FORMAT_VERSION = "JSTAND 1.4.0",
     LIB_VERSION = "1.1.4",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
@@ -186,8 +186,11 @@ function vehiclelib.Serialize(vehicle)
         },
         Lights = {
             ["Xenon Color"] = VEHICLE._GET_VEHICLE_XENON_LIGHTS_COLOR(vehicle),
-            Neon = Neon
+            Neon = Neon,
+            SirenActive = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle),
+            SearchLightActive = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle)
         },
+        RadioLoud = VEHICLE._IS_VEHICLE_RADIO_LOUD(vehicle),
         ["Engine Running"] = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle),
         ["Dashboard Color"] = DashboardColor,
         ["Interior Color"] = InteriorColor,
@@ -236,6 +239,12 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1, saveData.Lights.Neon.Right or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2, saveData.Lights.Neon.Front or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3, saveData.Lights.Neon.Back or false)
+    if saveData.Lights.SirenActive then
+        VEHICLE._SET_SIREN_KEEP_ON(vehicle, true)
+        VEHICLE.SET_VEHICLE_SIREN(vehicle, saveData.Lights.SirenActive or false)
+    end
+    VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle, saveData.Lights.SearchLightActive or false, true)
+    VEHICLE.SET_VEHICLE_RADIO_LOUD(vehicle, saveData.RadioLoud or false)
 
     if saveData["Engine Running"] then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true, false)

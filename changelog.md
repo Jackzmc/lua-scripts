@@ -157,3 +157,4 @@ V1.17.0
 * Fix 'Remove All Entities' clearing base vehicle
 * Added Clone > Mirror for every axis
 * General bug fixes and improvements
+* Added some info boxes for builder entities
