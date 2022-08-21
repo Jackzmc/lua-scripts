@@ -1477,7 +1477,7 @@ function add_entity_to_list(list, handle, name, pos, rot)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
         function() create_entity_section(builder.entities[handle], handle) end,
-        function() 
+        function()
             isInEntityMenu = false
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
@@ -1485,7 +1485,7 @@ function add_entity_to_list(list, handle, name, pos, rot)
         end
     )
     menu.focus(builder.entities[handle].list)
-    create_entity_section(builder.entities[handle], handle)
+    -- create_entity_section(builder.entities[handle], handle)
     return builder.entities[handle]
 end
 
@@ -2241,7 +2241,6 @@ while true do
                     attach_entity(builder.base.handle, highlightedHandle, pos, rot)
                 end
             end
-            util.draw_debug_text(string.format("%d pos(%.1f, %.1f, %.1f) rot(%.0f, %.0f, %.0f)", highlightedHandle, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z))
         end
     end
 
