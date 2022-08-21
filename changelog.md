@@ -27,6 +27,7 @@ v3.9.0
 * Allow turning off refresh interval for nearby vehicles
 * Supposedly fix jackzvehiclelib improperly doing extras
 * (3.9.1) Updated jackzvehiclelib
+* (3.9.2) Fix extras (Thanks hexarobi)
 
 # actions (v1)
 
@@ -162,3 +163,5 @@ V1.17.0
 * Added info boxes for cloud / saved vehicles
 * Added ability to favorite peds, objects, vehicles
 * Updated to latest jackzvehiclelib
+* (1.17.1) Fix extras (Thanks hexarobi)
+* (1.17.1) Change some blip icons

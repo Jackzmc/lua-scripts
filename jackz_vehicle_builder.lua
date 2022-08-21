@@ -2,9 +2,9 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.1"
+local VERSION = "1.17.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.5"
+local VEHICLELIB_TARGET_VERSION = "1.1.6"
 ---@alias Handle number
 ---@alias MenuHandle number
 
@@ -216,8 +216,8 @@ local CURATED_PEDS = {
 local BLIP_ICONS = {
     { 64, "Helicopter (Black)" },
     { 56, "Police Car" },
-    { 58, "Star " },
-    { 67, "Van " },
+    { 58, "Star" },
+    { 67, "Van" },
     { 85, "Truck" },
     { 90, "Plane (Black)" },
     { 198, "Taxi "},
@@ -241,8 +241,8 @@ local BLIP_ICONS = {
     { 531, "Racecar"},
     { 523, "Sports Car"},
     { 533, "Industrial Vehicle"},
-    { 533, "Vehicle 6"},
-    { 534, "Vehicle 7"},
+    { 533, "Rocket Voltic"},
+    { 534, "Space Docker"},
     { 401, "Blimp" },
     { 824, "Champion" },
     { 818, "Patriot" },
