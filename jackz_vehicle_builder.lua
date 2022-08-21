@@ -593,12 +593,16 @@ function rate_vehicle(user, vehicleName, rating)
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
     function(body)
-        local data = json.decode(body)
-        if data.success then
-            util.toast("Rating submitted")
+        if body:sub(1, 1) == "{" then
+            local data = json.decode(body)
+            if data.success then
+                util.toast("Rating submitted")
+            else
+                log(body)
+                util.toast("Failed to submit rating, see logs")
+            end
         else
-            log(body)
-            util.toast("Failed to submit rating, see logs")
+            util.toast("Server sent invalid response")
         end
 
     end, function()
@@ -1817,15 +1821,19 @@ function upload_vehicle(name, data)
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
     ), function(body)
-        local response = json.decode(body)
-        if response.error then
-            log(string.format("name:%s, vehicle: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
-            util.toast("Upload error: " .. response.message)
-        elseif response.status then
-            if response.status == "updated" then
-                util.toast("Successfully updated vehicle")
+        if body:sub(1, 1) == "{" then
+            local response = json.decode(body)
+            if response.error then
+                log(string.format("name:%s, vehicle: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
+                util.toast("Upload error: " .. response.message)
+            elseif response.status then
+                if response.status == "updated" then
+                    util.toast("Successfully updated vehicle")
+                else
+                    util.toast("Successfully uploaded vehicle")
+                end
             else
-                util.toast("Successfully uploaded vehicle")
+                util.toast("Server sent invalid response")
             end
         else
             util.toast("Server sent invalid response")
