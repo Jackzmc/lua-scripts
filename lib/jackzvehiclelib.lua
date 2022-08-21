@@ -190,7 +190,7 @@ function vehiclelib.Serialize(vehicle)
             SirenActive = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle),
             SearchLightActive = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle)
         },
-        RadioLoud = VEHICLE._IS_VEHICLE_RADIO_LOUD(vehicle),
+        RadioLoud = AUDIO._IS_VEHICLE_RADIO_LOUD(vehicle),
         ["Engine Running"] = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle),
         ["Dashboard Color"] = DashboardColor,
         ["Interior Color"] = InteriorColor,
@@ -244,7 +244,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
         VEHICLE.SET_VEHICLE_SIREN(vehicle, saveData.Lights.SirenActive or false)
     end
     VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle, saveData.Lights.SearchLightActive or false, true)
-    VEHICLE.SET_VEHICLE_RADIO_LOUD(vehicle, saveData.RadioLoud or false)
+    AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle, saveData.RadioLoud or false)
 
     if saveData["Engine Running"] then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true, false)
