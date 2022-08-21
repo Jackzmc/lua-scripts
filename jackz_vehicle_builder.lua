@@ -937,6 +937,7 @@ function setup_builder_menus(name)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     HUD.SET_BLIP_SPRITE(builder.blip, icon[1])
                 end
+                util.toast("Blip changed to: " .. icon[2])
             end)
         end
         create_entity_section(builder.entities[builder.base.handle], builder.base.handle, { noRename = true } )
