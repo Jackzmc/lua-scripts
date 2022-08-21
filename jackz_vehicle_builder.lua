@@ -91,6 +91,9 @@ function new_builder(baseHandle)
                 list = nil,
                 ---@type table<Handle, number>
                 items = {}
+            },
+            favorites = {
+                list = nil
             }
         },
         vehSpawner = {
@@ -102,6 +105,9 @@ function new_builder(baseHandle)
                 list = nil,
                 ---@type table<Handle, number>
                 items = {}
+            },
+            favorites = {
+                list = nil
             }
         },
         pedSpawner = {
@@ -111,6 +117,9 @@ function new_builder(baseHandle)
             recents = {
                 list = nil,
                 items = {}
+            },
+            favorites = {
+                list = nil
             }
         },
         prop_list_active = false,
@@ -248,11 +257,26 @@ local FAVORITES = {
     vehicles = {},
     peds = {}
 }
-local FAVORITES_PATH = os.fil
+local FAVORITES_PATH = filesystem.store_dir() .. "jackz_vehicle_builder\\favorites.json"
 
 function save_favorites_list()
-
+    local file = io.open(FAVORITES_PATH, "w")
+    if file then
+        file:write(json.encode(FAVORITES))
+        file:flush()
+        file:close()
+    end
 end
+
+function load_favorites_list()
+    local file = io.open(FAVORITES_PATH, "r")
+    if file then
+        FAVORITES = json.decode(file:read("*a"))
+        file:close()
+    end
+end
+
+load_favorites_list()
 
 function join_path(parent, child)
     local sub = parent:sub(-1)
@@ -956,6 +980,7 @@ function create_object_spawner_list(root)
         end
     end)
     builder.propSpawner.recents.list = menu.list(root, "Recent Props", {}, "Your most recently spawned props", _load_prop_recent_menu, _destroy_recent_menus)
+    builder.propSpawner.favorites.list = menu.list(root, "Favorite Props", {}, "Your favorited spawned props\nPress SHIFT + ENTER to remove items from favorites", _load_prop_favorites_menu, _destroy_favorites_menus)
     local browseList
     browseList = menu.list(root, "Browse", {}, "Browse all the props in the game.", function()
         _load_prop_browse_menus(browseList)
@@ -989,6 +1014,7 @@ function create_ped_spawner_list(root)
         end
     end)
     builder.pedSpawner.recents.list = menu.list(root, "Recent Peds", {}, "Your most recently spawned peds", _load_ped_recent_menu, _destroy_recent_menus)
+    builder.pedSpawner.favorites.list = menu.list(root, "Favorite Peds", {}, "Your favorited spawned peds\nPress SHIFT + ENTER to remove items from favorites", _load_ped_favorites_menu, _destroy_favorites_menus)
     local browseList
     browseList = menu.list(root, "Browse", {}, "Browse all the peds in the game.", function()
         _load_ped_browse_menus(browseList)
@@ -1020,6 +1046,8 @@ function create_vehicle_spawner_list(root)
         end
     end)
     builder.vehSpawner.recents.list = menu.list(root, "Recent Vehicles", {}, "Browse your most recently used vehicles", _load_vehicle_recent_menu)
+    builder.vehSpawner.favorites.list = menu.list(root, "Favorite Vehicles", {}, "Your favorited spawned vehicles\nPress SHIFT + ENTER to remove items from favorites", _load_vehicle_favorites_menu, _destroy_favorites_menus)
+
     local browseList
     browseList = menu.list(root, "Browse", {}, "Browse all vehicles", function()
         _load_vehicle_browse_menus(browseList)
@@ -1081,11 +1109,33 @@ function _load_vehicle_recent_menu()
         table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.recents.list, data.id, data.name, data.dlc))
     end
 end
-
-
 function _destroy_recent_menus()
     clear_menu_table(recentMenus)
+end
+-- [ END Recents ]--
 
+-- [ RECENTS MENU LOAD LOGIC ]--
+local favoriteMenus = {}
+function _load_prop_favorites_menu()
+    _destroy_favorites_menus()
+    for _, data in ipairs(FAVORITES.objects) do
+        table.insert(recentMenus, add_prop_menu(builder.propSpawner.favorites.list, data.prop, true))
+    end
+end
+function _load_ped_favorites_menu()
+    _destroy_favorites_menus()
+    for _, data in ipairs(FAVORITES.peds) do
+        table.insert(recentMenus, add_ped_menu(builder.pedSpawaner.favorites.list, data.ped, data.display, true))
+    end
+end
+function _load_vehicle_favorites_menu() 
+    _destroy_favorites_menus()
+    for _, data in ipairs(FAVORITES.vehicles) do
+        table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.favorites.list, data.vehicle, data.name, data.dlc, true))
+    end
+end
+function _destroy_favorites_menus()
+    clear_menu_table(favoriteMenus)
 end
 -- [ END Recents ]--
 
@@ -1208,6 +1258,7 @@ function _destroy_browse_menu(key)
     builder[key].menus = {}
     remove_preview_custom()
     save_recents()
+    save_favorites_list()
     HUD.BUSYSPINNER_OFF()
 end
 
@@ -1280,10 +1331,27 @@ function load_recents()
 end
 
 --[ PROP/VEHICLE MENU & PREVIEWS ]--
-function add_prop_menu(parent, propName)
-    local menuHandle = menu.action(parent, propName, {}, "", function()
+function add_prop_menu(parent, propName, isFavoritesEntry)
+    local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
+    local menuHandle
+    menuHandle = menu.action(parent, propName, {}, helper, function()
         remove_preview_custom()
         -- Increment recent usage
+        if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if isFavoritesEntry then
+                for i, entry in ipairs(FAVORITES.objects) do
+                    if entry.prop == propName then
+                        table.remove(FAVORITES.objects, i)
+                    end
+                end
+                util.toast("Removed prop from your favorites")
+                menu.delete(menuHandle)
+            else
+                table.insert(FAVORITES.objects, { prop = propName})
+                util.toast("Added prop to your favorites")
+            end
+            return
+        end
         if builder.propSpawner.recents.items[propName] ~= nil then
             builder.propSpawner.recents.items[propName] = builder.propSpawner.recents.items[propName] + 1
         else builder.propSpawner.recents.items[propName] = 0 end
@@ -1317,9 +1385,26 @@ function add_prop_menu(parent, propName)
     return menuHandle
 end
 
-function add_ped_menu(parent, pedName, displayName)
-    local menuHandle = menu.action(parent, displayName or pedName, {}, pedName, function()
+function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
+    local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
+    local menuHandle
+    menuHandle = menu.action(parent, displayName or pedName, {}, pedName .. "\n" .. helper, function()
         remove_preview_custom()
+        if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if isFavoritesEntry then
+                for i, entry in ipairs(FAVORITES.peds) do
+                    if entry.ped == pedName then
+                        table.remove(FAVORITES.peds, i)
+                    end
+                end
+                util.toast("Removed ped from your favorites")
+                menu.delete(menuHandle)
+            else
+                table.insert(FAVORITES.peds, { ped = pedName, display = displayName })
+                util.toast("Added ped to your favorites")
+            end
+            return
+        end
         -- Increment recent usage
         if builder.pedSpawner.recents.items[pedName] ~= nil then
             builder.pedSpawner.recents.items[pedName].count = builder.pedSpawner.recents.items[pedName].count + 1
@@ -1329,6 +1414,8 @@ function add_ped_menu(parent, pedName, displayName)
                 count = 0
             }
         end
+
+       
 
         local hash = util.joaat(pedName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
@@ -1368,9 +1455,26 @@ function add_ped_menu(parent, pedName, displayName)
     return menuHandle
 end
 
-function add_vehicle_menu(parent, vehicleID, displayName, dlc)
-    local menuHandle = menu.action(parent, displayName, {}, dlc and ("DLC: " .. dlc) or "", function()
+function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
+    local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
+    local menuHandle
+    menuHandle = menu.action(parent, displayName, {}, (dlc and ("DLC: " .. dlc) or "") .. "\n" .. helper, function()
         remove_preview_custom()
+        if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if isFavoritesEntry then
+                for i, entry in ipairs(FAVORITES.vehicles) do
+                    if entry.vehicle == vehicleID then
+                        table.remove(FAVORITES.vehicles, i)
+                    end
+                end
+                menu.delete(menuHandle)
+                util.toast("Removed vehicle from your favorites")
+            else
+                table.insert(FAVORITES.vehicles, { vehicle = vehicleID, display = displayName, dlc = dlc })
+                util.toast("Added vehicle to your favorites")
+            end
+            return
+        end
         -- Increment recent usage
         if builder.vehSpawner.recents.items[vehicleID] ~= nil then
             builder.vehSpawner.recents.items[vehicleID].count = builder.vehSpawner.recents.items[vehicleID].count + 1
@@ -1775,6 +1879,8 @@ function autosave(onDemand)
     if autosaveIndex > MAX_AUTOSAVES then
         autosaveIndex = 0
     end
+    save_favorites_list()
+    save_recents()
 end
 function builder_to_json()
     local objects = {}
