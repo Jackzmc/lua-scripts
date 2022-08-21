@@ -26,6 +26,7 @@ v3.9.0
 
 * Allow turning off refresh interval for nearby vehicles
 * Supposedly fix jackzvehiclelib improperly doing extras
+* (3.9.1) Updated jackzvehiclelib
 
 # actions (v1)
 
@@ -152,9 +153,12 @@ V1.17.0
 
 * Allowed changing to a dev release channel
 * Added backend support for ped animations
-* Add blip icons to vehicles with ability to change (base vehicle -> settings -> blip icon)
+* Added blip icons to vehicles with ability to change (base vehicle -> settings -> blip icon)
 * Fix some bugs with invalid exceptions
 * Fix 'Remove All Entities' clearing base vehicle
 * Added Clone > Mirror for every axis
 * General bug fixes and improvements
 * Added some info boxes for builder entities
+* Added info boxes for cloud / saved vehicles
+* Added ability to favorite peds, objects, vehicles
+* Updated to latest jackzvehiclelib
