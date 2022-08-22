@@ -888,7 +888,7 @@ function setup_builder_menus(name)
                         builder.entities[handle] = nil
                     end
                 end
-                if highlightedHandle ~= builder.base.handle then
+                if highlightedHandle == builder.base.handle then
                     highlightedHandle = nil
                 end
             end)
