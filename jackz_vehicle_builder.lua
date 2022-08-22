@@ -902,6 +902,9 @@ function setup_builder_menus(name)
                     if highlightedHandle == builder.base.handle then
                         highlightedHandle = nil
                     end
+                    if highlightedHandle == builder.base.handle then
+                        highlightedHandle = nil
+                    end
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
                     builder.entities[vehicle] = builder.entities[builder.base.handle]
                     builder.entities[builder.base.handle] = nil
