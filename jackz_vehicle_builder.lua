@@ -899,6 +899,9 @@ function setup_builder_menus(name)
                 if vehicle == builder.base.handle then
                     util.toast("This vehicle is already the base vehicle.")
                 else
+                    if highlightedHandle == builder.base.handle then
+                        highlightedHandle = nil
+                    end
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
                     builder.entities[vehicle] = builder.entities[builder.base.handle]
                     builder.entities[builder.base.handle] = nil
