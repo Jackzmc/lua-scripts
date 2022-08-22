@@ -28,6 +28,7 @@ v3.9.0
 * Supposedly fix jackzvehiclelib improperly doing extras
 * (3.9.1) Updated jackzvehiclelib
 * (3.9.2) Fix extras (Thanks hexarobi)
+* (3.9.3) Actually fix extrasa
 
 # actions (v1)
 
@@ -165,3 +166,7 @@ V1.17.0
 * Updated to latest jackzvehiclelib
 * (1.17.1) Fix extras (Thanks hexarobi)
 * (1.17.1) Change some blip icons
+* (1.17.3) Add warning to delete all
+* (1.17.3) Fix cloning issues
+* (1.17.4) Fix some bugs
+* (1.17.4) Actually fix extrasa

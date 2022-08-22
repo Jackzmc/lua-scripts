@@ -2,9 +2,9 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.2"
+local VERSION = "1.17.4"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.6"
+local VEHICLELIB_TARGET_VERSION = "1.1.7"
 ---@alias Handle number
 ---@alias MenuHandle number
 
@@ -878,17 +878,20 @@ function setup_builder_menus(name)
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
         end)
-        menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
-            remove_all_attachments(builder.base.handle)
-            for handle, data in pairs(builder.entities) do
-                if handle ~= builder.base.handle then
-                    menu.delete(data.list)
-                    builder.entities[handle] = nil
+        local deleteAttachmentsMenu
+        deleteAttachmentsMenu = menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
+            menu.show_warning(deleteAttachmentsMenu, CLICK_COMMAND, "This will delete all attached entities from the world and from the builder. Are you sure?", function()
+                remove_all_attachments(builder.base.handle)
+                for handle, data in pairs(builder.entities) do
+                    if handle ~= builder.base.handle then
+                        menu.delete(data.list)
+                        builder.entities[handle] = nil
+                    end
                 end
-            end
-            if highlightedHandle ~= builder.base.handle then
-                highlightedHandle = nil
-            end
+                if highlightedHandle ~= builder.base.handle then
+                    highlightedHandle = nil
+                end
+            end)
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
@@ -913,11 +916,11 @@ function setup_builder_menus(name)
         deleteMenu = menu.action(baseList, "Delete Custom Vehicle", {}, "Deletes the active builder with all settings and entities cleared", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom vehicle? All settings and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
+                if HUD.DOES_BLIP_EXIST(builder.blip) then
+                    util.remove_blip(builder.blip)
+                end
                 builder = nil
             end)
-            if HUD.DOES_BLIP_EXIST(builder.blip) then
-                util.remove_blip(builder.blip)
-            end
         end)
 
         builder.entities[builder.base.handle] = {
@@ -967,7 +970,7 @@ function create_object_spawner_list(root)
     end
     local searchList = menu.list(root, "Search Props", {}, "Search for a prop by name")
     menu.text_input(searchList, "Search", {"searchprops"}, "Enter a prop name to search for", function(query)
-        create_prop_search_results(searchList, query, 20)
+        create_prop_search_results(searchList, query, 30)
     end)
     menu.text_input(root, "Manual Input", {"customprop"}, "Enter the prop name to spawn", function(query)
         local hash = util.joaat(query)
@@ -1000,7 +1003,7 @@ function create_ped_spawner_list(root)
     end
     local searchList = menu.list(root, "Search Peds", {}, "Search for a ped by name")
     menu.text_input(searchList, "Search", {"builderquerypeds"}, "Enter a ped name to search for", function(query)
-        create_ped_search_results(searchList, query, 20)
+        create_ped_search_results(searchList, query, 30)
     end)
     menu.text_input(root, "Manual Input", {"customped"}, "Enter the ped name to spawn", function(query)
         local hash = util.joaat(query)
@@ -1034,7 +1037,7 @@ function create_vehicle_spawner_list(root)
     end
     local searchList = menu.list(root, "Search Vehicles")
     menu.text_input(searchList, "Search", {"searchvehicles"}, "Enter a vehicle name to search for", function(query)
-        create_vehicle_search_results(searchList, query, 20)
+        create_vehicle_search_results(searchList, query, 30)
     end)
     menu.text_input(root, "Manual Input", {"customveh"}, "Enter the vehicle name to spawn", function(query)
         local hash = util.joaat(query)
@@ -1661,7 +1664,11 @@ function clone_entity(handle, name, mirror_axis)
             log("clone_entity with mirror_axis set on non-builder entity", "clone_entity")
             return false
         end
-        pos = builder.entities[handle].pos
+        pos = {
+            x = builder.entities[handle].pos.x,
+            y = builder.entities[handle].pos.y,
+            z = builder.entities[handle].pos.z
+        }
         if mirror_axis == 1 then
             pos.x = -pos.x
         elseif mirror_axis == 2 then
@@ -1772,13 +1779,13 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Clone In-place", {}, "Clones the entity where it is", function()
             clone_entity(handle, tableref.name, 0)
         end)
-        menu.action(cloneList, "Mirror (X-Axis)", {}, "Clones the entity, mirrored on the x-axis", function()
+        menu.action(cloneList, "Mirror (X, Left/Right)", {}, "Clones the entity, mirrored on the x-axis", function()
             clone_entity(handle, tableref.name, 1)
         end)
-        menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
+        menu.action(cloneList, "Mirror (Y, Forward/Back)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 2)
         end)
-        menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
+        menu.action(cloneList, "Mirror (Z, Up/Down)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
     table.insert(tableref.listMenus, menu.action(entityroot, "Delete", {}, "Delete the entity", function()
@@ -2347,13 +2354,11 @@ while true do
                 end
             end
         end)
-        if highlightedHandle ~= nil then
+        if highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
+                local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-
-                local entData = builder.entities[highlightedHandle]
-
                 local is_base = builder.base.handle == highlightedHandle
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
