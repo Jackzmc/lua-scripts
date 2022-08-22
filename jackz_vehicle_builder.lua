@@ -2354,13 +2354,11 @@ while true do
                 end
             end
         end)
-        if highlightedHandle ~= nil then
+        if highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
+                local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-
-                local entData = builder.entities[highlightedHandle]
-
                 local is_base = builder.base.handle == highlightedHandle
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
