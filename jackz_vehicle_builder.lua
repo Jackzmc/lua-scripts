@@ -2,7 +2,11 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
+<<<<<<< HEAD
 local VERSION = "1.17.4"
+=======
+local VERSION = "1.17.5"
+>>>>>>> master
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
 ---@alias Handle number
@@ -888,7 +892,11 @@ function setup_builder_menus(name)
                         builder.entities[handle] = nil
                     end
                 end
+<<<<<<< HEAD
                 if highlightedHandle ~= builder.base.handle then
+=======
+                if highlightedHandle == builder.base.handle then
+>>>>>>> master
                     highlightedHandle = nil
                 end
             end)
@@ -899,6 +907,9 @@ function setup_builder_menus(name)
                 if vehicle == builder.base.handle then
                     util.toast("This vehicle is already the base vehicle.")
                 else
+                    if highlightedHandle == builder.base.handle then
+                        highlightedHandle = nil
+                    end
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
                     builder.entities[vehicle] = builder.entities[builder.base.handle]
                     builder.entities[builder.base.handle] = nil

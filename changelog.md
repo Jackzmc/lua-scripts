@@ -101,36 +101,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-V1.11.0
-
-* Added basic backend support for peds ('peds' json array)
-* (1.11.2) Fix errors, crashing with peds
-* (1.11.3) Fix preview peds not being cleared
-
-V1.12.0
-
-* Fix vehicle previews falling through the floor
-* Add ped spawning options
-* Added ability to clone all entities
-
-V1.13.0
-
-* Moved vehicle preview entity closer and disabled collision
-* Moved custom vehicle preview further
-* Added more settings for base vehicle
-* Add an auto save feature
-* Add ability to set a vehicle's author
-* (1.13.1) Fix format version being incorrect
-* (1.13.2) Fix some bugs
-* (1.13.3) Fix creating entity autosave bug
-* (1.13.3) Fix vehicles/peds being improperly saved
-* (1.13.4) Fix serialization bug
-
-V1.14.0
-
-* Added support for nested folders
-* Move autosaves to dedicated autosaves folder
-
 V1.15.0
 
 * Added cloud vehicles
@@ -169,4 +139,5 @@ V1.17.0
 * (1.17.3) Add warning to delete all
 * (1.17.3) Fix cloning issues
 * (1.17.4) Fix some bugs
-* (1.17.4) Actually fix extrasa
+* (1.17.4) Actually fix extras
+* (1.17.5) Fix highlightedHandle not being reset on new base
