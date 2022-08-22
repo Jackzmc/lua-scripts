@@ -878,17 +878,20 @@ function setup_builder_menus(name)
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
         end)
-        menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
-            remove_all_attachments(builder.base.handle)
-            for handle, data in pairs(builder.entities) do
-                if handle ~= builder.base.handle then
-                    menu.delete(data.list)
-                    builder.entities[handle] = nil
+        local deleteAttachmentsMenu
+        deleteAttachmentsMenu = menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
+            menu.show_warning(deleteAttachmentsMenu, CLICK_COMMAND, "This will delete all attached entities from the world and from the builder. Are you sure?", function()
+                remove_all_attachments(builder.base.handle)
+                for handle, data in pairs(builder.entities) do
+                    if handle ~= builder.base.handle then
+                        menu.delete(data.list)
+                        builder.entities[handle] = nil
+                    end
                 end
-            end
-            if highlightedHandle ~= builder.base.handle then
-                highlightedHandle = nil
-            end
+                if highlightedHandle ~= builder.base.handle then
+                    highlightedHandle = nil
+                end
+            end)
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
@@ -914,10 +917,10 @@ function setup_builder_menus(name)
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom vehicle? All settings and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
                 builder = nil
+                if HUD.DOES_BLIP_EXIST(builder.blip) then
+                    util.remove_blip(builder.blip)
+                end
             end)
-            if HUD.DOES_BLIP_EXIST(builder.blip) then
-                util.remove_blip(builder.blip)
-            end
         end)
 
         builder.entities[builder.base.handle] = {
