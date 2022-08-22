@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.5"
+local VERSION = "1.17.6"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
 
@@ -299,8 +299,11 @@ if not filesystem.exists(PEDS_PATH) then
     util.log(SCRIPT_NAME .. ": Downloading resource update for peds.txt")
     download_resources_update("peds.txt")
 end
+if not filesystem.exists(SAVE_DIRECTORY) then
+    filesystem.mkdir(SAVE_DIRECTORY)
+end
 if not filesystem.exists(AUTOSAVE_DIRECTORY) then
-    io.makedir(AUTOSAVE_DIRECTORY)
+    filesystem.mkdir(AUTOSAVE_DIRECTORY)
 end
 
 function create_preview_handler_if_not_exists()

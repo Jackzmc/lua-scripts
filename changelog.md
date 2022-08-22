@@ -142,3 +142,4 @@ V1.17.0
 * (1.17.4) Fix some bugs
 * (1.17.4) Actually fix extrasa
 * (1.17.5) Fix highlightedHandle not being reset on new base
+* (1.17.6) Autocreate save directory if not exist
