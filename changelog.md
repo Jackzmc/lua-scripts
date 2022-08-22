@@ -29,6 +29,7 @@ v3.9.0
 * (3.9.1) Updated jackzvehiclelib
 * (3.9.2) Fix extras (Thanks hexarobi)
 * (3.9.3) Actually fix extrasa
+* (3.9.3) Actually fix extrasa
 
 # actions (v1)
 
