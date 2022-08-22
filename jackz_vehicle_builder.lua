@@ -916,10 +916,10 @@ function setup_builder_menus(name)
         deleteMenu = menu.action(baseList, "Delete Custom Vehicle", {}, "Deletes the active builder with all settings and entities cleared", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom vehicle? All settings and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
-                builder = nil
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     util.remove_blip(builder.blip)
                 end
+                builder = nil
             end)
         end)
 
