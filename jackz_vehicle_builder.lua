@@ -5,8 +5,6 @@ local SCRIPT = "jackz_vehicle_builder"
 local VERSION = "1.17.5"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
----@alias Handle number
----@alias MenuHandle number
 
 --#P:DEBUG_ONLY
 -- Still needed for local dev
@@ -55,16 +53,18 @@ end
 
 
 -- [ Begin actual script ]--
+-- Autosave state
 local AUTOSAVE_INTERVAL_SEC = 60 * 3
-local MAX_AUTOSAVES = 4
+local MAX_AUTOSAVES = 5 
 local autosaveNextTime = 0
 local autosaveIndex = 1
+
 local BUILDER_VERSION = "1.3.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
-local pedAnimCache = {}
-local pedAnimThread
+local pedAnimCache = {} -- Used to reset spawned peds with animdata
+local pedAnimThread 
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 ---@param baseHandle Handle
@@ -79,17 +79,14 @@ function new_builder(baseHandle)
             visible = true,
             -- other metadta
         },
-        ---@type table<Handle, table<string, any>>
         entities = {},
         entitiesMenuList = nil,
         propSpawner = {
             root = nil,
-            ---@type MenuHandle[]
             menus = {},
             loadState = 0, --0: not, 1: loading, 2: done
             recents = {
                 list = nil,
-                ---@type table<Handle, number>
                 items = {}
             },
             favorites = {
@@ -98,12 +95,10 @@ function new_builder(baseHandle)
         },
         vehSpawner = {
             root = nil,
-            ---@type MenuHandle[]
             menus = {},
             loadState = 0, --0: not, 1: loading, 2: done
             recents = {
                 list = nil,
-                ---@type table<Handle, number>
                 items = {}
             },
             favorites = {
@@ -468,6 +463,7 @@ menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
     async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body)
+        -- Server returns an array of key values, key is uploader name, value is metadata
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             cloudData = json.decode(body).users
@@ -587,7 +583,6 @@ function rate_vehicle(user, vehicleName, rating)
         log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "_setup_cloud_vehicle_menu/rate")
         return false
     end
-    -- SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
@@ -1587,6 +1582,15 @@ function _destroy_prop_previewer()
     builder.prop_list_active = false
 end
 
+-- Gets entity player is look at.
+--[[
+-- distance: # of units infront of player to trace to
+-- radius: The radius of the trace capsule
+-- flags: The trace flags, default is for objects, vehicles and peds only
+-- callback: Called with the result of trace (did_hit, entity, pos, surfaceNormal). All parameters can be nil if did_hit is false
+-- 
+-- Recommend radius of 10, any smaller and it starts to not be reliable
+--]]
 function get_entity_lookat(distance, radius, flags, callback)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
