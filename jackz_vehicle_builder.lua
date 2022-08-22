@@ -1661,7 +1661,11 @@ function clone_entity(handle, name, mirror_axis)
             log("clone_entity with mirror_axis set on non-builder entity", "clone_entity")
             return false
         end
-        pos = builder.entities[handle].pos
+        pos = {
+            x = builder.entities[handle].pos.x,
+            y = builder.entities[handle].pos.y,
+            z = builder.entities[handle].pos.z
+        }
         if mirror_axis == 1 then
             pos.x = -pos.x
         elseif mirror_axis == 2 then
@@ -1778,7 +1782,7 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 2)
         end)
-        menu.action(cloneList, "Mirror (Y-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
+        menu.action(cloneList, "Mirror (Z-Axis)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
     table.insert(tableref.listMenus, menu.action(entityroot, "Delete", {}, "Delete the entity", function()
