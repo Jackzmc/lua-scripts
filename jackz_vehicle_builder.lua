@@ -437,6 +437,10 @@ menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a sea
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             local results = json.decode(body).results
+            if #results == 0 then
+                util.toast("No vehicles found")
+                return
+            end
             for _, vehicle in ipairs(results) do
                 
                 local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
