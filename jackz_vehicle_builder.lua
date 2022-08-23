@@ -8,29 +8,10 @@ local VEHICLELIB_TARGET_VERSION = "1.1.7"
 
 --#P:DEBUG_ONLY
 -- Still needed for local dev
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
-end
-function get_version_info(version)
-    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
-    return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
-    }
-end
+function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
+function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
 function compare_version(a, b)
-    local av = get_version_info(a)
-    local bv = get_version_info(b)
-    if av.major > bv.major then return 1
-    elseif av.major < bv.major then return -1
-    elseif av.minor > bv.minor then return 1
-    elseif av.minor < bv.minor then return -1
-    elseif av.patch > bv.patch then return 1
-    elseif av.patch < bv.patch then return -1
-    else return 0 end
+    return 0
 end
 --#P:END
 
