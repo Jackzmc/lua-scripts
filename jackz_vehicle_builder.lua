@@ -58,7 +58,6 @@ function new_builder(baseHandle)
         base = {
             handle = baseHandle,
             visible = true,
-            -- other metadta
         },
         entities = {},
         entitiesMenuList = nil,
@@ -2021,8 +2020,15 @@ function spawn_vehicle(vehicleData, isPreview)
     return handle, pos
 end
 
+-- Spawns a custom vehicle, requires data.base to be set, others optional
 function spawn_custom_vehicle(data, isPreview, previewFunc, previewData)
     -- TODO: Implement all base data
+    if not data then
+        error("No vehicle data provided", 2)
+    elseif not data.base then
+        -- TODO: Possibly decouple tie to base vehicle
+        error("No base vehicle data provided", 2)
+    end
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
     if baseHandle then
