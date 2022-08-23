@@ -2234,14 +2234,16 @@ function attach_entity(parent, handle, pos, rot)
 
 end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
-function highlight_object(handle)
+function highlight_object(handle, size, color)
+    if not size then size = 0.01 end
+    if not color then color = { r = 255, g = 0, b = 0, a = 200 }
     local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -0.01, -0.01, 0.006, 0.006, 0.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", 0.01, -0.01, 0.006, 0.006, 90.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -0.01, 0.01, 0.006, 0.006, 270.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", 0.01, 0.01, 0.006, 0.006, 180.0, 255, 0, 0, 200)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, -size, 0.006, 0.006, 0.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, -size, 0.006, 0.006, 90.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, size, 0.006, 0.006, 270.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, size, 0.006, 0.006, 180.0, color.r, color.g, color.b, color.a)
     GRAPHICS.CLEAR_DRAW_ORIGIN()
 end
 function show_marker(handle, markerType, ang)
