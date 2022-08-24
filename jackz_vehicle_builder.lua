@@ -58,8 +58,9 @@ function new_builder(baseHandle)
         base = {
             handle = baseHandle,
             visible = true,
+            data = nil
         },
-        entities = {},
+        entities = {}, // KV<Handle, Table>
         entitiesMenuList = nil,
         propSpawner = {
             root = nil,
@@ -97,7 +98,7 @@ function new_builder(baseHandle)
                 list = nil
             }
         },
-        prop_list_active = false,
+        ent_spawner_active = false,
         blip_icon = 225
     }
 end
@@ -794,7 +795,7 @@ end
 
 function setup_builder_menus(name)
     menu.delete(mainMenu)
-    if not builder.base.handle or builder.prop_list_active then
+    if not builder.base.handle or builder.ent_spawner_active then
         return
     end
     mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() 
@@ -849,7 +850,7 @@ function setup_builder_menus(name)
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
     create_ped_spawner_list(builder.pedSpawner.root)
-    builder.prop_list_active = true
+    builder.ent_spawner_active = true
 
     local baseList = menu.list(mainMenu, "Base Vehicle", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
@@ -1566,7 +1567,7 @@ function _destroy_prop_previewer()
         preview.id = nil
     end
     HUD.BUSYSPINNER_OFF()
-    builder.prop_list_active = false
+    builder.ent_spawner_active = false
 end
 
 -- Gets entity player is look at.
