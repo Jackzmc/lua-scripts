@@ -1713,7 +1713,7 @@ function create_entity_section(tableref, handle, options)
     --[ POSITION ]--
     clear_menu_table(tableref.listMenus)
     if handle ~= builder.base.handle then
-        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.", 0, 500, tableref.boneIndex, 1, function(index)
+        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
             tableref.boneIndex = index
             attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
