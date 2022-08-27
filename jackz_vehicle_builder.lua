@@ -2236,7 +2236,7 @@ end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
 function highlight_object(handle, size, color)
     if not size then size = 0.01 end
-    if not color then color = { r = 255, g = 0, b = 0, a = 200 }
+    if not color then color = { r = 255, g = 0, b = 0, a = 200 } end
     local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
