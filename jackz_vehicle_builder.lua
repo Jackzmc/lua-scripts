@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.7"
+local VERSION = "1.18.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
 
@@ -893,7 +893,7 @@ function setup_builder_menus(name)
                     builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     set_builder_vehicle(vehicle)
                     for handle, data in pairs(builder.entities) do
-                        attach_entity(vehicle, handle, data.pos, data.rot)
+                        attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
                     end
                 end
             else
@@ -1612,7 +1612,8 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
-function add_entity_to_list(list, handle, name, pos, rot)
+-- TODO: Refactor remove pos, rot, boneIndex to just data
+function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
     autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
@@ -1633,10 +1634,11 @@ function add_entity_to_list(list, handle, name, pos, rot)
         listMenus = {},
         pos = pos or { x = 0.0, y = 0.0, z = 0.0 },
         rot = rot or { x = 0.0, y = 0.0, z = 0.0 },
+        boneIndex = boneIndex or 0,
         visible = true,
         godmode = (type ~= "OBJECT") and true or nil
     }
-    attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot)
+    attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
         function() create_entity_section(builder.entities[handle], handle) end,
@@ -1711,19 +1713,23 @@ function create_entity_section(tableref, handle, options)
     --[ POSITION ]--
     clear_menu_table(tableref.listMenus)
     if handle ~= builder.base.handle then
+        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.", 0, 500, tableref.boneIndex, 1, function(index)
+            tableref.boneIndex = index
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+        end))
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(builder.base.handle, handle, pos, rot)
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
             -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(builder.base.handle, handle, pos, rot)
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(builder.base.handle, handle, pos, rot)
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
     end
 
@@ -1732,16 +1738,16 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(builder.base.handle, handle, pos, rot)
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(builder.base.handle, handle, pos, rot)
+            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(builder.base.handle, handle, pos, rot)
+        attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
     end))
 
     --[ MISC ]--
@@ -1908,7 +1914,8 @@ function builder_to_json()
             offset = data.pos,
             rotation = data.rot,
             visible = data.visible,
-            type = data.type
+            type = data.type,
+            boneIndex = data.boneIndex
         }
         if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
             if data.godmode == nil then
@@ -2083,9 +2090,9 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     table.insert(handles, handle)
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation)
+                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation, entityData.boneIndex)
                     else
-                        attach_entity(baseHandle, handle, entityData.offset, entityData.rotation)
+                        attach_entity(baseHandle, handle, entityData.offset, entityData.rotation, entityData.boneIndex)
                     end
                 end
             end
@@ -2131,10 +2138,10 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     table.insert(handles, handle)
 
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation, pedData.boneIndex)
                         datatable.animdata = pedData.animdata
                     else
-                        attach_entity(baseHandle, handle, pedData.offset, pedData.rotation)
+                        attach_entity(baseHandle, handle, pedData.offset, pedData.rotation, pedData.boneIndex)
                     end
                 end
 
@@ -2153,7 +2160,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                                         TASK.TASK_PLAY_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
                                     end
                                     if builder and builder.entities[entry.handle] then
-                                        attach_entity(builder.base.handle, entry.handle, builder.entities[entry.handle].pos, builder.entities[entry.handle].rot)
+                                        attach_entity(builder.base.handle, entry.handle, builder.entities[entry.handle].pos, builder.entities[entry.handle].rot, builder.entities[entry.handle].boneIndex)
                                     end
                                 end
                                 util.yield(4000)
@@ -2183,9 +2190,9 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             table.insert(handles, handle)
 
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation)
+                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation, vehData.boneIndex)
             else
-                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation)
+                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
             end
         end
     end
@@ -2217,7 +2224,7 @@ function dump_table(o)
 end
  
 
-function attach_entity(parent, handle, pos, rot)
+function attach_entity(parent, handle, pos, rot, index)
     if pos == nil or rot == nil then
         log("null pos or rot" .. debug.traceback(), "attach_entity")
         return
@@ -2225,7 +2232,7 @@ function attach_entity(parent, handle, pos, rot)
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     else
-        ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, 0,
+        ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
             pos.x or 0, pos.y or 0, pos.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
             false, true, true, false, 2, true
@@ -2236,7 +2243,7 @@ end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
 function highlight_object(handle, size, color)
     if not size then size = 0.01 end
-    if not color then color = { r = 255, g = 0, b = 0, a = 200 }
+    if not color then color = { r = 255, g = 0, b = 0, a = 200 } end
     local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
@@ -2443,7 +2450,7 @@ while true do
                 if update then
                     ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, true)
                     ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
-                    attach_entity(builder.base.handle, highlightedHandle, pos, rot)
+                    attach_entity(builder.base.handle, highlightedHandle, pos, rot, builder.entities[highlightedHandle].boneIndex)
                 end
             end
         end
