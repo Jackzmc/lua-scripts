@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.6"
+local VERSION = "1.17.7"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
 
@@ -296,7 +296,7 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
-                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 5.0, 0.3)
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
@@ -1515,7 +1515,7 @@ function set_preview(entity, id, range, renderfunc, renderdata)
     remove_preview_custom()
     preview.entity = entity
     preview.id = id
-    preview.range = range or -1
+    preview.range = range or nil
     preview.rendercb = renderfunc
     preview.renderdata = renderdata
     create_preview_handler_if_not_exists()
