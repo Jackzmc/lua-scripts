@@ -2,37 +2,16 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.17.6"
+local VERSION = "1.17.7"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.1.7"
----@alias Handle number
----@alias MenuHandle number
 
 --#P:DEBUG_ONLY
 -- Still needed for local dev
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
-end
-function get_version_info(version)
-    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
-    return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
-    }
-end
+function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
+function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
 function compare_version(a, b)
-    local av = get_version_info(a)
-    local bv = get_version_info(b)
-    if av.major > bv.major then return 1
-    elseif av.major < bv.major then return -1
-    elseif av.minor > bv.minor then return 1
-    elseif av.minor < bv.minor then return -1
-    elseif av.patch > bv.patch then return 1
-    elseif av.patch < bv.patch then return -1
-    else return 0 end
+    return 0
 end
 --#P:END
 
@@ -55,16 +34,18 @@ end
 
 
 -- [ Begin actual script ]--
+-- Autosave state
 local AUTOSAVE_INTERVAL_SEC = 60 * 3
-local MAX_AUTOSAVES = 4
+local MAX_AUTOSAVES = 5 
 local autosaveNextTime = 0
 local autosaveIndex = 1
+
 local BUILDER_VERSION = "1.3.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
-local pedAnimCache = {}
-local pedAnimThread
+local pedAnimCache = {} -- Used to reset spawned peds with animdata
+local pedAnimThread 
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 ---@param baseHandle Handle
@@ -77,19 +58,15 @@ function new_builder(baseHandle)
         base = {
             handle = baseHandle,
             visible = true,
-            -- other metadta
         },
-        ---@type table<Handle, table<string, any>>
         entities = {},
         entitiesMenuList = nil,
         propSpawner = {
             root = nil,
-            ---@type MenuHandle[]
             menus = {},
             loadState = 0, --0: not, 1: loading, 2: done
             recents = {
                 list = nil,
-                ---@type table<Handle, number>
                 items = {}
             },
             favorites = {
@@ -98,12 +75,10 @@ function new_builder(baseHandle)
         },
         vehSpawner = {
             root = nil,
-            ---@type MenuHandle[]
             menus = {},
             loadState = 0, --0: not, 1: loading, 2: done
             recents = {
                 list = nil,
-                ---@type table<Handle, number>
                 items = {}
             },
             favorites = {
@@ -321,7 +296,7 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
-                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 5.0, 0.3)
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
@@ -445,6 +420,10 @@ menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a sea
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             local results = json.decode(body).results
+            if #results == 0 then
+                util.toast("No vehicles found")
+                return
+            end
             for _, vehicle in ipairs(results) do
                 
                 local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
@@ -471,6 +450,7 @@ menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
     async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body)
+        -- Server returns an array of key values, key is uploader name, value is metadata
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
             cloudData = json.decode(body).users
@@ -590,7 +570,6 @@ function rate_vehicle(user, vehicleName, rating)
         log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "_setup_cloud_vehicle_menu/rate")
         return false
     end
-    -- SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash()
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
@@ -1536,7 +1515,7 @@ function set_preview(entity, id, range, renderfunc, renderdata)
     remove_preview_custom()
     preview.entity = entity
     preview.id = id
-    preview.range = range or -1
+    preview.range = range or nil
     preview.rendercb = renderfunc
     preview.renderdata = renderdata
     create_preview_handler_if_not_exists()
@@ -1590,6 +1569,15 @@ function _destroy_prop_previewer()
     builder.prop_list_active = false
 end
 
+-- Gets entity player is look at.
+--[[
+-- distance: # of units infront of player to trace to
+-- radius: The radius of the trace capsule
+-- flags: The trace flags, default is for objects, vehicles and peds only
+-- callback: Called with the result of trace (did_hit, entity, pos, surfaceNormal). All parameters can be nil if did_hit is false
+-- 
+-- Recommend radius of 10, any smaller and it starts to not be reliable
+--]]
 function get_entity_lookat(distance, radius, flags, callback)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
@@ -2032,8 +2020,15 @@ function spawn_vehicle(vehicleData, isPreview)
     return handle, pos
 end
 
+-- Spawns a custom vehicle, requires data.base to be set, others optional
 function spawn_custom_vehicle(data, isPreview, previewFunc, previewData)
     -- TODO: Implement all base data
+    if not data then
+        error("No vehicle data provided", 2)
+    elseif not data.base then
+        -- TODO: Possibly decouple tie to base vehicle
+        error("No base vehicle data provided", 2)
+    end
     remove_preview_custom()
     local baseHandle, pos = spawn_vehicle(data.base, isPreview)
     if baseHandle then
@@ -2239,14 +2234,16 @@ function attach_entity(parent, handle, pos, rot)
 
 end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
-function highlight_object(handle)
+function highlight_object(handle, size, color)
+    if not size then size = 0.01 end
+    if not color then color = { r = 255, g = 0, b = 0, a = 200 }
     local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -0.01, -0.01, 0.006, 0.006, 0.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", 0.01, -0.01, 0.006, 0.006, 90.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -0.01, 0.01, 0.006, 0.006, 270.0, 255, 0, 0, 200)
-    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", 0.01, 0.01, 0.006, 0.006, 180.0, 255, 0, 0, 200)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, -size, 0.006, 0.006, 0.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, -size, 0.006, 0.006, 90.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, size, 0.006, 0.006, 270.0, color.r, color.g, color.b, color.a)
+    GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, size, 0.006, 0.006, 180.0, color.r, color.g, color.b, color.a)
     GRAPHICS.CLEAR_DRAW_ORIGIN()
 end
 function show_marker(handle, markerType, ang)
