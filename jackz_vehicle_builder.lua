@@ -40,7 +40,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.3.0" -- For version diff warnings
+local BUILDER_VERSION = "1.3.1" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -53,6 +53,7 @@ local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8
 function new_builder(baseHandle)
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     return { -- All data needed for builder
+        _index = 1, -- Starting entity index
         name = nil,
         author = nil,
         base = {
@@ -1629,6 +1630,7 @@ function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
         type = "PED"
     end
     builder.entities[handle] = {
+        id = builder._index,
         name = name or "(no name)",
         type = type,
         model = model,
@@ -1640,6 +1642,7 @@ function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
         visible = true,
         godmode = (type ~= "OBJECT") and true or nil
     }
+    builder._index = builder._index + 1
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
@@ -1826,7 +1829,7 @@ function _load_attach_list(list, child)
     for handle, data in pairs(builder.entities) do
         if handle ~= child and handle ~= builder.base.handle then
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
-                builder.entities[child].parent = handle
+                builder.entities[child].parent = builder.entities[child].id
                 attach_entity(builder.entities[child].parent, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
                 util.toast("Entity's parent changed")
                 menu.set_menu_name(list, "Attach to: " .. handle)
@@ -1943,6 +1946,7 @@ function builder_to_json()
     local baseSerialized
     for handle, data in pairs(builder.entities) do
         local serialized = {
+            id = data.id,
             name = data.name,
             model = data.model,
             offset = data.pos,

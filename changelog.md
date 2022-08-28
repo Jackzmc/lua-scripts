@@ -150,3 +150,4 @@ V1.18.0
 * Add ability to change attachment position of entities
 * Add ability to attach entities to other entities
 * Add vehicle name to pre-existing add overlay
+* Use hard entity pinning
