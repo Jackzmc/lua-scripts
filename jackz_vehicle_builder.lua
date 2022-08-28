@@ -1949,7 +1949,8 @@ function builder_to_json()
             rotation = data.rot,
             visible = data.visible,
             type = data.type,
-            boneIndex = data.boneIndex
+            boneIndex = data.boneIndex,
+            parent = data.parent
         }
         if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
             if data.godmode == nil then
