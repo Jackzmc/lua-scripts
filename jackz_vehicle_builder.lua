@@ -870,9 +870,7 @@ function setup_builder_menus(name)
                         builder.entities[handle] = nil
                     end
                 end
-                if highlightedHandle == builder.base.handle then
-                    highlightedHandle = nil
-                end
+                highlightedHandle = nil
             end)
         end)
         menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
@@ -1530,22 +1528,26 @@ function set_preview(entity, id, range, renderfunc, renderdata)
     end
     
 end
+-- Handle typically base vehicle
+function _recurse_remove_attachments(handle, table)
+    for _, entity in ipairs(table) do
+        if entity ~= handle then
+            -- Recurse it's attachments
+            if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(entity, handle) then
+                for _, subEntity in ipairs(table) do
+                    if subEntity ~= entity and subEntity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(subEntity, entity) then
+                        entities.delete_by_handle(subEntity)
+                    end
+                end
+                entities.delete_by_handle(entity)
+            end
+        end
+    end
+end
 function remove_all_attachments(handle)
-    for _, entity in ipairs(entities.get_all_objects_as_handles()) do
-        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
-            entities.delete_by_handle(entity)
-        end
-    end
-    for _, entity in ipairs(entities.get_all_vehicles_as_handles()) do
-        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
-            entities.delete_by_handle(entity)
-        end
-    end
-    for _, entity in ipairs(entities.get_all_peds_as_handles()) do
-        if entity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(handle, entity) then
-            entities.delete_by_handle(entity)
-        end
-    end
+    _recurse_remove_attachments(handle, entities.get_all_objects_as_handles())
+    _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
+    _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
 end
 function remove_preview_custom()
     local old_entity = preview.entity
@@ -1715,21 +1717,21 @@ function create_entity_section(tableref, handle, options)
     if handle ~= builder.base.handle then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
             tableref.boneIndex = index
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
             -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
     end
 
@@ -1738,20 +1740,26 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(builder.base.handle, handle, pos, rot, tableref.boneIndex)
+        attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
     end))
 
     --[ MISC ]--
     table.insert(tableref.listMenus, menu.divider(entityroot, "Misc"))
+    local attachEntList
+    attachEntList = menu.list(entityroot, "Attach to: Base Vehicle", {"attachent"..handle}, "Attach to another entity attached to the builder.", 
+        function() _load_attach_list(attachEntList, handle) end,
+        _unload_attach_list
+    )
+    table.insert(tableref.listMenus, attachEntList)
     if not options.noRename then
         table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
@@ -1803,6 +1811,32 @@ function create_entity_section(tableref, handle, options)
         end
         entities.delete_by_handle(handle)
     end))
+end
+
+local attachEntSubmenus = {}
+
+function _load_attach_list(list, child)
+    menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
+        builder.entities[child].parent = nil
+        attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+        util.toast("Entity's parent restored to base vehicle")
+        menu.set_menu_name(list, "Attach to: Base Vehicle")
+        menu.focus(list)
+    end)
+    for handle, data in pairs(builder.entities) do
+        if handle ~= child and handle ~= builder.base.handle then
+            table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
+                builder.entities[child].parent = handle
+                attach_entity(builder.entities[child].parent, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+                util.toast("Entity's parent changed")
+                menu.set_menu_name(list, "Attach to: " .. handle)
+                menu.focus(list)
+            end))
+        end
+    end
+end
+function _unload_attach_list()
+    clear_menu_array(attachEntSubmenus)
 end
 
 --[ Save Data ]
@@ -2363,7 +2397,7 @@ while true do
                 directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, type, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                 directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                 if util.is_key_down(0x4A) then
-                    add_entity_to_list(builder.entitiesMenuList, entity, "Pre-existing Vehicle")
+                    add_entity_to_list(builder.entitiesMenuList, entity, "Pre-existing " .. type)
                 end
             end
         end)
