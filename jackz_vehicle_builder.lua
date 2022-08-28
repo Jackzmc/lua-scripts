@@ -1777,12 +1777,12 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, attachEntList)
     end
     if not options.noRename then
-        table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the name of this entity", function(name)
+        table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the display name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
             tableref.name = name
         end, tableref.name))
     end
-    table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Make the prop invisible", function(value)
+    table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
         tableref.visible = value
         ENTITY.SET_ENTITY_ALPHA(handle, value and 255 or 0)
     end, tableref.visible))
@@ -1815,18 +1815,29 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Mirror (Z, Up/Down)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
-    table.insert(tableref.listMenus, menu.action(entityroot, "Delete", {}, "Delete the entity", function()
-        if highlightedHandle == handle then
-            highlightedHandle = nil
-        end
-        menu.delete(entityroot)
-        tableref = nil
-        -- Fix deleting not working
-        if builder.entities[handle] then
-            builder.entities[handle] = nil
-        end
-        entities.delete_by_handle(handle)
-    end))
+    local deleteMenu
+    deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
+        menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
+            if highlightedHandle == handle then
+                highlightedHandle = nil
+            end
+            for _, data in pairs(builder.entities) do
+                if data.parent == tableref.id then
+                    util.toast("Parent was removed for entity #" .. data.id)
+                    data.parent = nil
+                end
+            end
+            menu.delete(entityroot)
+            tableref = nil
+            -- Fix deleting not working
+            if builder.entities[handle] then
+                builder.entities[handle] = nil
+            end
+            entities.delete_by_handle(handle)
+        end)
+        
+    end)
+    table.insert(tableref.listMenus, deleteMenu)
 end
 
 local attachEntSubmenus = {}
