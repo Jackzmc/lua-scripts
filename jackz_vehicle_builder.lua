@@ -44,6 +44,7 @@ local BUILDER_VERSION = "1.3.1" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
+local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread 
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
@@ -416,7 +417,7 @@ end)
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Vehicles", {}, "Search all uploaded custom vehicles")
 local cloudSearchResults = {}
 menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
-    if query == "" then return end
+    if query == "" or scriptEnding then return end
     show_busyspinner("Searching vehicles...")
     for _, data in pairs(cloudSearchResults) do
         menu.delete(data.list)
@@ -552,7 +553,7 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
         menu.focus(builder.entitiesMenuList)
     end)
     menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
-        if filename == "" then return end
+        if filename == "" or scriptEnding then return end
         if not filesystem.exists(DOWNLOADS_DIRECTORY) then
             filesystem.mkdir(DOWNLOADS_DIRECTORY)
         end
@@ -810,7 +811,7 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
-        if name == "" then return end
+        if name == "" or scriptEnding then return end
         set_builder_name(name)
         if save_vehicle(name) then
             util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
@@ -818,7 +819,7 @@ function setup_builder_menus(name)
     end, name or "")
     local uploadMenu
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
-        if name == "" then return end
+        if name == "" or scriptEnding then return end
         set_builder_name(name)
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
@@ -2335,6 +2336,7 @@ end
 setup_pre_menu()
 
 util.on_stop(function()
+    scriptEnding = true
     if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
     end
