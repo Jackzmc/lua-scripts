@@ -818,7 +818,7 @@ function setup_builder_menus(name)
         end
     end, name or "")
     local uploadMenu
-    uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as", function(name)
+    uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as\nUploading as " .. SOCIALCLUB._SC_GET_NICKNAME(), function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
         if not builder.author then
@@ -1649,6 +1649,7 @@ function add_entity_to_list(list, handle, name, data)
         parent = data.parent,
         godmode = data.godmode or (type ~= "OBJECT") and true or nil
     }
+    log(string.format("adding entity #%d. parent: %d", builder.entities[handle].id, data.parent or -1))
     if not data.id then
         builder._index = builder._index + 1
     end
@@ -1969,14 +1970,12 @@ function builder_to_json()
             parent = data.parent
         }
         if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-            if data.godmode == nil then
-                serialized.godmode = true
-                data.godmode = true
-            else
-                serialized.godmode = data.godmode
-            end
+            if data.godmode == nil then data.godmode = true end
+            serialized.godmode = data.godmode
         elseif ENTITY.IS_ENTITY_A_PED(handle) then
             serialized.animdata = data.animdata
+            if data.godmode == nil then data.godmode = true end
+            serialized.godmode = data.godmode
         end
 
         if handle == builder.base.handle then
@@ -1995,6 +1994,7 @@ function builder_to_json()
         end
     end
 
+    -- Remove base offseet
     if baseSerialized then
         baseSerialized.offset = nil
     end
@@ -2111,6 +2111,7 @@ function spawn_custom_vehicle(data, isPreview, previewFunc, previewData)
     end
 end
 
+-- This code is awfully made and a bad copy paste... but oh well
 function add_attachments(baseHandle, data, addToBuilder, isPreview)
     local pos = ENTITY.GET_ENTITY_COORDS(baseHandle)
     local handles = {}
@@ -2155,7 +2156,6 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             end
         end
     end
-    -- bad dupe code but im sick i dont care
     if data.peds then
         for _, pedData in ipairs(data.peds) do
             local name = pedData.name or "<nil>"
