@@ -1621,7 +1621,7 @@ end
 
 -- [ ENTITY EDITING HANDLING ]
 -- TODO: Refactor remove pos, rot, boneIndex to just data
-function add_entity_to_list(list, handle, name, pos, rot, boneIndex, id)
+function add_entity_to_list(list, handle, name, data)
     autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
@@ -1635,19 +1635,20 @@ function add_entity_to_list(list, handle, name, pos, rot, boneIndex, id)
         type = "PED"
     end
     builder.entities[handle] = {
-        id = id or builder._index,
+        id = data.id or builder._index,
         name = name or "(no name)",
         type = type,
         model = model,
         list = nil,
         listMenus = {},
-        pos = pos or { x = 0.0, y = 0.0, z = 0.0 },
-        rot = rot or { x = 0.0, y = 0.0, z = 0.0 },
-        boneIndex = boneIndex or 0,
-        visible = true,
-        godmode = (type ~= "OBJECT") and true or nil
+        pos = data.offset or { x = 0.0, y = 0.0, z = 0.0 },
+        rot = data.rotation or { x = 0.0, y = 0.0, z = 0.0 },
+        boneIndex = data.boneIndex or 0,
+        visible = data.visible or true,
+        parent = data.parent,
+        godmode = data.godmode or (type ~= "OBJECT") and true or nil
     }
-    if not id then
+    if not data.id then
         builder._index = builder._index + 1
     end
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
@@ -1701,7 +1702,7 @@ function clone_entity(handle, name, mirror_axis)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(builder.entitiesMenuList, entity, name, pos)
+    add_entity_to_list(builder.entitiesMenuList, entity, name, { offset = pos })
     highlightedHandle = entity
     return entity
 end
@@ -1831,7 +1832,6 @@ local attachEntSubmenus = {}
 function _load_attach_list(list, child)
     menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
         builder.entities[child].parent = nil
-        builder.entities[child].parentHandle = nil
         attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
         util.toast("Entity's parent restored to base vehicle")
         menu.set_menu_name(list, "Attach to: Base Vehicle")
@@ -1841,7 +1841,6 @@ function _load_attach_list(list, child)
         if handle ~= child and handle ~= builder.base.handle and builder.entities[handle].parent ~= builder.entities[child].id then
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
                 builder.entities[child].parent = builder.entities[handle].id
-                builder.entities[child].parentHandle = handle
                 attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
                 util.toast("Entity's parent changed")
                 menu.set_menu_name(list, "Attach to: #" .. builder.entities[child].id)
@@ -2145,7 +2144,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     if entityData.id then idMap[tostring(entityData.id)] = handle end
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.id)
+                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData)
                     elseif entityData.parent then
                         table.insert(parentQueue, { handle = handle, data = entityData })
                     else
@@ -2197,7 +2196,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     if pedData.id then idMap[tostring(pedData.id)] = handle end
 
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.id)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
                         table.insert(parentQueue, { handle = handle, data = pedData })
@@ -2253,7 +2252,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             if vehData.id then idMap[tostring(vehData.id)] = handle end
 
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation, vehData.boneIndex, vehData.id)
+                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData)
             elseif vehData.parent then
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
