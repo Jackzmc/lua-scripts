@@ -2388,17 +2388,22 @@ while true do
         get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
             if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
                 local hudPos = get_screen_coords(pos)
-                local type = "OBJECT"
+                local height = 0.055
+                local name = "Pre-existing object"
                 if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
-                    type = "VEHICLE"
+                    local hash = ENTITY.GET_ENTITY_MODEL(entity)
+                    local manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(hash)
+                    local vehName = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(hash)
+                    name = manufacturer .. " " .. vehName
                 elseif ENTITY.IS_ENTITY_A_PED(entity) then
-                    type = "PED"
+                    name = "Pre-existing ped"
                 end
-                directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
-                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, type, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
-                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, name, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
+                
                 if util.is_key_down(0x4A) then
-                    add_entity_to_list(builder.entitiesMenuList, entity, "Pre-existing " .. type)
+                    add_entity_to_list(builder.entitiesMenuList, entity, name)
                 end
             end
         end)
