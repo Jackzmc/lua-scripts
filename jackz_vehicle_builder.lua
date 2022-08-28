@@ -116,7 +116,8 @@ function create_blip_for_entity(entity, type, name)
 end
 local scriptSettings = {
     autosaveEnabled = true,
-    showOverlay = true
+    showOverlay = true,
+    showAddOverlay = true
 }
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
@@ -135,7 +136,6 @@ local FREE_EDIT = false
 local isInEntityMenu = false
 
 local CURATED_PROPS = {
-    "prop_logpile_06b",
     "prop_barriercrash_04",
     "prop_barier_conc_01a",
     "prop_barier_conc_01b",
@@ -155,7 +155,8 @@ local CURATED_PROPS = {
     "prop_roadcone02a",
     "prop_beer_neon_01",
     "prop_sign_road_03b",
-    "prop_prlg_snowpile"
+    "prop_prlg_snowpile",
+    "prop_logpile_06b",
 }
 local CURATED_VEHICLES = {
     { "t20", "T20" },
@@ -392,9 +393,13 @@ local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change s
 menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
     scriptSettings.autosaveEnabled = value
 end, scriptSettings.autosaveEnabled)
-menu.toggle(settingsList, "Show Overlay", {"jvboverlay"}, "Shows an overlay on the currently entity you are editing. Only shown when menu is open", function(value)
+menu.toggle(settingsList, "Show Active Entity Overlay", {"jvboverlay"}, "Shows an overlay on entity you are currently editing. Only shown when menu is open", function(value)
     scriptSettings.showOverlay = value
 end, scriptSettings.showOverlay)
+
+menu.toggle(settingsList, "Show Add Entity Overlay", {"jvboverlayadd"}, "Shows an overlay when the menu is open on nearby entities, allowign you to add them to your custom vehicle", function(value)
+    scriptSettings.showAddOverlay = value
+end, scriptSettings.showAddOverlay)
 
 menu.divider(menu.my_root(), "")
 
@@ -1616,7 +1621,7 @@ end
 
 -- [ ENTITY EDITING HANDLING ]
 -- TODO: Refactor remove pos, rot, boneIndex to just data
-function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
+function add_entity_to_list(list, handle, name, pos, rot, boneIndex, id)
     autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
@@ -1630,7 +1635,7 @@ function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
         type = "PED"
     end
     builder.entities[handle] = {
-        id = builder._index,
+        id = id or builder._index,
         name = name or "(no name)",
         type = type,
         model = model,
@@ -1642,7 +1647,9 @@ function add_entity_to_list(list, handle, name, pos, rot, boneIndex)
         visible = true,
         godmode = (type ~= "OBJECT") and true or nil
     }
-    builder._index = builder._index + 1
+    if not id then
+        builder._index = builder._index + 1
+    end
     attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
@@ -1718,10 +1725,6 @@ function create_entity_section(tableref, handle, options)
     --[ POSITION ]--
     clear_menu_table(tableref.listMenus)
     if handle ~= builder.base.handle then
-        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
-            tableref.boneIndex = index
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
-        end))
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
@@ -1757,12 +1760,19 @@ function create_entity_section(tableref, handle, options)
 
     --[ MISC ]--
     table.insert(tableref.listMenus, menu.divider(entityroot, "Misc"))
-    local attachEntList
-    attachEntList = menu.list(entityroot, "Attach to: Base Vehicle", {"attachent"..handle}, "Attach to another entity attached to the builder.", 
-        function() _load_attach_list(attachEntList, handle) end,
-        _unload_attach_list
-    )
-    table.insert(tableref.listMenus, attachEntList)
+    if handle ~= builder.base.handle then
+        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
+            tableref.boneIndex = index
+            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+        end))
+        local attachEntList
+        local attachName = tableref.parent and ("#" .. tableref.parent) or "Base Vehicle"
+        attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another entity attached to the builder.",
+            function() _load_attach_list(attachEntList, handle) end,
+            _unload_attach_list
+        )
+        table.insert(tableref.listMenus, attachEntList)
+    end
     if not options.noRename then
         table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
@@ -1821,18 +1831,20 @@ local attachEntSubmenus = {}
 function _load_attach_list(list, child)
     menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
         builder.entities[child].parent = nil
+        builder.entities[child].parentHandle = nil
         attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
         util.toast("Entity's parent restored to base vehicle")
         menu.set_menu_name(list, "Attach to: Base Vehicle")
         menu.focus(list)
     end)
     for handle, data in pairs(builder.entities) do
-        if handle ~= child and handle ~= builder.base.handle then
+        if handle ~= child and handle ~= builder.base.handle and builder.entities[handle].parent ~= builder.entities[child].id then
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
-                builder.entities[child].parent = builder.entities[child].id
-                attach_entity(builder.entities[child].parent, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+                builder.entities[child].parent = builder.entities[handle].id
+                builder.entities[child].parentHandle = handle
+                attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
                 util.toast("Entity's parent changed")
-                menu.set_menu_name(list, "Attach to: " .. handle)
+                menu.set_menu_name(list, "Attach to: #" .. builder.entities[child].id)
                 menu.focus(list)
             end))
         end
@@ -1997,7 +2009,7 @@ function builder_to_json()
             data = baseSerialized,
             savedata = vehiclelib.Serialize(builder.base.handle)
         },
-        blip_icon = builder.blip_icon,
+        blipIcon = builder.blip_icon,
         objects = objects,
         vehicles = vehicles,
         peds = peds
@@ -2022,7 +2034,7 @@ function import_vehicle_to_builder(data, name)
         builder.name = name
         builder.author = data.author
         builder.base.data = data.base.data
-        builder.blip_icon = data.blip_icon
+        builder.blip_icon = data.blipIcon or data.blip_icon
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
         setup_builder_menus(name)
@@ -2102,6 +2114,8 @@ end
 function add_attachments(baseHandle, data, addToBuilder, isPreview)
     local pos = ENTITY.GET_ENTITY_COORDS(baseHandle)
     local handles = {}
+    local idMap = {} -- KV<id, handle>
+    local parentQueue = {} -- Any entities who need to be parented
     if data.objects then
         for _, entityData in ipairs(data.objects) do
             local name = entityData.name or "<nil>"
@@ -2128,8 +2142,12 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
                     table.insert(handles, handle)
 
+                    if entityData.id then idMap[string(entityData.id)] = handle end
+
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation, entityData.boneIndex)
+                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.id)
+                    elseif entityData.parent then
+                        table.insert(parentQueue, { handle = handle, data = entityData })
                     else
                         attach_entity(baseHandle, handle, entityData.offset, entityData.rotation, entityData.boneIndex)
                     end
@@ -2176,9 +2194,13 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
                     table.insert(handles, handle)
 
+                    if pedData.id then idMap[string(pedData.id)] = handle end
+
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation, pedData.boneIndex)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.id)
                         datatable.animdata = pedData.animdata
+                    elseif pedData.parent then
+                        table.insert(parentQueue, { handle = handle, data = pedData })
                     else
                         attach_entity(baseHandle, handle, pedData.offset, pedData.rotation, pedData.boneIndex)
                     end
@@ -2228,11 +2250,25 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
             table.insert(handles, handle)
 
+            if vehData.id then idMap[string(vehData.id)] = handle end
+
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation, vehData.boneIndex)
+                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation, vehData.boneIndex, vehData.id)
+            elseif vehData.parent then
+                table.insert(parentQueue, { handle = handle, data = vehData })
             else
                 attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
             end
+        end
+    end
+
+    -- Process parenting, ensuring they are spawned in
+    for _, entry in ipairs(parentQueue) do
+        local targetHandle = idMap[string(entry.data.parent)]
+        if not targetHandle then
+            log("Invalid parent handle: " .. entry.data.parent .. " for id " .. entry.id, "add_attachments")
+        else
+            attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
         end
     end
 end
@@ -2385,32 +2421,36 @@ while true do
     local seconds = os.seconds()
     
     if builder ~= nil then
-        if scriptSettings.autosaveEnabled and menu.is_open() and seconds >= autosaveNextTime then
-            autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
-            autosave()
-        end
-        get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
-            if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
-                local hudPos = get_screen_coords(pos)
-                local height = 0.055
-                local name = "Pre-existing object"
-                if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
-                    local hash = ENTITY.GET_ENTITY_MODEL(entity)
-                    local manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(hash)
-                    local vehName = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(hash)
-                    name = manufacturer .. " " .. vehName
-                elseif ENTITY.IS_ENTITY_A_PED(entity) then
-                    name = "Pre-existing ped"
-                end
-                directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
-                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, name, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
-                directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
-                
-                if util.is_key_down(0x4A) then
-                    add_entity_to_list(builder.entitiesMenuList, entity, name)
-                end
+        if menu.is_open() then
+            if scriptSettings.autosaveEnabled and seconds >= autosaveNextTime then
+                autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
+                autosave()
             end
-        end)
+            if scriptSettings.showAddOverlay then
+                get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
+                    if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                        local hudPos = get_screen_coords(pos)
+                        local height = 0.055
+                        local name = "Pre-existing object"
+                        if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
+                            local hash = ENTITY.GET_ENTITY_MODEL(entity)
+                            local manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(hash)
+                            local vehName = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(hash)
+                            name = manufacturer .. " " .. vehName
+                        elseif ENTITY.IS_ENTITY_A_PED(entity) then
+                            name = "Pre-existing ped"
+                        end
+                        directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, name, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
+                        
+                        if util.is_key_down(0x4A) then
+                            add_entity_to_list(builder.entitiesMenuList, entity, name)
+                        end
+                    end
+                end)
+            end
+        end
         if highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local entData = builder.entities[highlightedHandle]

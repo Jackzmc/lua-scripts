@@ -151,3 +151,4 @@ V1.18.0
 * Add ability to attach entities to other entities
 * Add vehicle name to pre-existing add overlay
 * Use hard entity pinning
+* Add setting to disable 'add to vehicle' overlay
