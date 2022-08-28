@@ -2142,7 +2142,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
                     table.insert(handles, handle)
 
-                    if entityData.id then idMap[string(entityData.id)] = handle end
+                    if entityData.id then idMap[tostring(entityData.id)] = handle end
 
                     if addToBuilder then
                         add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.id)
@@ -2194,7 +2194,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
                     table.insert(handles, handle)
 
-                    if pedData.id then idMap[string(pedData.id)] = handle end
+                    if pedData.id then idMap[tostring(pedData.id)] = handle end
 
                     if addToBuilder then
                         local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.id)
@@ -2250,7 +2250,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
             table.insert(handles, handle)
 
-            if vehData.id then idMap[string(vehData.id)] = handle end
+            if vehData.id then idMap[tostring(vehData.id)] = handle end
 
             if addToBuilder then
                 add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData.offset, vehData.rotation, vehData.boneIndex, vehData.id)
@@ -2264,7 +2264,7 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
 
     -- Process parenting, ensuring they are spawned in
     for _, entry in ipairs(parentQueue) do
-        local targetHandle = idMap[string(entry.data.parent)]
+        local targetHandle = idMap[tostring(entry.data.parent)]
         if not targetHandle then
             log("Invalid parent handle: " .. entry.data.parent .. " for id " .. entry.id, "add_attachments")
         else
