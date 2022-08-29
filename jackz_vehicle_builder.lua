@@ -2139,7 +2139,8 @@ function spawn_entity(data, type, isPreview)
     end
 end
 
-function spawn_object(data, isPreview)
+function spawn_object(data, isPreview, pos)
+    if not pos then pos = { x = 0, y = 0, z = 0} end
     local object = isPreview
         and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
         or entities.create_object(data.model, pos)
@@ -2155,7 +2156,8 @@ function spawn_object(data, isPreview)
     end
 end
 
-function spawn_ped(data, isPreview)
+function spawn_ped(data, isPreview, pos)
+    if not pos then pos = { x = 0, y = 0, z = 0} end
     local handle = isPreview
         and PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
         or entities.create_ped(0, data.model, pos, 0)
