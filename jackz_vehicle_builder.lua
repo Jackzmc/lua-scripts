@@ -56,7 +56,6 @@ function new_builder(baseHandle)
         author = nil,
         base = {
             handle = baseHandle,
-            visible = true,
             data = nil
         },
         entities = {}, // KV<Handle, Table>
@@ -837,6 +836,12 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
+    local type = "VEHICLE"
+    if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
+        type = "PED"
+    elseif ENTITY.IS_ENTITY_A_OBJECT(builder.base.handle) then -- TODO: Verify native name
+        type = "OBJECT"
+    end
     mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() 
         editorActive = true
     end, function()
@@ -901,9 +906,13 @@ function setup_builder_menus(name)
         menu.on_focus(settingsList, function()
             highlightedHandle = builder.base.handle
         end)
-        menu.action(baseList, "Teleport Into", {}, "Teleport into the base vehicle", function()
-            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
+        menu.action(baseList, "Teleport Into", {}, "Teleport into the base entity", function()
+            if ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
+            else
+                util.toast("Base entity is not a vehicle")
+            end
         end)
         local deleteAttachmentsMenu
         deleteAttachmentsMenu = menu.action(baseList, "Clear All Attachments", {}, "Deletes all entities attached to vehicle, including untracked, but attached entities.", function()
@@ -927,9 +936,6 @@ function setup_builder_menus(name)
                     if highlightedHandle == builder.base.handle then
                         highlightedHandle = nil
                     end
-                    if highlightedHandle == builder.base.handle then
-                        highlightedHandle = nil
-                    end
                     log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
                     builder.entities[vehicle] = builder.entities[builder.base.handle]
                     builder.entities[builder.base.handle] = nil
@@ -945,8 +951,8 @@ function setup_builder_menus(name)
             end
         end)
         local deleteMenu
-        deleteMenu = menu.action(baseList, "Delete Custom Vehicle", {}, "Deletes the active builder with all settings and entities cleared", function()
-            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom vehicle? All settings and entities will be wiped.", function()
+        deleteMenu = menu.action(baseList, "Clear Builder", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     util.remove_blip(builder.blip)
@@ -957,7 +963,7 @@ function setup_builder_menus(name)
 
         builder.entities[builder.base.handle] = {
             list = settingsList,
-            type = "VEHICLE",
+            type = type,
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
             listMenus = {},
             pos = { x = 0.0, y = 0.0, z = 0.0 },
@@ -2047,6 +2053,7 @@ function builder_to_json(is_autosave)
 
         if handle == builder.base.handle then
             baseSerialized = serialized
+            baseSerialized.type = data.type
         elseif data.type == "VEHICLE" then
             if ENTITY.DOES_ENTITY_EXIST(handle) then
                 serialized.savedata = vehiclelib.Serialize(handle)
@@ -2074,13 +2081,19 @@ function builder_to_json(is_autosave)
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
             data = baseSerialized,
-            savedata = vehiclelib.Serialize(builder.base.handle)
+            savedata = nil
         },
         blipIcon = builder.blip_icon,
         objects = objects,
         vehicles = vehicles,
         peds = peds
     }
+
+    -- Only calculate save data for vehicle-based custom builds
+    if ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
+        serialized.base.savedata = vehiclelib.Serialize(builder.base.handle)
+    end
+    
     
     local status, result = pcall(json.encode, serialized)
     if not status then
@@ -2113,23 +2126,36 @@ function copy_file(source, dest)
     destFile:close()
 end
 
+
+function create_entity(data, type)
+    if type == "VEHICLE" then
+        return spawn_vehicle(data)
+    elseif type == "PED" then
+        return spawn_ped(data)
+    elseif type == "OBJECT" then
+        return spawn_object(data)
+    else
+        error("Invalid entity type \"" .. type .. "\"", 2)
+    end
+end
+
 --[ Savedata Options ]--
-function import_vehicle_to_builder(data, name)
+function import_vehicle_to_builder(build, name)
     remove_preview_custom()
-    local baseHandle = spawn_vehicle(data.base)
+    local baseHandle = spawn_entity(build.base, build.base.data.type or "VEHICLE")
     if baseHandle then
         builder = new_builder(baseHandle)
         builder.name = name
-        builder.author = data.author
-        builder.base.data = data.base.data
-        builder.blip_icon = data.blipIcon or data.blip_icon
+        builder.author = build.author
+        builder.base.data = build.base.data
+        builder.blip_icon = build.blipIcon or build.blip_icon
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
         setup_builder_menus(name)
         set_builder_vehicle(baseHandle)
-        add_attachments(baseHandle, data, true, false)
+        add_attachments(baseHandle, build, true, false)
     else
-        util.toast("Cannot create base vehicle, editing not possible.")
+        util.toast("Cannot create base entity, editing not possible.")
     end
 end
 function spawn_vehicle(vehicleData, isPreview)
