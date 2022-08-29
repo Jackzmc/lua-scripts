@@ -2072,8 +2072,8 @@ function copy_file(source, dest)
     if not destFile then
         return error("Could not create destination file", 2)
     end
-    for line in file:lines() do
-        destFile:write(line .. "\n")
+    for line in file:lines("L") do
+        destFile:write(line)
     end
     file:close()
     destFile:close()
