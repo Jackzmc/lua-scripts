@@ -429,7 +429,7 @@ menu.toggle(settingsList, "Show Active Entity Overlay", {"jvboverlay"}, "Shows a
     scriptSettings.showOverlay = value
 end, scriptSettings.showOverlay)
 
-menu.toggle(settingsList, "Show Add Entity Overlay", {"jvboverlayadd"}, "Shows an overlay when the menu is open on nearby entities, allowign you to add them to your custom vehicle", function(value)
+menu.toggle(settingsList, "Show Add Entity Overlay", {"jvboverlayadd"}, "Shows an overlay when the menu is open on nearby entities, allowign you to add them to your custom build", function(value)
     scriptSettings.showAddOverlay = value
 end, scriptSettings.showAddOverlay)
 
@@ -746,7 +746,7 @@ function _setup_spawn_list_entry(parentList, filepath)
             function() _destroy_options_menu() end
         )
         
-        -- Spawn custom vehicle handler
+        -- Spawn build preview handler
         menu.on_focus(optionParentMenus[filepath], function()
             if preview.id ~= filename then
                 data.filename = filename
@@ -805,7 +805,7 @@ function convert_file(path, name, newPath)
 end
 function _destroy_saved_list()
 end
-    --[ SUB: Destroy custom vehicle context menu ]--
+    --[ SUB: Destroy builder context menu ]--
     function _destroy_options_menu()
         clear_menu_table(optionsMenuHandles)
     end
@@ -1099,7 +1099,7 @@ function create_vehicle_spawner_list(root)
     browseList = menu.list(root, "Browse", {}, "Browse all vehicles", function()
         _load_vehicle_browse_menus(browseList)
     end)
-    menu.action(root, "Clone Current Vehicle", {}, "Adds your current vehicle as part of your custom vehicle", function()
+    menu.action(root, "Clone Current Vehicle", {}, "Adds your current vehicle as part of your custom build", function()
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
         if vehicle > 0 then
             local savedata = vehiclelib.Serialize(vehicle)
@@ -2260,7 +2260,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         if isPreview then
             set_preview(baseHandle, "_base", 100.0, previewFunc, previewData)
         else
-            create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Custom Vehicle")
+            create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Unnamed Build")
         end
         if build.base.visible and build.base.visible == false or (build.base.data and build.base.data.visible == false) then
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
@@ -2546,7 +2546,7 @@ function draw_background(min_width, min_height, color)
 end
 
 set_origin(hudPos.x, hudPos.y)
-add_text(builder.name or "Unnamed custom vehicle", 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+add_text(builder.name or "Unnamed Build", 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
 add_text(authorText, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
 add_vertical_space(0.01)
 add_text(string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
