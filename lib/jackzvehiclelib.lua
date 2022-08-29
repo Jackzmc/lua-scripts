@@ -85,11 +85,11 @@ function vehiclelib.Serialize(vehicle)
         VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Primary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.b, Color.g)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.g, Color.b)
         Primary["Paint Type"] = memory.read_int(Color.r)
         Primary["Color"] = memory.read_int(Color.g)
         Primary["Pearlescent Color"] = memory.read_int(Color.b)
@@ -98,11 +98,11 @@ function vehiclelib.Serialize(vehicle)
         VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Secondary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.b)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.g)
         Secondary["Paint Type"] = memory.read_int(Color.r)
         Secondary["Color"] = memory.read_int(Color.g)
     end
@@ -112,6 +112,7 @@ function vehiclelib.Serialize(vehicle)
         wheel = memory.read_int(Color.g),
     }
 
+    local WheelType = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle)
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, Color.r, Color.g, Color.b)
     local TireSmoke = {
         r = memory.read_int(Color.r),
@@ -166,6 +167,7 @@ function vehiclelib.Serialize(vehicle)
         Name = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model),
         Manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(model),
         Type = vehiclelib.VEHICLE_TYPES[VEHICLE.GET_VEHICLE_CLASS(vehicle)],
+        ["Wheel Type"] = WheelType,
         ["Tire Smoke"] = TireSmoke,
         Livery = {
             Style = VEHICLE.GET_VEHICLE_LIVERY(vehicle),
@@ -223,6 +225,9 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
         VEHICLE.SET_VEHICLE_MOD_COLOR_2(vehicle, saveData.Colors.Secondary["Paint Type"], saveData.Colors.Secondary.Color)
     end
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"] or 0)
+    if saveData["Wheel Type"] then
+        VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, saveData["Wheel Type"] or -1)
+    end
     -- Misc Colors / Looks
     if saveData["Tire Smoke"] then
         VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r or 255, saveData["Tire Smoke"].g or 255, saveData["Tire Smoke"].b or 255)
@@ -272,7 +277,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     end
 
     -- Misc
-    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style or -1)
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.Style or -1)
     VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, saveData["Window Tint"] or 0)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
