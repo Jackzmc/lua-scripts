@@ -301,17 +301,28 @@ function join_path(parent, child)
 end
 local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
 local PEDS_PATH = join_path(filesystem.resources_dir(), "peds.txt")
+local VEHICLES_PATH = join_path(filesystem.resources_dir(), "vehicles.txt")
+
 local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
 local AUTOSAVE_DIRECTORY = join_path(SAVE_DIRECTORY, "autosaves")
 local DOWNLOADS_DIRECTORY = join_path(SAVE_DIRECTORY, "downloads")
 if not filesystem.exists(PROPS_PATH) then
-    util.toast("jackz_vehicle_builder: objects.txt in resources folder does not exist. Please properly install this script.", TOAST_ALL)
-    util.log("Resources directory: ".. PROPS_PATH)
-    util.stop_script()
+    if SCRIPT_SOURCE == "MANUAL" then
+        util.log(SCRIPT_NAME .. ": Downloading missing resource objects.txt")
+        download_resources_update("objects.txt")
+    else
+        util.toast(SCRIPT_NAME .. ": objects.txt in resources folder does not exist. Please properly install this script.", TOAST_ALL)
+        util.log("Resources directory: ".. PROPS_PATH)
+        util.stop_script()
+    end
 end
 if not filesystem.exists(PEDS_PATH) then
     util.log(SCRIPT_NAME .. ": Downloading resource update for peds.txt")
     download_resources_update("peds.txt")
+end
+if not filesystem.exists(VEHICLES_PATH) then
+    util.log(SCRIPT_NAME .. ": Downloading resource update for vehicles.txt")
+    download_resources_update("vehicles.txt")
 end
 if not filesystem.exists(SAVE_DIRECTORY) then
     filesystem.mkdir(SAVE_DIRECTORY)
@@ -2565,7 +2576,6 @@ end
 
 while true do
     local seconds = os.seconds()
-    
     if builder ~= nil then
         if menu.is_open() then
             if scriptSettings.autosaveEnabled and seconds >= autosaveNextTime then
