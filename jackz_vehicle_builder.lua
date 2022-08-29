@@ -847,11 +847,11 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
-    local baseType = "VEHICLE"
+    local baseType = "OBJECT"
     if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
         baseType = "PED"
-    elseif ENTITY.IS_ENTITY_A_OBJECT(builder.base.handle) then -- TODO: Verify native name
-        baseType = "OBJECT"
+    elseif ENTITY.IS_ENTITY_A_VEHICLET(builder.base.handle) then
+        baseType = "VEHICLE"
     end
 
     mainMenu = menu.list(menu.my_root(), "Builder", {}, "", function() 

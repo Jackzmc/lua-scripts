@@ -133,9 +133,9 @@ function vehiclelib.Serialize(vehicle)
         Back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3),
     }
     VEHICLE._GET_VEHICLE_DASHBOARD_COLOR(vehicle, Color.r)
-    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.b)
+    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.g)
     local DashboardColor = memory.read_int(Color.r)
-    local InteriorColor = memory.read_int(Color.b)
+    local InteriorColor = memory.read_int(Color.g)
     VEHICLE.GET_VEHICLE_COLOR(vehicle, Color.r, Color.g, Color.b)
     local Vehicle = {
         r = memory.read_int(Color.r),
