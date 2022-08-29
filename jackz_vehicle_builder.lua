@@ -1287,24 +1287,19 @@ function _load_vehicle_browse_menus(parent)
         show_busyspinner("Loading browse menu...")
         builder.vehSpawner.loadState = 1
         local currentClass = nil
-        -- TODO: Move to file
-        async_http.init("jackz.me", "/stand/resources/vehicles.txt", function(body)
-            for line in string.gmatch(body, "[^\r\n]+") do
-                local class = line:match("CLASS (%g+)")
-                if class then
-                    currentClass = menu.list(parent, class:gsub("_+", " "), {}, "")
-                    table.insert(builder.vehSpawner.menus, currentClass)
-                else
-                    local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
-                    if id then
-                        add_vehicle_menu(currentClass, id, name, dlc)
-                    end
+        for line in io.lines(VEHICLES_PATH) do
+            local class = line:match("CLASS (%g+)")
+            if class then
+                currentClass = menu.list(parent, class:gsub("_+", " "), {}, "")
+                table.insert(builder.vehSpawner.menus, currentClass)
+            else
+                local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
+                if id then
+                    add_vehicle_menu(currentClass, id, name, dlc)
                 end
             end
-            builder.vehSpawner.loadState = 2
-            HUD.BUSYSPINNER_OFF()
-        end)
-        async_http.dispatch()
+        end
+        builder.vehSpawner.loadState = 2
     end
 end
 function _destroy_browse_menu(key)

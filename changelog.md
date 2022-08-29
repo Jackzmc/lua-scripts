@@ -156,3 +156,4 @@ V1.18.0
 * Add warning to deleting an entity
 * Automatically make a copy of last autosave on save failure
 * Allow setting peds and objects to be a build's base entity
+* Allow offline browsing of vehicles (use local resource file)
