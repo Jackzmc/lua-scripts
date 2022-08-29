@@ -1992,6 +1992,7 @@ function builder_to_json(is_autosave)
     local peds = {}
     local baseSerialized
     for handle, data in pairs(builder.entities) do
+        local type = data.type
         local serialized = {
             id = data.id,
             name = data.name,
@@ -1999,7 +2000,6 @@ function builder_to_json(is_autosave)
             offset = data.pos,
             rotation = data.rot,
             visible = data.visible,
-            type = data.type,
             boneIndex = data.boneIndex,
             parent = data.parent
         }
@@ -2014,14 +2014,14 @@ function builder_to_json(is_autosave)
 
         if handle == builder.base.handle then
             baseSerialized = serialized
-        elseif data.type == "VEHICLE" then
+        elseif type == "VEHICLE" then
             if ENTITY.DOES_ENTITY_EXIST(handle) then
                 serialized.savedata = vehiclelib.Serialize(handle)
             else
                 log("Could not fetch vehicle savedata for deleted vehicle", "builder_to_json")
             end
             table.insert(vehicles, serialized)
-        elseif data.type == "PED" then
+        elseif type == "PED" then
             table.insert(peds, serialized)
         else
             table.insert(objects, serialized)
