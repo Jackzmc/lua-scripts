@@ -85,11 +85,11 @@ function vehiclelib.Serialize(vehicle)
         VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Primary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.b, Color.g)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.g, Color.b)
         Primary["Paint Type"] = memory.read_int(Color.r)
         Primary["Color"] = memory.read_int(Color.g)
         Primary["Pearlescent Color"] = memory.read_int(Color.b)
@@ -98,11 +98,11 @@ function vehiclelib.Serialize(vehicle)
         VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Secondary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.b)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.g)
         Secondary["Paint Type"] = memory.read_int(Color.r)
         Secondary["Color"] = memory.read_int(Color.g)
     end
