@@ -2039,10 +2039,12 @@ function builder_to_json(is_autosave)
     local status, result = pcall(json.encode, serialized)
     if not status then
         log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
-        local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_vehicle")
-        copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
-        util.toast("WARNING: Could not save your vehicle. Last autosave has automatically been saved as " .. recoveryFilename)
-        log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
+        if scriptSettings.autosaveEnabled then
+            local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_vehicle")
+            copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
+            util.toast("WARNING: Could not save your vehicle. Last autosave has automatically been saved as " .. recoveryFilename)
+            log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
+        end
         return nil
     else
         return result
