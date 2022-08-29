@@ -154,3 +154,4 @@ V1.18.0
 * Add setting to disable 'add to vehicle' overlay
 * Minor fixes / improvements, especially to descriptions
 * Add warning to deleting an entity
+* Automatically make a copy of last autosave on save failure

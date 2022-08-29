@@ -821,12 +821,17 @@ function setup_builder_menus(name)
     uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as\nUploading as " .. SOCIALCLUB._SC_GET_NICKNAME(), function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
+        local data = builder_to_json()
+        if not data then
+            util.toast("Error serializing vehicle, cannot upload")
+            return
+        end
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
-                upload_vehicle(name, builder_to_json())
+                upload_vehicle(name, data)
             end)
         else
-            upload_vehicle(name, builder_to_json())
+            upload_vehicle(name, data)
         end
     end, name or "")
     menu.text_input(mainMenu, "Author", {"customvehicleauthor"}, "Set the author of the vehicle. None is set by default.", function(input)
@@ -1868,14 +1873,14 @@ function _unload_attach_list()
 end
 
 --[ Save Data ]
-function save_vehicle(saveName, folder)
+function save_vehicle(saveName, folder, is_autosave)
     if not folder then
         folder = SAVE_DIRECTORY
     end
     filesystem.mkdirs(folder)
     local file = io.open(folder .. "/" .. saveName .. ".json", "w")
     if file then
-        local data = builder_to_json()
+        local data = builder_to_json(is_autosave)
         if data then
             file:write(data)
             file:close()
@@ -1942,7 +1947,7 @@ function get_vehicle_data_from_file(filepath)
 end
 
 local lastAutosave = os.seconds()
-function autosave(onDemand)
+function autosave(onDemand, name)
     if not scriptSettings.autosaveEnabled then return end
     if onDemand then
         if lastAutosave - os.seconds() < 5 then
@@ -1950,21 +1955,25 @@ function autosave(onDemand)
         end
         lastAutosave = os.seconds()
     end
-    local name = string.format("_autosave%d", autosaveIndex)
-    local success = save_vehicle(name, AUTOSAVE_DIRECTORY)
+    local is_auto_name = name == nil
+    if is_auto_name then name = string.format("_autosave%d", autosaveIndex) end
+
+    local success = save_vehicle(name, AUTOSAVE_DIRECTORY, true)
     if success then
         util.draw_debug_text("Auto saved " .. name)
     else
         util.toast("Auto save has failed")
     end
-    autosaveIndex = autosaveIndex + 1
-    if autosaveIndex > MAX_AUTOSAVES then
-        autosaveIndex = 0
+    if is_auto_name then
+        autosaveIndex = autosaveIndex + 1
+        if autosaveIndex > MAX_AUTOSAVES then
+            autosaveIndex = 0
+        end
     end
     save_favorites_list()
     save_recents()
 end
-function builder_to_json()
+function builder_to_json(is_autosave)
     local objects = {}
     local vehicles = {}
     local peds = {}
@@ -2029,12 +2038,31 @@ function builder_to_json()
     
     local status, result = pcall(json.encode, serialized)
     if not status then
-        util.toast("WARNING: Could not save your vehicle. Please send Jackz your logs.")
-        log("Could not stringify: (" .. result ..") " .. dump_table(serialized))
+        log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
+        local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_vehicle")
+        copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
+        util.toast("WARNING: Could not save your vehicle. Last autosave has automatically been saved as " .. recoveryFilename)
+        log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
         return nil
     else
         return result
     end
+end
+
+function copy_file(source, dest)
+    local file = io.open(source, "r")
+    if not file then
+        return error("Could not open source", 2)
+    end
+    local destFile = io.open(dest, "w")
+    if not destFile then
+        return error("Could not create destination file", 2)
+    end
+    for line in file:lines() do
+        destFile:write(line .. "\n")
+    end
+    file:close()
+    destFile:close()
 end
 
 --[ Savedata Options ]--
