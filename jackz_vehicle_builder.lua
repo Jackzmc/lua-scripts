@@ -2146,21 +2146,38 @@ function spawn_entity(data, type, isPreview)
     end
 end
 
-function spawn_object(data, isPreview, pos)
-    if not pos then pos = { x = 0, y = 0, z = 0} end
-    local object = isPreview
-        and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
-        or entities.create_object(data.model, pos)
-
-    if object == 0 then
-        util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
-    else
-        if data.visible == false then
-            ENTITY.SET_ENTITY_ALPHA(object, 0, false)
-        end
-
-        return object
+function spawn_vehicle(vehicleData, isPreview)
+    if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
+        log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
+        util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
+        return
     end
+    STREAMING.REQUEST_MODEL(vehicleData.model)
+    while not STREAMING.HAS_MODEL_LOADED(vehicleData.model) do
+        util.yield()
+    end
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
+    local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+
+    local handle
+    if isPreview then
+        handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
+        -- set_preview(handle)
+    else
+        handle = entities.create_vehicle(vehicleData.model, pos, heading)
+        if vehicleData.visible == false then
+            ENTITY.SET_ENTITY_ALPHA(handle, 0)
+        end
+        if vehicleData.godmode or vehicleData.godmode == nil then
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
+        end
+    end
+
+    if vehicleData.savedata then
+        vehiclelib.ApplyToVehicle(handle, vehicleData.savedata)
+    end
+    return handle, pos
 end
 
 function spawn_ped(data, isPreview, pos)
@@ -2196,6 +2213,23 @@ function spawn_ped(data, isPreview, pos)
     end
 end
 
+function spawn_object(data, isPreview, pos)
+    if not pos then pos = { x = 0, y = 0, z = 0} end
+    local object = isPreview
+        and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
+        or entities.create_object(data.model, pos)
+
+    if object == 0 then
+        util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
+    else
+        if data.visible == false then
+            ENTITY.SET_ENTITY_ALPHA(object, 0, false)
+        end
+
+        return object
+    end
+end
+
 --[ Savedata Options ]--
 function import_build_to_builder(build, name)
     clear_build_preview()
@@ -2215,39 +2249,6 @@ function import_build_to_builder(build, name)
     else
         util.toast("Cannot create base entity, editing not possible.")
     end
-end
-function spawn_vehicle(vehicleData, isPreview)
-    if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
-        log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
-        util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
-        return
-    end
-    STREAMING.REQUEST_MODEL(vehicleData.model)
-    while not STREAMING.HAS_MODEL_LOADED(vehicleData.model) do
-        util.yield()
-    end
-    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
-    local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
-
-    local handle
-    if isPreview then
-        handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
-        -- set_preview(handle)
-    else
-        handle = entities.create_vehicle(vehicleData.model, pos, heading)
-        if vehicleData.visible == false then
-            ENTITY.SET_ENTITY_ALPHA(handle, 0)
-        end
-        if vehicleData.godmode or vehicleData.godmode == nil then
-            ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
-        end
-    end
-
-    if vehicleData.savedata then
-        vehiclelib.ApplyToVehicle(handle, vehicleData.savedata)
-    end
-    return handle, pos
 end
 
 -- Spawns a custom build, requires data.base to be set, others optional
