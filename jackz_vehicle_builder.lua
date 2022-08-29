@@ -2180,12 +2180,17 @@ function spawn_vehicle(vehicleData, isPreview)
 end
 
 function spawn_ped(data, isPreview, pos)
+    STREAMING.REQUEST_MODEL(data.model)
+    while not STREAMING.HAS_MODEL_LOADED(data.model) do
+        util.yield()
+    end
     if not pos then pos = { x = 0, y = 0, z = 0} end
     local handle = isPreview
         and PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
         or entities.create_ped(0, data.model, pos, 0)
     if handle == 0 then
         util.toast("Ped failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
+        return nil
     else
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
@@ -2209,10 +2214,15 @@ function spawn_ped(data, isPreview, pos)
             end
             TASK.TASK_PLAY_ANIM(handle, data.animdata[1], data.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
         end
+        return handle
     end
 end
 
 function spawn_object(data, isPreview, pos)
+    STREAMING.REQUEST_MODEL(data.model)
+    while not STREAMING.HAS_MODEL_LOADED(data.model) do
+        util.yield()
+    end
     if not pos then pos = { x = 0, y = 0, z = 0} end
     local object = isPreview
         and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
@@ -2220,6 +2230,7 @@ function spawn_object(data, isPreview, pos)
 
     if object == 0 then
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
+        return nil
     else
         if data.visible == false then
             ENTITY.SET_ENTITY_ALPHA(object, 0, false)
@@ -2299,10 +2310,6 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             if not STREAMING.IS_MODEL_VALID(entityData.model) then
                 util.toast("Object has invalid model: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
             else
-                STREAMING.REQUEST_MODEL(entityData.model)
-                while not STREAMING.HAS_MODEL_LOADED(entityData.model) do
-                    util.yield()
-                end
                 local object = spawn_object(entityData, isPreview)
                 if object then
                     if entityData.visible == false then
@@ -2333,11 +2340,6 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             if not STREAMING.IS_MODEL_VALID(pedData.model) then
                 util.toast("Ped has invalid model: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
             else
-                STREAMING.REQUEST_MODEL(pedData.model)
-                while not STREAMING.HAS_MODEL_LOADED(pedData.model) do
-                    util.yield()
-                end
-
                 local ped = spawn_ped(pedData, isPreview)
                 if ped then
                     for _, handle2 in ipairs(handles) do
