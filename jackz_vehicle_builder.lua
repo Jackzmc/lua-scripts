@@ -903,6 +903,7 @@ function setup_builder_menus(name)
                     builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     set_builder_vehicle(vehicle)
                     for handle, data in pairs(builder.entities) do
+                        -- TODO: re-attach nested entities
                         attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
                     end
                 end
@@ -1659,7 +1660,8 @@ function add_entity_to_list(list, handle, name, data)
     if not data.id then
         builder._index = builder._index + 1
     end
-    attach_entity(builder.base.handle, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
+    local parent = get_entity_by_id(data.parent) or builder.base.handle
+    attach_entity(parent, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
         function() create_entity_section(builder.entities[handle], handle) end,
@@ -1730,6 +1732,8 @@ function create_entity_section(tableref, handle, options)
     local rot = tableref.rot
     highlightedHandle = handle
     isInEntityMenu = true
+
+    local parent = get_entity_by_id(tableref.parent) or builder.base.handle
     
     --[ POSITION ]--
     clear_menu_table(tableref.listMenus)
@@ -1737,16 +1741,16 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
             -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
     end
 
@@ -1755,16 +1759,16 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+        attach_entity(parent, handle, pos, rot, tableref.boneIndex)
     end))
 
     --[ MISC ]--
@@ -1772,7 +1776,7 @@ function create_entity_section(tableref, handle, options)
     if handle ~= builder.base.handle then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
             tableref.boneIndex = index
-            attach_entity(tableref.parent or builder.base.handle, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
         local attachEntList
         local attachName = tableref.parent and ("#" .. tableref.parent) or "Base Vehicle"
@@ -2340,7 +2344,16 @@ function dump_table(o)
        return tostring(o)
     end
 end
- 
+
+function get_entity_by_id(id)
+    if not id or not builder then return nil end
+    for handle, data in pairs(builder.entities) do
+        if data.id == id then
+            return handle, data
+        end
+    end
+    return nil
+end
 
 function attach_entity(parent, handle, pos, rot, index)
     if pos == nil or rot == nil then
@@ -2578,7 +2591,8 @@ while true do
                 if update then
                     ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, true)
                     ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
-                    attach_entity(builder.base.handle, highlightedHandle, pos, rot, builder.entities[highlightedHandle].boneIndex)
+                    local parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
+                    attach_entity(parent, highlightedHandle, pos, rot, builder.entities[highlightedHandle].boneIndex)
                 end
             end
         end
