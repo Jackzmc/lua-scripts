@@ -847,12 +847,13 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
-    local type = "VEHICLE"
+    local baseType = "VEHICLE"
     if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
-        type = "PED"
+        baseType = "PED"
     elseif ENTITY.IS_ENTITY_A_OBJECT(builder.base.handle) then -- TODO: Verify native name
-        type = "OBJECT"
+        baseType = "OBJECT"
     end
+
     mainMenu = menu.list(menu.my_root(), "Builder", {}, "", function() 
         editorActive = true
     end, function()
@@ -876,7 +877,7 @@ function setup_builder_menus(name)
             return
         end
         if not builder.author then
-            menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
+            menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a build without an author set. An author is not required, but the author will be tied to the build itself.", function()
                 upload_build(name, data)
             end)
         else
@@ -974,7 +975,7 @@ function setup_builder_menus(name)
 
         builder.entities[builder.base.handle] = {
             list = settingsList,
-            type = type,
+            type = baseType,
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
             listMenus = {},
             pos = { x = 0.0, y = 0.0, z = 0.0 },
@@ -1304,7 +1305,7 @@ function _load_vehicle_browse_menus(parent)
 end
 function _destroy_browse_menu(key)
     _destroy_recent_menus()
-    show_busyspinner("Clearing browse menu... May lag")
+    show_busyspinner("Clearing browse menu... Lag may occur")
     util.create_thread(function()
         clear_menu_table(builder[key].menus)
     end)
