@@ -2163,7 +2163,6 @@ function spawn_vehicle(vehicleData, isPreview)
     local handle
     if isPreview then
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
-        -- set_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         if vehicleData.visible == false then
@@ -2263,6 +2262,8 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
+    -- Pass save data to spawn_entity -> spawn_vehicle
+    build.base.data.savedata = build.base.savedata
     local baseType = build.type or "VEHICLE"
     local baseHandle, pos = spawn_entity(build.base.data, baseType, isPreview)
     if baseHandle then
