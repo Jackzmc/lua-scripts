@@ -1849,13 +1849,14 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
-    menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
+    local base = menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
         builder.entities[child].parent = nil
         attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
         util.toast("Entity's parent restored to base vehicle")
         menu.set_menu_name(list, "Attach to: Base Vehicle")
         menu.focus(list)
     end)
+    table.insert(attachEntSubmenus, base)
     for handle, data in pairs(builder.entities) do
         if handle ~= child and handle ~= builder.base.handle and builder.entities[handle].parent ~= builder.entities[child].id then
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
