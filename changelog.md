@@ -155,3 +155,4 @@ V1.18.0
 * Minor fixes / improvements, especially to descriptions
 * Add warning to deleting an entity
 * Automatically make a copy of last autosave on save failure
+* Allow setting peds and objects to be a build's base entity

@@ -551,7 +551,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                 data.vehicle.name = vehicleName
             end
             data.uploader = user
-            spawn_custom_vehicle(tableref['vehicle'], true, _render_cloud_vehicle_overlay, data)
+            spawn_build(tableref['vehicle'], true, _render_cloud_vehicle_overlay, data)
         else
             log("invalid server response : " .. body, "_fetch_cloud_users")
             util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
@@ -576,7 +576,7 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
     if tries == 30 then return end
     menu.action(rootList, "Spawn", {}, "", function()
         remove_preview_custom()
-        spawn_custom_vehicle(vehicleData['vehicle'], false)
+        spawn_build(vehicleData['vehicle'], false)
     end)
 
     menu.action(rootList, "Edit", {}, "", function()
@@ -726,7 +726,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     remove_preview_custom()
-                    spawn_custom_vehicle(data, false)
+                    spawn_build(data, false)
                 end)
                 table.insert(optionsMenuHandles, m)
     
@@ -750,7 +750,7 @@ function _setup_spawn_list_entry(parentList, filepath)
         menu.on_focus(optionParentMenus[filepath], function()
             if preview.id ~= filename then
                 data.filename = filename
-                spawn_custom_vehicle(data, true, _render_saved_vehicle_overlay, data)
+                spawn_build(data, true, _render_saved_vehicle_overlay, data)
             end
         end)
     else
@@ -823,7 +823,7 @@ function setup_pre_menu()
         if vehicle > 0 then
             builder = new_builder(vehicle)
             load_recents()
-            set_builder_vehicle(vehicle)
+            set_builder_base(vehicle)
             setup_builder_menus()
         else
             util.toast("You are not in a vehicle.")
@@ -940,7 +940,7 @@ function setup_builder_menus(name)
                     builder.entities[vehicle] = builder.entities[builder.base.handle]
                     builder.entities[builder.base.handle] = nil
                     builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
-                    set_builder_vehicle(vehicle)
+                    set_builder_base(vehicle)
                     for handle, data in pairs(builder.entities) do
                         -- TODO: re-attach nested entities
                         attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
@@ -984,7 +984,7 @@ function setup_builder_menus(name)
         create_entity_section(builder.entities[builder.base.handle], builder.base.handle, { noRename = true } )
 end
 
-function set_builder_vehicle(handle)
+function set_builder_base(handle)
     builder.base.handle = handle
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
@@ -2200,7 +2200,7 @@ function import_vehicle_to_builder(build, name)
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
         setup_builder_menus(name)
-        set_builder_vehicle(baseHandle)
+        set_builder_base(baseHandle)
         add_attachments(baseHandle, build, true, false)
     else
         util.toast("Cannot create base entity, editing not possible.")
@@ -2240,42 +2240,44 @@ function spawn_vehicle(vehicleData, isPreview)
     return handle, pos
 end
 
--- Spawns a custom vehicle, requires data.base to be set, others optional
-function spawn_custom_vehicle(data, isPreview, previewFunc, previewData)
+-- Spawns a custom build, requires data.base to be set, others optional
+function spawn_build(build, isPreview, previewFunc, previewData)
     -- TODO: Implement all base data
-    if not data then
-        error("No vehicle data provided", 2)
-    elseif not data.base then
-        -- TODO: Possibly decouple tie to base vehicle
-        error("No base vehicle data provided", 2)
+    if not build then
+        error("No build data provided", 2)
+    elseif not build.base then
+        error("No base entity data provided", 2)
     end
     remove_preview_custom()
-    local baseHandle, pos = spawn_vehicle(data.base, isPreview)
+    if not build.base.data.model then
+        build.base.data.model = build.base.model
+    end
+    local baseType = build.type or "VEHICLE
+    local baseHandle, pos = spawn_entity(build.base.data, baseType, isPreview)
     if baseHandle then
         if isPreview then
             set_preview(baseHandle, "_base", 100.0, previewFunc, previewData)
         else
-            create_blip_for_entity(baseHandle, data.blip_icon, data.name or "Custom Vehicle")
+            create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Custom Vehicle")
         end
-        if data.base.visible and data.base.visible == false or (data.base.data and data.base.data.visible == false) then
+        if build.base.visible and build.base.visible == false or (build.base.data and build.base.data.visible == false) then
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
         end
         ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
-        add_attachments(baseHandle, data, false, isPreview)
-        if spawnInVehicle and not isPreview then
+        add_attachments(baseHandle, build, false, isPreview)
+        if baseType == "VEHICLE" and spawnInVehicle and not isPreview then
             util.yield()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
         end
         return baseHandle
     else
-        util.toast("Could not spawn base vehicle")
+        util.toast("Could not spawn build's base entity")
     end
 end
 
 -- This code is awfully made and a bad copy paste... but oh well
 function add_attachments(baseHandle, data, addToBuilder, isPreview)
-    local pos = ENTITY.GET_ENTITY_COORDS(baseHandle)
     local handles = {}
     local idMap = {} -- KV<id, handle>
     local parentQueue = {} -- Any entities who need to be parented
