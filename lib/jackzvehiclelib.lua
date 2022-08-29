@@ -272,7 +272,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     end
 
     -- Misc
-    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.style or -1)
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle, saveData.Livery.Style or -1)
     VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle, saveData["Window Tint"] or 0)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
