@@ -692,7 +692,7 @@ function _format_vehicle_info(version, timestamp, author, rating)
         if versionDiff == 1 then
             versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
-            versionText = string.format("%s (Unsupported Version, latest %s)", fileVersion, BUILDER_VERSION)
+            versionText = string.format("%s (Unsupported version, latest %s)", fileVersion, BUILDER_VERSION)
         else
             versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
         end
@@ -713,7 +713,7 @@ function _setup_spawn_list_entry(parentList, filepath)
     local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
     local status, data = pcall(get_vehicle_data_from_file, filepath)
     if status and data ~= nil then
-        if not data.base or not data.objects then
+        if not data.base or not data.version then
             log("Skipping invalid vehicle: " .. filepath)
             return
         end
@@ -794,9 +794,10 @@ function convert_file(path, name, newPath)
     HUD.BUSYSPINNER_OFF()
     file:close()
     if res.error then
-        util.toast("Could not convert: " .. res.error)
+        util.toast("Could not convert: " .. res.error, TOAST_ALL)
+        util.toast("Try the online converter: jackz.me/stand/vehicle-converter")
     else
-        util.toast("Successfully converted " .. res.data.type .. " vehicle\nView in your saved vehicle list")
+        util.toast("Successfully converted " .. res.data.type .. " vehicle\nView it in your saved vehicle list")
         file = io.open(newPath, "w")
         res.data.vehicle.convertedFrom = res.data.type
         file:write(json.encode(res.data.vehicle))
@@ -880,7 +881,7 @@ function setup_builder_menus(name)
             ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
         end
     end)
-    menu.toggle(builder.entitiesMenuList, "Free Edit", {"free-edit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
+    menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
         FREE_EDIT = value
     end, FREE_EDIT)
     menu.divider(builder.entitiesMenuList, "Entities")
@@ -895,7 +896,7 @@ function setup_builder_menus(name)
     create_ped_spawner_list(builder.pedSpawner.root)
     builder.ent_spawner_active = true
 
-    local baseList = menu.list(mainMenu, "Base Vehicle", {}, "")
+    local baseList = menu.list(mainMenu, "Base Entity", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
             highlightedHandle = builder.base.handle
@@ -905,7 +906,7 @@ function setup_builder_menus(name)
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
         end)
         local deleteAttachmentsMenu
-        deleteAttachmentsMenu = menu.action(baseList, "Delete All Entities", {}, "Removes all entities attached to vehicle, including pre-existing entities.", function()
+        deleteAttachmentsMenu = menu.action(baseList, "Clear All Attachments", {}, "Deletes all entities attached to vehicle, including untracked, but attached entities.", function()
             menu.show_warning(deleteAttachmentsMenu, CLICK_COMMAND, "This will delete all attached entities from the world and from the builder. Are you sure?", function()
                 remove_all_attachments(builder.base.handle)
                 for handle, data in pairs(builder.entities) do
@@ -1811,7 +1812,7 @@ function create_entity_section(tableref, handle, options)
             attach_entity(parent, handle, pos, rot, tableref.boneIndex)
         end))
         local attachEntList
-        local attachName = tableref.parent and ("#" .. tableref.parent) or "Base Vehicle"
+        local attachName = tableref.parent and ("#" .. tableref.parent) or "Base"
         attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another entity attached to the builder.",
             function() _load_attach_list(attachEntList, handle) end,
             _unload_attach_list
@@ -1891,11 +1892,11 @@ local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
     if builder.entities[child].parent == nil then
-        local base = menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
+        local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
             attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
-            util.toast("Entity's parent restored to base vehicle")
-            menu.set_menu_name(list, "Attach to: Base Vehicle")
+            util.toast("Entity's parent restored to base entity")
+            menu.set_menu_name(list, "Attach to: Base")
             menu.focus(list)
         end)
         table.insert(attachEntSubmenus, base)
