@@ -1623,6 +1623,7 @@ end
 -- [ ENTITY EDITING HANDLING ]
 -- TODO: Refactor remove pos, rot, boneIndex to just data
 function add_entity_to_list(list, handle, name, data)
+    if not data then data = {} end
     autosave(true)
     -- ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, builder.base.handle)
