@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.4.0",
-    LIB_VERSION = "1.1.7",
+    LIB_VERSION = "1.1.8",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -206,7 +206,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
-    if saveData.Colors.Extra then
+    if saveData.Colors.Extras then
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.pearlescent, saveData.Colors.Extras.wheel)
     end
     VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Vehicle.r, saveData.Colors.Vehicle.g, saveData.Colors.Vehicle.b)
