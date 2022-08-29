@@ -850,7 +850,7 @@ function setup_builder_menus(name)
     local baseType = "OBJECT"
     if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
         baseType = "PED"
-    elseif ENTITY.IS_ENTITY_A_VEHICLET(builder.base.handle) then
+    elseif ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
         baseType = "VEHICLE"
     end
 
