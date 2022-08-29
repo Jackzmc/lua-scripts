@@ -30,7 +30,7 @@ v3.9.0
 * (3.9.2) Fix extras (Thanks hexarobi)
 * (3.9.3) Actually fix extras
 * (3.9.3) Actually fix extras
-* (3.9.4) Fix vehiclelib bug (Thanks hexarobi)
+* (3.9.5) Fix vehiclelib bug (Thanks hexarobi)
 
 # actions (v1)
 
@@ -122,7 +122,6 @@ V1.16.0
 * (1.16.1) Catch server upload errors
 * (1.16.2) Catch invalid models
 * (1.16.3) Fix false error on successful upload
-* (1.16.4) Fix vehiclelib bug
 
 V1.17.0
 
@@ -146,3 +145,4 @@ V1.17.0
 * (1.17.5) Fix highlightedHandle not being reset on new base
 * (1.17.6) Autocreate save directory if not exist
 * (1.17.7) Fix some previews being inside base vehicle
+* (1.17.9) Fix vehiclelib bug
