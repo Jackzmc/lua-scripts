@@ -39,12 +39,12 @@ local autosaveNextTime = 0
 local autosaveIndex = 1
 
 local BUILDER_VERSION = "1.3.1" -- For version diff warnings
-local FORMAT_VERSION = "Jackz Custom Vehicle " .. BUILDER_VERSION
+local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
 local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
-local pedAnimThread 
+local pedAnimThread
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
@@ -97,7 +97,7 @@ function new_builder(baseHandle)
             }
         },
         ent_spawner_active = false,
-        blip_icon = 225
+        blip_icon = 225 -- Saved as blipIcon
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -377,25 +377,25 @@ end
 --[[
     UTILS
 ]]--
-local utilsMenu = menu.list(menu.my_root(), "Utilities", {"builderutils"}, "Some utilities such as clearing entities")
+local utilsMenu = menu.list(menu.my_root(), "Utilities", {"jvbutils"}, "Some utilities such as clearing entities")
 menu.action(utilsMenu, "Delete Preview", {"jvbstoppreview"}, "Removes currently active preview.", function()
     if preview.entity == 0 then
         util.toast("No preview is active")
     end
-    remove_preview_custom()
+    clear_build_preview()
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"jvbclearvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"clearnearbyvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 500, 6000, function(range)
     local vehicles = entities.get_all_vehicles_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " vehicles")
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Objects", {"jvbclearobjs"}, "Clears all nearby objects within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Objects", {"clearnearbyobjs"}, "Clears all nearby objects within defined range", 500, 100000, 500, 6000, function(range)
     local vehicles = entities.get_all_objects_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " objects")
 end)
 
-menu.click_slider(utilsMenu, "Clear Nearby Peds", {"jvbclearpeds"}, "Clears all nearby peds within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears all nearby peds within defined range", 500, 100000, 500, 6000, function(range)
     local vehicles = entities.get_all_peds_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " peds")
@@ -439,17 +439,17 @@ menu.divider(menu.my_root(), "")
     CLOUD DATA
 ]]--
 local cloudData = {}
-local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Vehicles", {}, "Browse & upload custom built vehicles", function() _fetch_cloud_users() end, function() 
+local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & upload custom builds", function() _fetch_cloud_users() end, function() 
     for _, data in pairs(cloudData) do
         menu.delete(data.parentList)
     end
     cloudData = {}
 end)
-local cloudSearchList = menu.list(cloudRootMenuList, "Search Vehicles", {}, "Search all uploaded custom vehicles")
+local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
 local cloudSearchResults = {}
-menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a search query", function(query)
+menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search query", function(query)
     if query == "" or scriptEnding then return end
-    show_busyspinner("Searching vehicles...")
+    show_busyspinner("Searching builds...")
     for _, data in pairs(cloudSearchResults) do
         menu.delete(data.list)
     end
@@ -459,7 +459,7 @@ menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a sea
         if body[1] == "{" then
             local results = json.decode(body).results
             if #results == 0 then
-                util.toast("No vehicles found")
+                util.toast("No builds found")
                 return
             end
             for _, vehicle in ipairs(results) do
@@ -470,7 +470,7 @@ menu.text_input(cloudSearchList, "Search", {"customvehiclesearch"}, "Enter a sea
                     data = nil
                 }
                 local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
-                    _setup_cloud_vehicle_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
+                    _setup_cloud_build_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
                 end)
                 cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
                 menu.on_focus(vehicleList, function()
@@ -493,12 +493,12 @@ function _fetch_cloud_users()
         if body[1] == "{" then
             cloudData = json.decode(body).users
             for user, vehicles in pairsByKeys(cloudData) do
-                local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d vehicles", #vehicles), function()
+                local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
                     _load_cloud_vehicles(user)
                 end, function()
                     cloudData[user].vehicleData = {}
                 end)
-                menu.on_focus(userList, remove_preview_custom)
+                menu.on_focus(userList, clear_build_preview)
                 cloudData[user] = {
                     vehicles = vehicles,
                     vehicleData = {},
@@ -522,8 +522,8 @@ function _load_cloud_vehicles(user)
             local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.author, vehicle.rating)
             local vehicleMenuRoot
             cloudData[user].vehicles[vehicle.name] = {}
-            vehicleMenuRoot = menu.list(cloudData[user].parentList, vehicle.name, {}, description or "<invalid vehicle metadata>", function()
-                _setup_cloud_vehicle_menu(vehicleMenuRoot, user, vehicle.name, cloudData[user].vehicles[vehicle.name])
+            vehicleMenuRoot = menu.list(cloudData[user].parentList, vehicle.name, {}, description or "<invalid build metadata>", function()
+                _setup_cloud_build_menu(vehicleMenuRoot, user, vehicle.name, cloudData[user].vehicles[vehicle.name])
             end)
             menu.on_focus(vehicleMenuRoot, function()
                 _fetch_vehicle_data(cloudData[user].vehicles[vehicle.name], user, vehicle.name)
@@ -535,15 +535,15 @@ function _load_cloud_vehicles(user)
     end
 end
 function _fetch_vehicle_data(tableref, user, vehicleName)
-    show_busyspinner("Fetching vehicle info...")
+    show_busyspinner("Fetching build info...")
     async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
         HUD.BUSYSPINNER_OFF()
         if body[1] == "{" then
-            remove_preview_custom()
+            clear_build_preview()
             local data = json.decode(body)
             if not data.vehicle then
                 log(body, "_fetch_vehicle_data")
-                util.toast("Invalid vehicle data was fetched")
+                util.toast("Invalid build data was fetched")
                 return
             end
             tableref['vehicle'] = data.vehicle
@@ -551,7 +551,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                 data.vehicle.name = vehicleName
             end
             data.uploader = user
-            spawn_build(tableref['vehicle'], true, _render_cloud_vehicle_overlay, data)
+            spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
         else
             log("invalid server response : " .. body, "_fetch_cloud_users")
             util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
@@ -559,14 +559,14 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
     end)
     async_http.dispatch()
 end
-function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
+function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     local tries = 0
     while not vehicleData['vehicle'] and tries < 10 do
         util.yield(500)
         tries = tries + 1
     end
     if tries > 10 then
-        util.toast("Vehicle data timed out")
+        util.toast("Build data timed out")
         return
     end
     while not vehicleData and tries < 30 do
@@ -575,12 +575,12 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
     end
     if tries == 30 then return end
     menu.action(rootList, "Spawn", {}, "", function()
-        remove_preview_custom()
+        clear_build_preview()
         spawn_build(vehicleData['vehicle'], false)
     end)
 
     menu.action(rootList, "Edit", {}, "", function()
-        import_vehicle_to_builder(vehicleData['vehicle'], vehicleName)
+        import_build_to_builder(vehicleData['vehicle'], vehicleName)
         menu.focus(builder.entitiesMenuList)
     end)
     menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
@@ -599,13 +599,13 @@ function _setup_cloud_vehicle_menu(rootList, user, vehicleName, vehicleData)
         end
     end, vehicleName .. ".json")
 
-    menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded vehicle with 1-5 stars", 1, 5, 5, 1, function(rating)
+    menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
         rate_vehicle(user, vehicleName, rating)
     end)
 end
 function rate_vehicle(user, vehicleName, rating)
     if not user or not vehicleName or rating < 0 or rating > 5 then
-        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "_setup_cloud_vehicle_menu/rate")
+        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_vehicle")
         return false
     end
     async_http.init("jackz.me", 
@@ -633,17 +633,17 @@ function rate_vehicle(user, vehicleName, rating)
     return true
 end
 --[ SAVED VEHICLES LIST ]
-local savedVehicleList = menu.list(menu.my_root(), "Saved Custom Vehicles", {}, "",
+local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "",
     function() _load_saved_list() end,
     function() _destroy_saved_list() end
 )
 local folderLists = {}
 local xmlMenusHandles = {}
 local spawnInVehicle = true
-menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle", function(on)
+menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
     spawnInVehicle = on
 end, spawnInVehicle)
-local xmlList = menu.list(savedVehicleList, "Convert XML Vehicles", {}, "Convert XML vehicle (including menyoo) to a compatible format")
+local xmlList = menu.list(savedVehicleList, "Convert XML Builds", {}, "Convert XML Builds/Vehicles (including menyoo)")
 menu.divider(savedVehicleList, "Folders")
 local optionsMenuHandles = {}
 local optionParentMenus = {}
@@ -674,7 +674,7 @@ function _load_vehicles_from_dir(parentList, directory)
             end
         end
     end
-    table.insert(folderLists, menu.divider(parentList, "Vehicles"))
+    table.insert(folderLists, menu.divider(parentList, "Builds"))
     for _, queueFunc in ipairs(queue) do
         queueFunc()
     end
@@ -697,7 +697,7 @@ function _format_vehicle_info(version, timestamp, author, rating)
         end
 
         local createdText = timestamp and (os.date("%Y-%m-%d at %X", timestamp) .. " UTC") or "-unknown-"
-        local authorText = author and (string.format("Vehicle Author: %s\n", author)) or ""
+        local authorText = author and (string.format("Build Author: %s\n", author)) or ""
         local ratingText = rating and (
             rating ~= "0.0" and (string.format("\nRating: %s / 5 stars ", rating))
                 or "No user ratings"
@@ -710,10 +710,10 @@ function _format_vehicle_info(version, timestamp, author, rating)
 end
 function _setup_spawn_list_entry(parentList, filepath)
     local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
-    local status, data = pcall(get_vehicle_data_from_file, filepath)
+    local status, data = pcall(get_build_data_from_file, filepath)
     if status and data ~= nil then
         if not data.base or not data.version then
-            log("Skipping invalid vehicle: " .. filepath)
+            log("Skipping invalid build: " .. filepath)
             return
         end
         
@@ -725,7 +725,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                 local m = menu.action(optionParentMenus[filepath], "Spawn", {}, "", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
-                    remove_preview_custom()
+                    clear_build_preview()
                     spawn_build(data, false)
                 end)
                 table.insert(optionsMenuHandles, m)
@@ -733,13 +733,13 @@ function _setup_spawn_list_entry(parentList, filepath)
                 m = menu.action(optionParentMenus[filepath], "Edit", {}, "", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
-                    import_vehicle_to_builder(data, filename:sub(1, -6))
+                    import_build_to_builder(data, filename:sub(1, -6))
                     menu.focus(builder.entitiesMenuList)
                 end)
                 table.insert(optionsMenuHandles, m)
 
                 m = menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
-                    upload_vehicle(filename:sub(1, -6), json.encode(data))
+                    upload_build(filename:sub(1, -6), json.encode(data))
                 end)
                 table.insert(optionsMenuHandles, m)
             end,
@@ -750,14 +750,14 @@ function _setup_spawn_list_entry(parentList, filepath)
         menu.on_focus(optionParentMenus[filepath], function()
             if preview.id ~= filename then
                 data.filename = filename
-                spawn_build(data, true, _render_saved_vehicle_overlay, data)
+                spawn_build(data, true, _render_saved_build_overlay, data)
             end
         end)
     else
-        log(string.format("Skipping vehicle \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
+        log(string.format("Skipping build \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
     end
 end
-function _render_saved_vehicle_overlay(pos, data)
+function _render_saved_build_overlay(pos, data)
     local hudPos = get_screen_coords(pos)
     directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.105, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
     local authorText = data.author and ("Created by " .. data.author) or "Unknown creator"
@@ -767,7 +767,7 @@ function _render_saved_vehicle_overlay(pos, data)
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, data.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("%d vehicles, %d objects, %d peds", data.vehicles and #data.vehicles or 0, data.objects and #data.objects or 0, data.peds and #data.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
 end
-function _render_cloud_vehicle_overlay(pos, data)
+function _render_cloud_build_overlay(pos, data)
     local hudPos = get_screen_coords(pos)
     directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.12, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
     local authorText = data.vehicle.author and ("Created by " .. data.vehicle.author) or "Unknown creator"
@@ -780,7 +780,7 @@ function _render_cloud_vehicle_overlay(pos, data)
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%d star rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
 end
 function _load_saved_list()
-    remove_preview_custom()
+    clear_build_preview()
     clear_menu_table(optionParentMenus)
     clear_menu_table(xmlMenusHandles)
     clear_menu_table(folderLists)
@@ -796,7 +796,7 @@ function convert_file(path, name, newPath)
         util.toast("Could not convert: " .. res.error, TOAST_ALL)
         util.toast("Try the online converter: jackz.me/stand/vehicle-converter")
     else
-        util.toast("Successfully converted " .. res.data.type .. " vehicle\nView it in your saved vehicle list")
+        util.toast("Successfully converted " .. res.data.type .. " build\nView it in your saved vehicle list")
         file = io.open(newPath, "w")
         res.data.vehicle.convertedFrom = res.data.type
         file:write(json.encode(res.data.vehicle))
@@ -809,7 +809,7 @@ end
     function _destroy_options_menu()
         clear_menu_table(optionsMenuHandles)
     end
-menu.on_focus(savedVehicleList, function() remove_preview_custom() end)
+menu.on_focus(savedVehicleList, function() clear_build_preview() end)
 
 --[ Setup menus, depending on base exists ]--
 function setup_pre_menu()
@@ -842,39 +842,39 @@ function setup_builder_menus(name)
     elseif ENTITY.IS_ENTITY_A_OBJECT(builder.base.handle) then -- TODO: Verify native name
         type = "OBJECT"
     end
-    mainMenu = menu.list(menu.my_root(), "Custom Vehicle Builder", {}, "", function() 
+    mainMenu = menu.list(menu.my_root(), "Builder", {}, "", function() 
         editorActive = true
     end, function()
         editorActive = false
         _destroy_prop_previewer()
     end)
-    menu.text_input(mainMenu, "Save", {"savecustomvehicle"}, "Enter the name to save the vehicle as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
+    menu.text_input(mainMenu, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
         if save_vehicle(name) then
-            util.toast("Saved vehicle as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
+            util.toast("Saved build as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
         end
     end, name or "")
     local uploadMenu
-    uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadcustomvehicle"}, "Enter the name to upload the vehicle as\nUploading as " .. SOCIALCLUB._SC_GET_NICKNAME(), function(name)
+    uploadMenu = menu.text_input(mainMenu, "Upload", {"uploadbuild"}, "Enter the name to upload the build as\nUploading as " .. SOCIALCLUB._SC_GET_NICKNAME(), function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
         local data = builder_to_json()
         if not data then
-            util.toast("Error serializing vehicle, cannot upload")
+            util.toast("Error serializing build, cannot upload")
             return
         end
         if not builder.author then
             menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a vehicle without an author set. An author is not required, but the author will be tied to the vehicle itself.", function()
-                upload_vehicle(name, data)
+                upload_build(name, data)
             end)
         else
-            upload_vehicle(name, data)
+            upload_build(name, data)
         end
     end, name or "")
-    menu.text_input(mainMenu, "Author", {"customvehicleauthor"}, "Set the author of the vehicle. None is set by default.", function(input)
+    menu.text_input(mainMenu, "Author", {"buildauthor"}, "Set the author of the build, none is set by default. This is used to distinquish between build uploaders and the original creator", function(input)
         builder.author = input
-        util.toast("Set the vehicle's author to: " .. input)
+        util.toast("Set the builds's author to: " .. input)
     end, builder.author or "")
 
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "", function() highlightedHandle = nil end)
@@ -890,11 +890,11 @@ function setup_builder_menus(name)
         FREE_EDIT = value
     end, FREE_EDIT)
     menu.divider(builder.entitiesMenuList, "Entities")
-    builder.propSpawner.root = menu.list(mainMenu, "Spawn Props", {"builderprops"}, "Browse props to spawn to attach to add to your custom vehicle")
+    builder.propSpawner.root = menu.list(mainMenu, "Spawn Props", {"builderprops"}, "Browse props to spawn to attach to add to your build")
     menu.on_focus(builder.propSpawner.root, function() _destroy_browse_menu("propSpawner") end)
-    builder.vehSpawner.root = menu.list(mainMenu, "Spawn Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your custom vehicle")
+    builder.vehSpawner.root = menu.list(mainMenu, "Spawn Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
-    builder.pedSpawner.root = menu.list(mainMenu, "Spawn Peds", {"builderpeds"}, "Browse peds to spawn to add to your custom vehicle")
+    builder.pedSpawner.root = menu.list(mainMenu, "Spawn Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
     menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
@@ -906,7 +906,7 @@ function setup_builder_menus(name)
         menu.on_focus(settingsList, function()
             highlightedHandle = builder.base.handle
         end)
-        menu.action(baseList, "Teleport Into", {}, "Teleport into the base entity", function()
+        menu.action(baseList, "Teleport Into", {}, "Teleport into the base entity, if applicable", function()
             if ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, builder.base.handle, -1)
@@ -915,7 +915,7 @@ function setup_builder_menus(name)
             end
         end)
         local deleteAttachmentsMenu
-        deleteAttachmentsMenu = menu.action(baseList, "Clear All Attachments", {}, "Deletes all entities attached to vehicle, including untracked, but attached entities.", function()
+        deleteAttachmentsMenu = menu.action(baseList, "Clear All Attachments", {}, "Deletes all entities attached to build's base entity, including untracked, but attached entities.", function()
             menu.show_warning(deleteAttachmentsMenu, CLICK_COMMAND, "This will delete all attached entities from the world and from the builder. Are you sure?", function()
                 remove_all_attachments(builder.base.handle)
                 for handle, data in pairs(builder.entities) do
@@ -927,7 +927,7 @@ function setup_builder_menus(name)
                 highlightedHandle = nil
             end)
         end)
-        menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns the entities to a new base vehicle", function()
+        menu.action(baseList, "Set current vehicle as new base", {}, "Re-assigns all entities to a new base vehicle", function()
             local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
             if vehicle > 0 then
                 if vehicle == builder.base.handle then
@@ -951,7 +951,7 @@ function setup_builder_menus(name)
             end
         end)
         local deleteMenu
-        deleteMenu = menu.action(baseList, "Clear Builder", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
+        deleteMenu = menu.action(baseList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
@@ -971,7 +971,7 @@ function setup_builder_menus(name)
             visible = true,
             godmode = true
         }
-        local blipList = menu.list(settingsList, "Blip Icon", {"jvbicon"}, "Changes the blip icon for this custom vehicle.")
+        local blipList = menu.list(settingsList, "Blip Icon", {"jvbicon"}, "Changes the blip icon for this build.")
         for _, icon in ipairs(BLIP_ICONS) do
             menu.action(blipList, icon[2], {"jvbicon" .. icon[1]}, "Blip ID: " .. icon[1], function()
                 builder.blip_icon = icon[1]
@@ -989,7 +989,7 @@ function set_builder_base(handle)
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
     end
-    builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Vehicle")
+    builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Build")
 end
 
 function set_builder_name(name)
@@ -1002,7 +1002,7 @@ function set_builder_name(name)
 end
 
 function create_object_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "Contains a list of props that work well with custom vehicles", function() end, remove_preview_custom)
+    local curatedList = menu.list(root, "Curated", {}, "", function() end, clear_build_preview)
     for _, prop in ipairs(CURATED_PROPS) do
         add_prop_menu(curatedList, prop)
     end
@@ -1035,7 +1035,7 @@ function create_object_spawner_list(root)
 end
 
 function create_ped_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "Contains a list of peds that work well with custom vehicles", function() end, remove_preview_custom)
+    local curatedList = menu.list(root, "Curated", {}, "", function() end, clear_build_preview)
     for _, ped in ipairs(CURATED_PEDS) do
         add_ped_menu(curatedList, ped[1], ped[2])
     end
@@ -1069,7 +1069,7 @@ function create_ped_spawner_list(root)
 end
 
 function create_vehicle_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "Contains a list of props that work well with custom vehicles")
+    local curatedList = menu.list(root, "Curated", {}, "")
     for _, data in ipairs(CURATED_VEHICLES) do
         add_vehicle_menu(curatedList, data[1], data[2])
     end
@@ -1238,7 +1238,7 @@ local requestActive = false
 function create_vehicle_search_results(searchList, query, max)
     clear_menu_table(searchResults)
     if requestActive then return end
-    show_busyspinner("Searching vehicles...")
+    show_busyspinner("Searching builds...")
     requestActive = true
     async_http.init("jackz.me", "/stand/search-vehicle-db.php?q=" .. query .. "&max=" .. max, function(body)
         for line in string.gmatch(body, "[^\r\n]+") do
@@ -1276,6 +1276,7 @@ function _load_vehicle_browse_menus(parent)
         show_busyspinner("Loading browse menu...")
         builder.vehSpawner.loadState = 1
         local currentClass = nil
+        -- TODO: Move to file
         async_http.init("jackz.me", "/stand/resources/vehicles.txt", function(body)
             for line in string.gmatch(body, "[^\r\n]+") do
                 local class = line:match("CLASS (%g+)")
@@ -1303,7 +1304,7 @@ function _destroy_browse_menu(key)
     end)
     builder[key].loadState = 0
     builder[key].menus = {}
-    remove_preview_custom()
+    clear_build_preview()
     save_recents()
     save_favorites_list()
     HUD.BUSYSPINNER_OFF()
@@ -1382,7 +1383,7 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
     menuHandle = menu.action(parent, propName, {}, helper, function()
-        remove_preview_custom()
+        clear_build_preview()
         -- Increment recent usage
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
@@ -1411,7 +1412,7 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
     end)
     menu.on_focus(menuHandle, function()
         if preview.id == nil or preview.id ~= propName then -- Focus seems to be re-called everytime an menu item is added
-            remove_preview_custom()
+            clear_build_preview()
             local hash = util.joaat(propName)
             preview.id = propName
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
@@ -1436,7 +1437,7 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
     menuHandle = menu.action(parent, displayName or pedName, {}, pedName .. "\n" .. helper, function()
-        remove_preview_custom()
+        clear_build_preview()
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
                 for i, entry in ipairs(FAVORITES.peds) do
@@ -1477,7 +1478,7 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
     end)
     menu.on_focus(menuHandle, function()
         if preview.id == nil or preview.id ~= pedName then -- Focus seems to be re-called everytime an menu item is added
-            remove_preview_custom()
+            clear_build_preview()
             local hash = util.joaat(pedName)
             preview.id = pedName
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
@@ -1506,7 +1507,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
     menuHandle = menu.action(parent, displayName, {}, (dlc and ("DLC: " .. dlc) or "") .. "\n" .. helper, function()
-        remove_preview_custom()
+        clear_build_preview()
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
                 for i, entry in ipairs(FAVORITES.vehicles) do
@@ -1540,7 +1541,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     end)
     menu.on_focus(menuHandle, function()
         if preview.id == nil or preview.id ~= vehicleID then -- Focus seems to be re-called everytime an menu item is added
-            remove_preview_custom()
+            clear_build_preview()
             local hash = util.joaat(vehicleID)
             preview.id = vehicleID
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
@@ -1562,7 +1563,7 @@ end
 --[ Previewer Stuff ]--
 
 function set_preview(entity, id, range, renderfunc, renderdata)
-    remove_preview_custom()
+    clear_build_preview()
     preview.entity = entity
     preview.id = id
     preview.range = range or nil
@@ -1601,7 +1602,7 @@ function remove_all_attachments(handle)
     _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
 end
-function remove_preview_custom()
+function clear_build_preview()
     local old_entity = preview.entity
     preview.entity = 0
     preview.id = nil
@@ -1695,7 +1696,6 @@ function add_entity_to_list(list, handle, name, data)
         parent = data.parent,
         godmode = data.godmode or (type ~= "OBJECT") and true or nil
     }
-    log(string.format("adding entity #%d. parent: %d", builder.entities[handle].id, data.parent or -1))
     if not data.id then
         builder._index = builder._index + 1
     end
@@ -1946,8 +1946,8 @@ function save_vehicle(saveName, folder, is_autosave)
         error("Could not create file ' " .. saveName .. ".json'")
     end
 end
-function upload_vehicle(name, data)
-    show_busyspinner("Uploading vehicle")
+function upload_build(name, data)
+    show_busyspinner("Uploading build...")
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
@@ -1955,13 +1955,13 @@ function upload_vehicle(name, data)
         if body:sub(1, 1) == "{" then
             local response = json.decode(body)
             if response.error then
-                log(string.format("name:%s, vehicle: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
+                log(string.format("name:%s, name: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
                 util.toast("Upload error: " .. response.message)
             elseif response.status then
                 if response.status == "updated" then
-                    util.toast("Successfully updated vehicle")
+                    util.toast("Successfully updated build")
                 else
-                    util.toast("Successfully uploaded vehicle")
+                    util.toast("Successfully uploaded build")
                 end
             else
                 util.toast("Server sent invalid response")
@@ -1971,20 +1971,20 @@ function upload_vehicle(name, data)
         end
         HUD.BUSYSPINNER_OFF()
     end, function()
-        util.toast("Failed to upload your vehicle (" .. name .. ")")
+        util.toast("Failed to upload your build (" .. name .. ")")
     end)
     async_http.set_post("application/json", data)
     async_http.dispatch()
 end
-function get_vehicle_data_from_file(filepath)
+function get_build_data_from_file(filepath)
     local file = io.open(filepath, "r")
     if file then
         local data = json.decode(file:read("*a"))
         if data.Format then
-            log("Ignoring jackz_vehicles vehicle \"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_vehicle_from_file")
+            log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
             return nil
         elseif not data.version then
-            log("Ignoring invalid vehicle (no version meta) \"" .. filepath .. "\"", "load_vehicle_from_file")
+            log("Ignoring invalid build (no version meta) \"" .. filepath .. "\"", "load_build_from_file")
             return nil
         else
             if data.base.visible == nil then
@@ -2099,9 +2099,9 @@ function builder_to_json(is_autosave)
     if not status then
         log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
         if scriptSettings.autosaveEnabled then
-            local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_vehicle")
+            local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_build")
             copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
-            util.toast("WARNING: Could not save your vehicle. Last autosave has automatically been saved as " .. recoveryFilename)
+            util.toast("WARNING: Could not save your build. Last autosave has automatically been saved as " .. recoveryFilename)
             log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
         end
         return nil
@@ -2190,8 +2190,8 @@ function spawn_ped(data, isPreview, pos)
 end
 
 --[ Savedata Options ]--
-function import_vehicle_to_builder(build, name)
-    remove_preview_custom()
+function import_build_to_builder(build, name)
+    clear_build_preview()
     local baseHandle = spawn_entity(build.base, build.base.data.type or "VEHICLE")
     if baseHandle then
         builder = new_builder(baseHandle)
@@ -2250,7 +2250,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     elseif not build.base then
         error("No base entity data provided", 2)
     end
-    remove_preview_custom()
+    clear_build_preview()
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
@@ -2488,7 +2488,7 @@ util.on_stop(function()
     for k in pairs(hud_coords) do
         memory.free(hud_coords[k])
     end
-    remove_preview_custom()
+    clear_build_preview()
 end)
 
 function compute_builder_stats()
@@ -2588,7 +2588,7 @@ while true do
                         end
                         directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
                         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, name, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
-                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to builder", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to build", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
                         
                         if util.is_key_down(0x4A) then
                             add_entity_to_list(builder.entitiesMenuList, entity, name)
@@ -2609,7 +2609,7 @@ while true do
                 if is_base then
                     local vehicleCount, objectCount, pedCount = compute_builder_stats()
                     local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
-                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Custom Vehicle", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                 else
