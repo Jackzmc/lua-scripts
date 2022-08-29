@@ -2199,7 +2199,8 @@ end
 --[ Savedata Options ]--
 function import_build_to_builder(build, name)
     clear_build_preview()
-    local baseHandle = spawn_entity(build.base, build.base.data.type or "VEHICLE")
+    if not build.base.data.model then build.base.data.model = build.base.model end
+    local baseHandle = spawn_entity(build.base.data, build.base.data.type or "VEHICLE")
     if baseHandle then
         builder = new_builder(baseHandle)
         builder.name = name
