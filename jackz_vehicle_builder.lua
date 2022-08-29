@@ -2261,7 +2261,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
-    local baseType = build.type or "VEHICLE
+    local baseType = build.type or "VEHICLE"
     local baseHandle, pos = spawn_entity(build.base.data, baseType, isPreview)
     if baseHandle then
         if isPreview then
