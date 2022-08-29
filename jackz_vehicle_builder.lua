@@ -10,9 +10,7 @@ local VEHICLELIB_TARGET_VERSION = "1.1.7"
 -- Still needed for local dev
 function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
 function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
-function compare_version(a, b)
-    return 0
-end
+function compare_version(a, b) return 0 end
 --#P:END
 
 --#P:TEMPLATE("_SOURCE")
@@ -49,7 +47,6 @@ local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread 
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
----@param baseHandle Handle
 -- Returns a new builder instance
 function new_builder(baseHandle)
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
@@ -129,7 +126,7 @@ local preview = { -- Handles preview tracking and clearing
     renderdata = nil
 }
 local highlightedHandle = nil -- Will highlight the handle with this ID
-local mainMenu -- TODO: Rename to better name
+local mainMenu
 
 local POS_SENSITIVITY = 10
 local ROT_SENSITIVITY = 5
@@ -158,6 +155,14 @@ local CURATED_PROPS = {
     "prop_sign_road_03b",
     "prop_prlg_snowpile",
     "prop_logpile_06b",
+    "prop_windmill_01",
+    "prop_cactus_01e",
+    "prop_minigun_01",
+    "v_ilev_gold",
+    "bkr_prop_bkr_cashpile_07",
+    "ex_cash_pile_07",
+    "prop_cs_dildo_01",
+    "prop_ld_bomb_01"
 }
 local CURATED_VEHICLES = {
     { "t20", "T20" },
@@ -169,7 +174,18 @@ local CURATED_VEHICLES = {
     { "hydra", "Hydra" },
     { "blimp", "Blimp" },
     { "rhino", "Rhino Tank" },
-    { "cerberus2", "Future Shock Cerberus" }
+    { "cerberus2", "Future Shock Cerberus" },
+    { "mule", "Mule"},
+    { "bmx", "BMX" },
+    { "ambulance", "Ambulance" },
+    { "police3", "Police Crusier 3"},
+    { "predator", "Police Boat" },
+    { "polmav", "Police Maverick Helicopter" },
+    { "bati", "Bati"},
+    { "airtug", "Airtug" },
+    { "armytrailer", "Army Trailer (Flatbed)"},
+    { "armytanker", "Army Tanker" },
+    { "freightcont2", "Train Freight Car"}
 }
 
 local CURATED_PEDS = {
@@ -188,7 +204,22 @@ local CURATED_PEDS = {
     { "ig_chef", "Chef" },
     { "ig_devin", "Devin" },
     { "ig_tomcasino", "Tom" },
-    { "ig_agatha", "Agtha" }
+    { "ig_agatha", "Agtha" },
+    { "s_f_y_cop_01", "Female Cop" },
+    { "s_m_m_fibsec_01", "Fib Agent (M)"},
+    { "s_m_m_movspace_01", "Spacesuit Ped"},
+    { "s_m_m_scientist_01", "Scientist" },
+    { "s_m_y_clown_01", "Clown" },
+    { "ig_nervousron", "Nervous Ron" },
+    { "ig_wade", "Wade" },
+    { "u_f_y_corpse_01", "Corpse" },
+    { "u_m_m_jesus_01", "Jesus" },
+    { "u_m_m_streetart_01", "Monkey Mask" },
+    { "u_m_y_rsranger_01", "Space Ranger" },
+    { "a_c_deer", "Deer" },
+    { "s_m_y_prisoner_01", "Prisoner" },
+    { "s_m_y_sheriff_01", "Sherrif" },
+    { "s_m_y_fireman_01", "Fireman" }
 }
 
 local BLIP_ICONS = {
