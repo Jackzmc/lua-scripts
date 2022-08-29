@@ -1810,6 +1810,11 @@ function create_entity_section(tableref, handle, options)
             tableref.godmode = value
             ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
         end, tableref.godmode))
+        local animation 
+        table.insert(tableref.listMenus, menu.readonly(entityroot, "Animation", {}, "", function(value)
+            tableref.godmode = value
+            ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
+        end, tableref.godmode))
     end
     local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
     table.insert(tableref.listMenus, cloneList)
@@ -1853,16 +1858,19 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
-    local base = menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
-        builder.entities[child].parent = nil
-        attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
-        util.toast("Entity's parent restored to base vehicle")
-        menu.set_menu_name(list, "Attach to: Base Vehicle")
-        menu.focus(list)
-    end)
-    table.insert(attachEntSubmenus, base)
+    if builder.entities[child].parent == nil then
+        local base = menu.action(list, "Base vehicle", {}, "Restore entity parent's as base vehicle", function()
+            builder.entities[child].parent = nil
+            attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+            util.toast("Entity's parent restored to base vehicle")
+            menu.set_menu_name(list, "Attach to: Base Vehicle")
+            menu.focus(list)
+        end)
+        table.insert(attachEntSubmenus, base)
+    end
     for handle, data in pairs(builder.entities) do
-        if handle ~= child and handle ~= builder.base.handle and builder.entities[handle].parent ~= builder.entities[child].id then
+        -- Prevent listing recursive parents, or an already set parent
+        if handle ~= child and handle ~= builder.base.handle and builder.entities[handle].parent ~= builder.entities[child].id and builder.entities[child].parent ~= data.id then
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
                 builder.entities[child].parent = builder.entities[handle].id
                 attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
