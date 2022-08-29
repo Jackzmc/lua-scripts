@@ -611,10 +611,10 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     end, vehicleName .. ".json")
 
     menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
-        rate_vehicle(user, vehicleName, rating)
+        rate_build(user, vehicleName, rating)
     end)
 end
-function rate_vehicle(user, vehicleName, rating)
+function rate_build(user, vehicleName, rating)
     if not user or not vehicleName or rating < 0 or rating > 5 then
         log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_vehicle")
         return false
