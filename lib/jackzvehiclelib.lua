@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.4.0",
-    LIB_VERSION = "1.1.7",
+    LIB_VERSION = "1.1.10",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",

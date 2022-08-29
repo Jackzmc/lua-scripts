@@ -28,8 +28,9 @@ v3.9.0
 * Supposedly fix jackzvehiclelib improperly doing extras
 * (3.9.1) Updated jackzvehiclelib
 * (3.9.2) Fix extras (Thanks hexarobi)
-* (3.9.3) Actually fix extrasa
-* (3.9.3) Actually fix extrasa
+* (3.9.3) Actually fix extras
+* (3.9.3) Actually fix extras
+* (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
 
 # actions (v1)
 
@@ -157,3 +158,4 @@ V1.18.0
 * Automatically make a copy of last autosave on save failure
 * Allow setting peds and objects to be a build's base entity
 * Allow offline browsing of vehicles (use local resource file)
+* Fix even more inconsisenties with vehicle saving

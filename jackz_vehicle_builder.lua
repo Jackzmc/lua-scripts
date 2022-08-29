@@ -4,7 +4,7 @@
 local SCRIPT = "jackz_vehicle_builder"
 local VERSION = "1.18.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.7"
+local VEHICLELIB_TARGET_VERSION = "1.1.10"
 
 --#P:DEBUG_ONLY
 -- Still needed for local dev
