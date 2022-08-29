@@ -58,7 +58,7 @@ function new_builder(baseHandle)
             handle = baseHandle,
             data = nil
         },
-        entities = {}, // KV<Handle, Table>
+        entities = {}, -- KV<Handle, Table>
         entitiesMenuList = nil,
         propSpawner = {
             root = nil,
@@ -2127,15 +2127,63 @@ function copy_file(source, dest)
 end
 
 
-function create_entity(data, type)
+function spawn_entity(data, type, isPreview)
     if type == "VEHICLE" then
-        return spawn_vehicle(data)
+        return spawn_vehicle(data, isPreview)
     elseif type == "PED" then
-        return spawn_ped(data)
+        return spawn_ped(data, isPreview)
     elseif type == "OBJECT" then
-        return spawn_object(data)
+        return spawn_object(data, isPreview)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
+    end
+end
+
+function spawn_object(data, isPreview)
+    local object = isPreview
+        and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
+        or entities.create_object(data.model, pos)
+
+    if object == 0 then
+        util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
+    else
+        if data.visible == false then
+            ENTITY.SET_ENTITY_ALPHA(object, 0, false)
+        end
+
+        return object
+    end
+end
+
+function spawn_ped(data, isPreview)
+    local handle = isPreview
+        and PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
+        or entities.create_ped(0, data.model, pos, 0)
+    if handle == 0 then
+        util.toast("Ped failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
+    else
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
+
+        if data.visible == false then
+            ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+        end
+        if not data.godmode then
+            data.godmode = true
+        end
+        ENTITY.SET_ENTITY_INVINCIBLE(handle, data.godmode)
+
+        if data.animdata then
+            if type(data.animdata) ~= "table" or #data.animdata < 2 then
+                error("Ped animdata is invalid. Requires dictionary and animation set")
+                return handle
+            end
+            STREAMING.REQUEST_ANIM_DICT(data.animdata[1])
+            while not STREAMING.HAS_ANIM_DICT_LOADED(data.animdata[1]) do
+                util.yield()
+            end
+            TASK.TASK_PLAY_ANIM(handle, data.animdata[1], data.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
+        end
     end
 end
 
@@ -2241,30 +2289,25 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 while not STREAMING.HAS_MODEL_LOADED(entityData.model) do
                     util.yield()
                 end
-                local handle = isPreview
-                    and OBJECT.CREATE_OBJECT(entityData.model, pos.x, pos.y, pos.z, false, false, 0)
-                    or entities.create_object(entityData.model, pos)
-
-                if handle == 0 then
-                    util.toast("Object failed to spawn: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
-                else
+                local object = spawn_object(entityData, isPreview)
+                if object then
                     if entityData.visible == false then
-                        ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
+                        ENTITY.SET_ENTITY_ALPHA(object, 0, false)
                     end
                     for _, handle2 in ipairs(handles) do
-                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
-                    table.insert(handles, handle)
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, object)
+                    table.insert(handles, object)
 
-                    if entityData.id then idMap[tostring(entityData.id)] = handle end
+                    if entityData.id then idMap[tostring(entityData.id)] = object end
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, handle, entityData.name, entityData)
+                        add_entity_to_list(builder.entitiesMenuList, object, entityData.name, entityData)
                     elseif entityData.parent then
-                        table.insert(parentQueue, { handle = handle, data = entityData })
+                        table.insert(parentQueue, { handle = object, data = entityData })
                     else
-                        attach_entity(baseHandle, handle, entityData.offset, entityData.rotation, entityData.boneIndex)
+                        attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex)
                     end
                 end
             end
@@ -2281,71 +2324,45 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                     util.yield()
                 end
 
-                local handle = isPreview
-                    and PED.CREATE_PED(0, pedData.model, pos.x, pos.y, pos.z, 0, false, false)
-                    or entities.create_ped(0, pedData.model, pos, 0)
-                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
-                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
-
-                
-                if pedData.visible == false then
-                    ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
-                end
-                if not pedData.godmode then
-                    pedData.godmode = true
-                end
-                ENTITY.SET_ENTITY_INVINCIBLE(handle, pedData.godmode)
-
-                if handle == 0 then
-                    util.toast("Ped failed to spawn: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
-                else
-                    if pedData.visible == false then
-                        ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
-                    end
+                local ped = spawn_ped(pedData, isPreview)
+                if ped then
                     for _, handle2 in ipairs(handles) do
-                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
+                        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(ped, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
-                    table.insert(handles, handle)
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, ped)
+                    table.insert(handles, ped)
 
-                    if pedData.id then idMap[tostring(pedData.id)] = handle end
+                    if pedData.id then idMap[tostring(pedData.id)] = ped end
 
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, handle, pedData.name, pedData)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name, pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
-                        table.insert(parentQueue, { handle = handle, data = pedData })
+                        table.insert(parentQueue, { handle = ped, data = pedData })
                     else
-                        attach_entity(baseHandle, handle, pedData.offset, pedData.rotation, pedData.boneIndex)
-                    end
-                end
-
-                if pedData.animdata then
-                    STREAMING.REQUEST_ANIM_DICT(pedData.animdata[1])
-                    while not STREAMING.HAS_ANIM_DICT_LOADED(pedData.animdata[1]) do
-                        util.yield()
-                    end
-                    TASK.TASK_PLAY_ANIM(handle, pedData.animdata[1], pedData.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
-                    table.insert(pedAnimCache, { handle = handle, animdata = pedData.animdata })
-                    if not pedAnimThread then
-                        pedAnimThread = util.create_thread(function()
-                            while #pedAnimCache > 0 do
-                                for _, entry in ipairs(pedAnimCache) do
-                                    if not ENTITY.IS_ENTITY_PLAYING_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 3) then
-                                        TASK.TASK_PLAY_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
-                                    end
-                                    if builder and builder.entities[entry.handle] then
-                                        attach_entity(builder.base.handle, entry.handle, builder.entities[entry.handle].pos, builder.entities[entry.handle].rot, builder.entities[entry.handle].boneIndex)
-                                    end
-                                end
-                                util.yield(4000)
-                            end
-                        end)
+                        attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex)
                     end
                 end
             end
         end
     end
+
+    if not pedAnimThread then
+        pedAnimThread = util.create_thread(function()
+            while #pedAnimCache > 0 do
+                for _, entry in ipairs(pedAnimCache) do
+                    if not ENTITY.IS_ENTITY_PLAYING_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 3) then
+                        TASK.TASK_PLAY_ANIM(entry.handle, entry.animdata[1], entry.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
+                    end
+                    if builder and builder.entities[entry.handle] then
+                        attach_entity(builder.base.handle, entry.handle, builder.entities[entry.handle].pos, builder.entities[entry.handle].rot, builder.entities[entry.handle].boneIndex)
+                    end
+                end
+                util.yield(4000)
+            end
+        end)
+    end
+
     if data.vehicles then
         for _, vehData in ipairs(data.vehicles) do
             local handle = spawn_vehicle(vehData, isPreview)
