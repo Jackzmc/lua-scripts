@@ -112,6 +112,7 @@ function vehiclelib.Serialize(vehicle)
         wheel = memory.read_int(Color.g),
     }
 
+    local WheelType = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle)
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, Color.r, Color.g, Color.b)
     local TireSmoke = {
         r = memory.read_int(Color.r),
@@ -166,6 +167,7 @@ function vehiclelib.Serialize(vehicle)
         Name = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model),
         Manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(model),
         Type = vehiclelib.VEHICLE_TYPES[VEHICLE.GET_VEHICLE_CLASS(vehicle)],
+        ["Wheel Type"] = WheelType,
         ["Tire Smoke"] = TireSmoke,
         Livery = {
             Style = VEHICLE.GET_VEHICLE_LIVERY(vehicle),
@@ -223,6 +225,9 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
         VEHICLE.SET_VEHICLE_MOD_COLOR_2(vehicle, saveData.Colors.Secondary["Paint Type"], saveData.Colors.Secondary.Color)
     end
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"] or 0)
+    if saveData["Wheel Type"] then
+        VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, saveData["Wheel Type"] or -1)
+    end
     -- Misc Colors / Looks
     if saveData["Tire Smoke"] then
         VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r or 255, saveData["Tire Smoke"].g or 255, saveData["Tire Smoke"].b or 255)
