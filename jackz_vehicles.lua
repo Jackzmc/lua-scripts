@@ -1347,6 +1347,18 @@ function load_vehicles_in_dir(dir, parentMenu, menuSetupFn, xmlSupported)
                 local file = io.open(path, "r")
                 local saveData = json.decode(file:read("*a"))
                 file:close()
+                -- Apply any migrations to disk
+                if vehiclelib.MigrateVehicle(saveData) then
+                    local status, data = pcall(json.encode, saveData)
+                    if status then
+                        local file = io.open(path, "w")
+                        file:write(data)
+                        file:close()
+                    else
+                        util.log("jackz_vehicles: Failed to save migration, json error for " .. path .. ": " .. data)
+                    end
+                end
+
                 if saveData.Model and saveData.Mods then
                     local m = menuSetupFn(parentMenu, filename, saveData)
                     menu.on_focus(m, function(_)
