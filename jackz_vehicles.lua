@@ -35,9 +35,12 @@ elseif i18n == nil then
 end
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
-        util.toast("Outdated vehiclelib library, attempting update...")
+        util.log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
+        util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
+    else
+        util.toast("Outdated lib: 'jackzvehiclelib'")
     end
 end
 if i18n.VERSION ~= LANG_TARGET_VERSION then
