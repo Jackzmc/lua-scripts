@@ -2243,6 +2243,7 @@ end
 --[ Savedata Options ]--
 function import_build_to_builder(build, name)
     clear_build_preview()
+    if not build.base.data then build.base.data = {} end
     if not build.base.data.model then build.base.data.model = build.base.model end
     local baseHandle = spawn_entity(build.base.data, build.base.data.type or "VEHICLE")
     if baseHandle then
@@ -2270,6 +2271,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         error("No base entity data provided", 2)
     end
     clear_build_preview()
+    if not build.base.data then build.base.data = {} end
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
