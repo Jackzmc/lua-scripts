@@ -31,6 +31,7 @@ v3.9.0
 * (3.9.3) Actually fix extras
 * (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
 * (3.9.6) Auto migrate older vehicles
+* (3.9.7) Fix meta error typo
 
 # actions (v1)
 
@@ -161,3 +162,4 @@ V1.18.0
 * Fix even more inconsisenties with vehicle saving
 * (1.18.1) Fix save_recents error with null vehicle name
 * (1.18.2) Fix errors when entity disappears, and setting a new base
+* (1.18.3) Fix meta error typo
