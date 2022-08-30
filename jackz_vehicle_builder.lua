@@ -1771,7 +1771,7 @@ function create_entity_section(tableref, handle, options)
         if entityroot then
             menu.delete(tableref.list)
         end
-        tableref = nil
+        builder.entities[handle] = nil
         return
     end
     local pos = tableref.pos
