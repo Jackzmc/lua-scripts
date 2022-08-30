@@ -202,8 +202,10 @@ function vehiclelib.Serialize(vehicle)
         Extras = Extras
     }
 end
+
+-- Returns true if it did migrate
 function vehiclelib.ApplyToVehicle(vehicle, saveData)
-    vehicle = vehiclelib.MigrateVehicle(saveData)
+    local didMigrate = vehiclelib.MigrateVehicle(saveData)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
@@ -281,6 +283,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
+    return didMigrate
 end
 
 function _getVersion(format)
@@ -312,7 +315,7 @@ function vehiclelib.MigrateVehicle(saveData)
     local version = _getVersion(saveData.Format)
     -- Version is outdated
     if version ~= latestVersion and compareSemvar(version, latestVersion) == -1 then
-        util.log("Migrating vehicle save data from " .. version .. " to " .. latestVersion)
+        util.log("[JackzVehicleLib] Migrating vehicle save data from " .. version .. " to " .. latestVersion)
         if saveData.Extras then
             for x = 1, vehiclelib.MAX_EXTRAS do
                 local state = true
@@ -349,7 +352,9 @@ function vehiclelib.MigrateVehicle(saveData)
         saveData.Colors.Extras.wheel = nil
 
         saveData.Format = vehiclelib.FORMAT_VERSION
+        return true
     end
+    return false
 end
 
 function vehiclelib.ConvertXML(xmlStr)
