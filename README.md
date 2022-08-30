@@ -7,9 +7,10 @@ What you see here is the dev versions I run that do not have autoupdates and are
 
 Feel free to submit issues or pull requests, but there is no guarentee I will accept them, best to ask on the guilded.
 
-Use https://jackz.me/stand/get-lua.php?script=SCRIPT_NAME_HERE_NO_EXT&source=manual&branch=master to download the preprocessed file
+Use https://jackz.me/stand/get-lua.php?script=SCRIPT_NAME_HERE_NO_EXT&source=manual&branch=master to download the preprocessed file.
+Use 'source=repo' to have a version that does not have any auto-update logic.
 
-Exmaple: https://jackz.me/stand/get-lua.php?script=jackz_vehicle_builder&source=repo&branch=master
+Exmaple: https://jackz.me/stand/get-lua.php?script=jackz_vehicle_builder&source=manual&branch=master
 
 ## Branches
 

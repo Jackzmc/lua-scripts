@@ -30,7 +30,7 @@ v3.9.0
 * (3.9.2) Fix extras (Thanks hexarobi)
 * (3.9.3) Actually fix extras
 * (3.9.3) Actually fix extras
-* (3.9.5) Fix vehiclelib bug (Thanks hexarobi)
+* (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
 
 # actions (v1)
 
@@ -141,8 +141,21 @@ V1.17.0
 * (1.17.3) Add warning to delete all
 * (1.17.3) Fix cloning issues
 * (1.17.4) Fix some bugs
-* (1.17.4) Actually fix extrasa
+* (1.17.4) Actually fix extras
 * (1.17.5) Fix highlightedHandle not being reset on new base
 * (1.17.6) Autocreate save directory if not exist
 * (1.17.7) Fix some previews being inside base vehicle
-* (1.17.9) Fix vehiclelib bug
+
+V1.18.0
+
+* Add ability to change attachment position of entities
+* Add ability to attach entities to other entities
+* Add vehicle name to pre-existing add overlay
+* Use hard entity pinning
+* Add setting to disable 'add to vehicle' overlay
+* Minor fixes / improvements, especially to descriptions
+* Add warning to deleting an entity
+* Automatically make a copy of last autosave on save failure
+* Allow having peds and objects to be a build's base entity
+* Allow offline browsing of vehicles (use local resource file)
+* Fix even more inconsisenties with vehicle saving

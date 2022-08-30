@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.4.0",
-    LIB_VERSION = "1.1.9",
+    LIB_VERSION = "1.2.0",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -76,20 +76,20 @@ function vehiclelib.Serialize(vehicle)
     }
     -- Declare pointers
     local Color = {
-        r = memory.alloc(4),
-        g = memory.alloc(4),
-        b = memory.alloc(4),
+        r = memory.alloc(8),
+        g = memory.alloc(8),
+        b = memory.alloc(8),
     }
 
     if Primary.Custom then
         VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Primary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.b, Color.g)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle, Color.r, Color.g, Color.b)
         Primary["Paint Type"] = memory.read_int(Color.r)
         Primary["Color"] = memory.read_int(Color.g)
         Primary["Pearlescent Color"] = memory.read_int(Color.b)
@@ -98,20 +98,21 @@ function vehiclelib.Serialize(vehicle)
         VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, Color.r, Color.g, Color.b)
         Secondary["Custom Color"] = {
             r = memory.read_int(Color.r),
-            b = memory.read_int(Color.g),
-            g = memory.read_int(Color.b)
+            g = memory.read_int(Color.g),
+            b = memory.read_int(Color.b)
         }
     else
-        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.b)
+        VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle, Color.r, Color.g)
         Secondary["Paint Type"] = memory.read_int(Color.r)
         Secondary["Color"] = memory.read_int(Color.g)
     end
     VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle, Color.r, Color.g)
     local ColorExtras = {
-        pearlescent = memory.read_int(Color.r),
-        wheel = memory.read_int(Color.g),
+        Pearlescent = memory.read_int(Color.r),
+        Wheel = memory.read_int(Color.g),
     }
 
+    local WheelType = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle)
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, Color.r, Color.g, Color.b)
     local TireSmoke = {
         r = memory.read_int(Color.r),
@@ -132,9 +133,9 @@ function vehiclelib.Serialize(vehicle)
         Back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3),
     }
     VEHICLE._GET_VEHICLE_DASHBOARD_COLOR(vehicle, Color.r)
-    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.b)
+    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle, Color.g)
     local DashboardColor = memory.read_int(Color.r)
-    local InteriorColor = memory.read_int(Color.b)
+    local InteriorColor = memory.read_int(Color.g)
     VEHICLE.GET_VEHICLE_COLOR(vehicle, Color.r, Color.g, Color.b)
     local Vehicle = {
         r = memory.read_int(Color.r),
@@ -160,12 +161,13 @@ function vehiclelib.Serialize(vehicle)
     for i, mod in pairs(vehiclelib.TOGGLEABLE_MOD_NAMES) do
         mods.Toggles[mod] = VEHICLE.IS_TOGGLE_MOD_ON(vehicle, i - 1)
     end
-    local saveData = {
+    return {
         Format = vehiclelib.FORMAT_VERSION,
         Model = model,
         Name = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model),
         Manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(model),
         Type = vehiclelib.VEHICLE_TYPES[VEHICLE.GET_VEHICLE_CLASS(vehicle)],
+        ["Wheel Type"] = WheelType,
         ["Tire Smoke"] = TireSmoke,
         Livery = {
             Style = VEHICLE.GET_VEHICLE_LIVERY(vehicle),
@@ -199,30 +201,34 @@ function vehiclelib.Serialize(vehicle)
         Mods = mods,
         Extras = Extras
     }
-
-    return saveData
 end
+
+-- Returns true if it did migrate
 function vehiclelib.ApplyToVehicle(vehicle, saveData)
+    local didMigrate = vehiclelib.MigrateVehicle(saveData)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
-    if saveData.Colors.Extras then
-        VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.pearlescent, saveData.Colors.Extras.wheel)
+    if saveData.Colors.Extra then
+        VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.Pearlescent, saveData.Colors.Extras.Wheel)
     end
     VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Vehicle.r, saveData.Colors.Vehicle.g, saveData.Colors.Vehicle.b)
     VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Vehicle.r, saveData.Colors.Vehicle.g, saveData.Colors.Vehicle.b)
     VEHICLE.SET_VEHICLE_COLOURS(vehicle, saveData.Colors.Vehicle.Primary or 0, saveData.Colors.Vehicle.Secondary or 0)
     if saveData.Colors.Primary.Custom and saveData.Colors.Primary["Custom Color"] then
-        VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Primary["Custom Color"].r, saveData.Colors.Primary["Custom Color"].b, saveData.Colors.Primary["Custom Color"].g)
+        VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Primary["Custom Color"].r, saveData.Colors.Primary["Custom Color"].g, saveData.Colors.Primary["Custom Color"].b)
     else
         VEHICLE.SET_VEHICLE_MOD_COLOR_1(vehicle, saveData.Colors.Primary["Paint Type"], saveData.Colors.Primary.Color, saveData.Colors.Primary["Pearlescent Color"])
     end
     if saveData.Colors.Secondary.Custom and saveData.Colors.Secondary["Custom Color"] then
-        VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Secondary["Custom Color"].r,  saveData.Colors.Secondary["Custom Color"].b, saveData.Colors.Secondary["Custom Color"].g)
+        VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Secondary["Custom Color"].r,  saveData.Colors.Secondary["Custom Color"].g, saveData.Colors.Secondary["Custom Color"].b)
     else
         VEHICLE.SET_VEHICLE_MOD_COLOR_2(vehicle, saveData.Colors.Secondary["Paint Type"], saveData.Colors.Secondary.Color)
     end
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle, saveData["Colors"]["Paint Fade"] or 0)
+    if saveData["Wheel Type"] then
+        VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle, saveData["Wheel Type"] or -1)
+    end
     -- Misc Colors / Looks
     if saveData["Tire Smoke"] then
         VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle, saveData["Tire Smoke"].r or 255, saveData["Tire Smoke"].g or 255, saveData["Tire Smoke"].b or 255)
@@ -277,6 +283,80 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
+    return didMigrate
+end
+
+function _getVersion(format)
+    return format:match(". ([0-9.]+)")
+end
+
+function _getSemvar(version)
+    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
+    return {
+        major = tonumber(major) or 0,
+        minor = tonumber(minor) or 0,
+        patch = tonumber(patch) or 0
+    }
+end
+function compareSemvar(a, b)
+    local av = _getSemvar(a)
+    local bv = _getSemvar(b)
+    if av.major > bv.major then return 1
+    elseif av.major < bv.major then return -1
+    elseif av.minor > bv.minor then return 1
+    elseif av.minor < bv.minor then return -1
+    elseif av.patch > bv.patch then return 1
+    elseif av.patch < bv.patch then return -1
+    else return 0 end
+end
+
+function vehiclelib.MigrateVehicle(saveData)
+    local latestVersion = _getVersion(vehiclelib.FORMAT_VERSION)
+    local version = _getVersion(saveData.Format)
+    -- Version is outdated
+    if version ~= latestVersion and compareSemvar(version, latestVersion) == -1 then
+        util.log("[JackzVehicleLib] Migrating vehicle save data from " .. version .. " to " .. latestVersion)
+        if saveData.Extras then
+            for x = 1, vehiclelib.MAX_EXTRAS do
+                local state = true
+                if saveData.Extras[tostring(x)] ~= nil then
+                    state = saveData.Extras[tostring(x)]
+                elseif saveData.Extras[x] ~= nil then
+                    state = saveData.Extras[x]
+                    saveData.Extras[x] = nil
+                end
+                saveData.Extras[tostring(x)] = state
+            end
+        end
+        if saveData.Lights.SirenActive == nil then
+            saveData.Lights.SirenActive = false
+        end
+        if saveData.Lights.SearchLightActive == nil then
+            saveData.Lights.SirenActive = false
+        end
+        if saveData.Colors.Primary.Custom and saveData.Colors.Primary["Custom Color"] then
+            local b = saveData.Colors.Primary["Custom Color"].g
+            local g = saveData.Colors.Primary["Custom Color"].b
+            saveData.Colors.Primary["Custom Color"].b = b
+            saveData.Colors.Primary["Custom Color"].g = g
+        end
+        if saveData.Colors.Secondary.Custom and saveData.Colors.Secondary["Custom Color"] then
+            local b = saveData.Colors.Secondary["Custom Color"].g
+            local g = saveData.Colors.Secondary["Custom Color"].b
+            saveData.Colors.Secondary["Custom Color"].b = b
+            saveData.Colors.Secondary["Custom Color"].g = g
+        end
+        if saveData.Colors.Extras then
+            saveData.Colors.Extras.Pearlescent = saveData.Colors.Extras.pearlescent
+            saveData.Colors.Extras.pearlescent = nil
+            saveData.Colors.Extras.Wheel = saveData.Colors.Extras.wheel
+            saveData.Colors.Extras.wheel = nil
+        end
+
+        saveData.Format = vehiclelib.FORMAT_VERSION
+        return true
+    end
+    return false
 end
 
 function vehiclelib.ConvertXML(xmlStr)
