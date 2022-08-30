@@ -954,8 +954,10 @@ function setup_builder_menus(name)
                     builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     set_builder_base(vehicle)
                     for handle, data in pairs(builder.entities) do
-                        -- TODO: re-attach nested entities
-                        attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
+                        -- Ignore entity if parent is not builder, as it's parent should be re-attached
+                        if not data.parent then
+                            attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
+                        end
                     end
                 end
             else
@@ -1476,7 +1478,6 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_ped(0, hash, {x = 0, y = 0, z = 0}, 0)
         ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
-        -- TODO: Spawn ped somewhere else and teleport to correct location
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         ENTITY.FREEZE_ENTITY_POSITION(entity)
@@ -1674,7 +1675,6 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
--- TODO: Refactor remove pos, rot, boneIndex to just data
 function add_entity_to_list(list, handle, name, data)
     if not data then data = {} end
     autosave(true)
@@ -2257,9 +2257,8 @@ function import_build_to_builder(build, name)
     end
 end
 
--- Spawns a custom build, requires data.base to be set, others optional
+-- Spawns a custom build, requires build.base to be set, others optional
 function spawn_build(build, isPreview, previewFunc, previewData)
-    -- TODO: Implement all base data
     if not build then
         error("No build data provided", 2)
     elseif not build.base then
