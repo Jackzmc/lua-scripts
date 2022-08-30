@@ -205,7 +205,7 @@ function vehiclelib.Serialize(vehicle)
     return saveData
 end
 function vehiclelib.ApplyToVehicle(vehicle, saveData)
-    vehicle = vehiclelib.MigrateVehicle(vehicle)
+    vehicle = vehiclelib.MigrateVehicle(saveData)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
