@@ -346,11 +346,12 @@ function vehiclelib.MigrateVehicle(saveData)
             saveData.Colors.Secondary["Custom Color"].b = b
             saveData.Colors.Secondary["Custom Color"].g = g
         end
-
-        saveData.Colors.Extras.Pearlescent = saveData.Colors.Extras.pearlescent
-        saveData.Colors.Extras.pearlescent = nil
-        saveData.Colors.Extras.Wheel = saveData.Colors.Extras.wheel
-        saveData.Colors.Extras.wheel = nil
+        if saveData.Colors.Extras then
+            saveData.Colors.Extras.Pearlescent = saveData.Colors.Extras.pearlescent
+            saveData.Colors.Extras.pearlescent = nil
+            saveData.Colors.Extras.Wheel = saveData.Colors.Extras.wheel
+            saveData.Colors.Extras.wheel = nil
+        end
 
         saveData.Format = vehiclelib.FORMAT_VERSION
         return true
