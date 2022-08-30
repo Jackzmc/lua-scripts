@@ -25,6 +25,9 @@ if vehiclelib == nil then
     util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'jackzvehiclelib' was not loaded, cannot continue. Exiting.", TOAST_ALL)
     util.stop_script()
     return
+elseif vehiclelib == true then
+    util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
+    util.stop_script()
 elseif i18n == nil then
     util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'translations' was not loaded, cannot continue. Exiting.", TOAST_ALL)
     util.stop_script()

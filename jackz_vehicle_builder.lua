@@ -18,12 +18,17 @@ function compare_version(a, b) return 0 end
 util.require_natives(1627063482)
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
+if vehiclelib == true then
+    util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
+    util.stop_script()
+end
 
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
         util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
+        
     else
         util.toast("Outdated lib: 'jackzvehiclelib'")
     end
