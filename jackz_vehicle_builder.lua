@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.18.0"
+local VERSION = "1.18.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
@@ -1331,7 +1331,7 @@ function save_recents()
 
     file = io.open(RECENTS_DIR .. "vehicles.txt", "w+")
     for id, data in pairs(builder.vehSpawner.recents.items) do
-        file:write(id .. "," .. data.name .. "," .. (data.dlc or "") .. "," .. data.count .. "\n")
+        file:write(id .. "," .. (data.name or "") .. "," .. (data.dlc or "") .. "," .. data.count .. "\n")
     end
     file:close()
 
@@ -1884,7 +1884,6 @@ function create_entity_section(tableref, handle, options)
                 end
             end
             menu.delete(entityroot)
-            tableref = nil
             -- Fix deleting not working
             if builder.entities[handle] then
                 builder.entities[handle] = nil
@@ -2010,21 +2009,20 @@ function autosave(onDemand, name)
         end
         lastAutosave = os.seconds()
     end
-    local is_auto_name = name == nil
-    if is_auto_name then name = string.format("_autosave%d", autosaveIndex) end
-
-    local success = save_vehicle(name, AUTOSAVE_DIRECTORY, true)
-    if success then
-        util.draw_debug_text("Auto saved " .. name)
-    else
-        util.toast("Auto save has failed")
-    end
-    if is_auto_name then
+    if not name then
+        name = string.format("_autosave%d", autosaveIndex)
         autosaveIndex = autosaveIndex + 1
         if autosaveIndex > MAX_AUTOSAVES then
             autosaveIndex = 0
         end
     end
+    local success = save_vehicle(name, AUTOSAVE_DIRECTORY)
+    if success then
+        util.draw_debug_text("Auto saved " .. name)
+    else
+        util.toast("Auto save has failed")
+    end
+    
     save_favorites_list()
     save_recents()
 end
