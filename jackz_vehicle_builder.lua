@@ -1856,11 +1856,6 @@ function create_entity_section(tableref, handle, options)
             tableref.godmode = value
             ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
         end, tableref.godmode))
-        local animation 
-        table.insert(tableref.listMenus, menu.readonly(entityroot, "Animation", {}, "", function(value)
-            tableref.godmode = value
-            ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
-        end, tableref.godmode))
     end
     local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
     table.insert(tableref.listMenus, cloneList)
