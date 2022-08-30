@@ -4,7 +4,14 @@
 local SCRIPT = "jackz_vehicles"
 local VERSION = "3.9.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.1.7"
+local VEHICLELIB_TARGET_VERSION = "1.2.0"
+
+--#P:DEBUG_ONLY
+-- Still needed for local dev
+function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
+function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
+function compare_version(a, b) return 0 end
+--#P:END
 
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
@@ -1340,6 +1347,18 @@ function load_vehicles_in_dir(dir, parentMenu, menuSetupFn, xmlSupported)
                 local file = io.open(path, "r")
                 local saveData = json.decode(file:read("*a"))
                 file:close()
+                -- Apply any migrations to disk
+                if vehiclelib.MigrateVehicle(saveData) then
+                    local status, data = pcall(json.encode, saveData)
+                    if status then
+                        local file = io.open(path, "w")
+                        file:write(data)
+                        file:close()
+                    else
+                        util.log("jackz_vehicles: Failed to save migration, json error for " .. path .. ": " .. data)
+                    end
+                end
+
                 if saveData.Model and saveData.Mods then
                     local m = menuSetupFn(parentMenu, filename, saveData)
                     menu.on_focus(m, function(_)
