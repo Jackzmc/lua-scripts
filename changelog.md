@@ -160,4 +160,4 @@ V1.18.0
 * Allow having peds and objects to be a build's base entity
 * Allow offline browsing of vehicles (use local resource file)
 * Fix even more inconsisenties with vehicle saving
-* (1.18.1) Cleanup logic
+* (1.18.1) Fix save_recents error with null vehicle name

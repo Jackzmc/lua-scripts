@@ -2,7 +2,7 @@
 -- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.18.0"
+local VERSION = "1.18.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
@@ -1329,7 +1329,7 @@ function save_recents()
 
     file = io.open(RECENTS_DIR .. "vehicles.txt", "w+")
     for id, data in pairs(builder.vehSpawner.recents.items) do
-        file:write(id .. "," .. data.name .. "," .. (data.dlc or "") .. "," .. data.count .. "\n")
+        file:write(id .. "," .. (data.name or "") .. "," .. (data.dlc or "") .. "," .. data.count .. "\n")
     end
     file:close()
 
