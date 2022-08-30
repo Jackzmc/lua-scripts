@@ -292,9 +292,9 @@ end
 function _getSemvar(version)
     local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
     return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
+        major = tonumber(major) or 0,
+        minor = tonumber(minor) or 0,
+        patch = tonumber(patch) or 0
     }
 end
 function compareSemvar(a, b)
@@ -314,7 +314,7 @@ function vehiclelib.MigrateVehicle(saveData)
     local version = _getVersion(saveData.Format)
     -- Version is outdated
     if version ~= latestVersion and compareSemvar(version, latestVersion) == -1 then
-        log("Migrating vehicle save data from " .. version .. " to " .. latestVersion)
+        util.log("Migrating vehicle save data from " .. version .. " to " .. latestVersion)
         if saveData.Extras then
             for x = 1, vehiclelib.MAX_EXTRAS do
                 local state = true
