@@ -323,6 +323,7 @@ function vehiclelib.MigrateVehicle(saveData)
                     state = saveData.Extras[tostring(x)]
                 elseif saveData.Extras[x] ~= nil then
                     state = saveData.Extras[x]
+                    saveData.Extras[x] = nil
                 end
                 saveData.Extras[tostring(x)] = state
             end
