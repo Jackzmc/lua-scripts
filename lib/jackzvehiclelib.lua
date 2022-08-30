@@ -1,7 +1,7 @@
 local vehiclelib = {
     MAX_EXTRAS = 14,
     FORMAT_VERSION = "JSTAND 1.4.0",
-    LIB_VERSION = "1.1.10",
+    LIB_VERSION = "1.2.0",
     MOD_NAMES = table.freeze({
         [1] = "Spoilers",
         [2] = "Front Bumper",
@@ -205,6 +205,7 @@ function vehiclelib.Serialize(vehicle)
     return saveData
 end
 function vehiclelib.ApplyToVehicle(vehicle, saveData)
+    vehicle = vehiclelib.MigrateVehicle(vehicle)
     -- Vehicle Paint Colors. Not sure if all these are needed but well I store them
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
@@ -282,6 +283,69 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle, saveData["License Plate"].Text or saveData["License Plate"] or "")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle, saveData["License Plate"].Type or 0)
 
+end
+
+function _getVersion(format)
+    return format:match(". ([0-9.]+)")
+end
+
+function _getSemvar(version)
+    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
+    return {
+        major = tonumber(major),
+        minor = tonumber(minor),
+        patch = tonumber(patch)
+    }
+end
+function compareSemvar(a, b)
+    local av = _getSemvar(a)
+    local bv = _getSemvar(b)
+    if av.major > bv.major then return 1
+    elseif av.major < bv.major then return -1
+    elseif av.minor > bv.minor then return 1
+    elseif av.minor < bv.minor then return -1
+    elseif av.patch > bv.patch then return 1
+    elseif av.patch < bv.patch then return -1
+    else return 0 end
+end
+
+function vehiclelib.MigrateVehicle(saveData)
+    local latestVersion = _getVersion(vehiclelib.FORMAT_VERSION)
+    local version = _getVersion(saveData.Format)
+    -- Version is outdated
+    if version ~= latestVersion and compareSemvar(version, latestVersion) == -1 then
+        log("Migrating vehicle save data from " .. version .. " to " .. latestVersion)
+        if saveData.Extras then
+            for x = 1, vehiclelib.MAX_EXTRAS do
+                local state = true
+                if saveData.Extras[tostring(x)] ~= nil then
+                    state = saveData.Extras[tostring(x)]
+                elseif saveData.Extras[x] ~= nil then
+                    state = saveData.Extras[x]
+                end
+                saveData.Extras[tostring(x)] = state
+            end
+        end
+        if saveData.Lights.SirenActive == nil then
+            saveData.Lights.SirenActive = false
+        end
+        if saveData.Lights.SearchLightActive == nil then
+            saveData.Lights.SirenActive = false
+        end
+        if saveData.Colors.Primary.Custom and saveData.Colors.Primary["Custom Color"] then
+            local b = saveData.Colors.Primary["Custom Color"].g
+            local g = saveData.Colors.Primary["Custom Color"].b
+            saveData.Colors.Primary["Custom Color"].b = b
+            saveData.Colors.Primary["Custom Color"].g = g
+        end
+        if saveData.Colors.Secondary.Custom and saveData.Colors.Secondary["Custom Color"] then
+            local b = saveData.Colors.Secondary["Custom Color"].g
+            local g = saveData.Colors.Secondary["Custom Color"].b
+            saveData.Colors.Secondary["Custom Color"].b = b
+            saveData.Colors.Secondary["Custom Color"].g = g
+        end
+        saveData.Format = vehiclelib.FORMAT_VERSION
+    end
 end
 
 function vehiclelib.ConvertXML(xmlStr)
