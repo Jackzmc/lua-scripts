@@ -1,5 +1,4 @@
 -- Jackz Vehicle Builder
--- [ Boiler Plate ]--
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
 local VERSION = "1.18.3"

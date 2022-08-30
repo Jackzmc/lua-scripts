@@ -4,6 +4,13 @@ local SCRIPT = "jackz_chat"
 local VERSION = "1.2.22"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
+--#P:DEBUG_ONLY
+-- Still needed for local dev
+function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
+function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
+function compare_version(a, b) return 0 end
+--#P:END
+
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
 
@@ -12,17 +19,16 @@ util.require_natives(1627063482)
 local json = require("json")
 local _lang = require("translations")
 if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
-  --#P:MANUAL_ONLY
-  util.toast("Outdated translations library, downloading update...")
-  os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
-  package.loaded["translations"] = nil
-  _G["translations"] = nil
-  download_lib_update("translations.lua")
-  _lang = require("translations")
-  --#P:ELSE
-  util.toast("Outdated lib: 'translations'")
-  --#P:END
-
+  if SCRIPT_SOURCE == "MANUAL" then
+    util.toast("Outdated translations library, downloading update...")
+    os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+    package.loaded["translations"] = nil
+    _G["translations"] = nil
+    download_lib_update("translations.lua")
+    _lang = require("translations")
+  else
+    util.toast("Outdated lib: 'translations'")
+  end
 end
 _lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 _lang.load_translation_file(SCRIPT)
