@@ -31,6 +31,7 @@ v3.9.0
 * (3.9.3) Actually fix extras
 * (3.9.3) Actually fix extras
 * (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
+* (3.9.6) Auto migrate older vehicles
 
 # actions (v1)
 
@@ -159,3 +160,4 @@ V1.18.0
 * Allow having peds and objects to be a build's base entity
 * Allow offline browsing of vehicles (use local resource file)
 * Fix even more inconsisenties with vehicle saving
+* (1.18.1) Cleanup logic

@@ -2010,20 +2010,18 @@ function autosave(onDemand, name)
         end
         lastAutosave = os.seconds()
     end
-    local is_auto_name = name == nil
-    if is_auto_name then name = string.format("_autosave%d", autosaveIndex) end
-
+    if not name then
+        name = string.format("_autosave%d", autosaveIndex)
+        autosaveIndex = autosaveIndex + 1
+        if autosaveIndex > MAX_AUTOSAVES then
+            autosaveIndex = 0
+        end
+    end
     local success = save_vehicle(name, AUTOSAVE_DIRECTORY, true)
     if success then
         util.draw_debug_text("Auto saved " .. name)
     else
         util.toast("Auto save has failed")
-    end
-    if is_auto_name then
-        autosaveIndex = autosaveIndex + 1
-        if autosaveIndex > MAX_AUTOSAVES then
-            autosaveIndex = 0
-        end
     end
     save_favorites_list()
     save_recents()
