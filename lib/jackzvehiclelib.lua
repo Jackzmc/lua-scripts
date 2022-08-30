@@ -76,9 +76,9 @@ function vehiclelib.Serialize(vehicle)
     }
     -- Declare pointers
     local Color = {
-        r = memory.alloc(4),
-        g = memory.alloc(4),
-        b = memory.alloc(4),
+        r = memory.alloc(8),
+        g = memory.alloc(8),
+        b = memory.alloc(8),
     }
 
     if Primary.Custom then
@@ -108,8 +108,8 @@ function vehiclelib.Serialize(vehicle)
     end
     VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle, Color.r, Color.g)
     local ColorExtras = {
-        pearlescent = memory.read_int(Color.r),
-        wheel = memory.read_int(Color.g),
+        Pearlescent = memory.read_int(Color.r),
+        Wheel = memory.read_int(Color.g),
     }
 
     local WheelType = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle)
@@ -161,7 +161,7 @@ function vehiclelib.Serialize(vehicle)
     for i, mod in pairs(vehiclelib.TOGGLEABLE_MOD_NAMES) do
         mods.Toggles[mod] = VEHICLE.IS_TOGGLE_MOD_ON(vehicle, i - 1)
     end
-    local saveData = {
+    return {
         Format = vehiclelib.FORMAT_VERSION,
         Model = model,
         Name = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(model),
@@ -201,8 +201,6 @@ function vehiclelib.Serialize(vehicle)
         Mods = mods,
         Extras = Extras
     }
-
-    return saveData
 end
 function vehiclelib.ApplyToVehicle(vehicle, saveData)
     vehicle = vehiclelib.MigrateVehicle(saveData)
@@ -210,7 +208,7 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle, saveData.Colors["Color Combo"] or -1)
     if saveData.Colors.Extra then
-        VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.pearlescent, saveData.Colors.Extras.wheel)
+        VEHICLE.SET_VEHICLE_EXTRA_COLOURS(vehicle, saveData.Colors.Extras.Pearlescent, saveData.Colors.Extras.Wheel)
     end
     VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle, saveData.Colors.Vehicle.r, saveData.Colors.Vehicle.g, saveData.Colors.Vehicle.b)
     VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle, saveData.Colors.Vehicle.r, saveData.Colors.Vehicle.g, saveData.Colors.Vehicle.b)
@@ -344,6 +342,12 @@ function vehiclelib.MigrateVehicle(saveData)
             saveData.Colors.Secondary["Custom Color"].b = b
             saveData.Colors.Secondary["Custom Color"].g = g
         end
+
+        saveData.Colors.Extras.Pearlescent = saveData.Colors.Extras.pearlescent
+        saveData.Colors.Extras.pearlescent = nil
+        saveData.Colors.Extras.Wheel = saveData.Colors.Extras.wheel
+        saveData.Colors.Extras.wheel = nil
+
         saveData.Format = vehiclelib.FORMAT_VERSION
     end
 end
