@@ -19,17 +19,16 @@ util.require_natives(1627063482)
 local json = require("json")
 local _lang = require("translations")
 if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
-  --#P:MANUAL_ONLY
-  util.toast("Outdated translations library, downloading update...")
-  os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
-  package.loaded["translations"] = nil
-  _G["translations"] = nil
-  download_lib_update("translations.lua")
-  _lang = require("translations")
-  --#P:ELSE
-  util.toast("Outdated lib: 'translations'")
-  --#P:END
-
+  if SCRIPT_SOURCE == "MANUAL" then
+    util.toast("Outdated translations library, downloading update...")
+    os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+    package.loaded["translations"] = nil
+    _G["translations"] = nil
+    download_lib_update("translations.lua")
+    _lang = require("translations")
+  else
+    util.toast("Outdated lib: 'translations'")
+  end
 end
 _lang.set_autodownload_uri("jackz.me", "/stand/translations/")
 _lang.load_translation_file(SCRIPT)
