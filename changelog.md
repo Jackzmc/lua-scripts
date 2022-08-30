@@ -160,3 +160,4 @@ V1.18.0
 * Allow offline browsing of vehicles (use local resource file)
 * Fix even more inconsisenties with vehicle saving
 * (1.18.1) Fix save_recents error with null vehicle name
+* (1.18.2) Fix errors when entity disappears, and setting a new base
