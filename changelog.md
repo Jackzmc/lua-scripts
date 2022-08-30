@@ -85,6 +85,7 @@ V1.2.0
 * (1.2.18) Switched chat server to fix script not working
 * (1.2.21) Fix some deprecated and weird time based bugs
 * (1.2.22) Actually fix it (fixes messages not clearing)
+* (1.2.23) Fix preprocessor bug
 
 # train control (v1)
 
