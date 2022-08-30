@@ -3,102 +3,16 @@
 local SCRIPT = "train_control"
 local VERSION = "1.1.6"
 
---#P:MANUAL_ONLY
--- Check for updates & auto-update:
--- Remove these lines if you want to disable update-checks & auto-updates: (7-54)
-async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION, function(result)
-    chunks = {}
-    for substring in string.gmatch(result, "%S+") do
-        table.insert(chunks, substring)
-    end
-    if chunks[1] == "OUTDATED" then
-        -- Remove this block (lines 15-32) to disable auto updates
-        async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual", function(result)
-            local file = io.open(filesystem.scripts_dir() .. SCRIPT_RELPATH, "w")
-            file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            file:close()
-            util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
-        end, function()
-            util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-            util.stop_script()
-        end)
-        async_http.dispatch()
-    end
-end)
-async_http.dispatch()
-
-function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/libs/" .. lib, function(result)
-        local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
-        file:write(result:gsub("\r", "") .. "\n")
-        file:close()
-        util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
-    end, function(e)
-        util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
-        util.stop_script()
-    end)
-    async_http.dispatch()
-end
+--#P:DEBUG_ONLY
+-- Still needed for local dev
+function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
+function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
+function compare_version(a, b) return 0 end
 --#P:END
 
-----------------------------------------------------------------
--- Version Check
-function get_version_info(version)
-    local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
-    return {
-        major = tonumber(major),
-        minor = tonumber(minor),
-        patch = tonumber(patch)
-    }
-end
-function compare_version(a, b)
-    local av = get_version_info(a)
-    local bv = get_version_info(b)
-    if av.major > bv.major then return 1
-    elseif av.major < bv.major then return -1
-    elseif av.minor > bv.minor then return 1
-    elseif av.minor < bv.minor then return -1
-    elseif av.patch > bv.patch then return 1
-    elseif av.patch < bv.patch then return -1
-    else return 0 end
-end
-local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
-if not filesystem.exists(VERSION_FILE_PATH) then
-    local versionFile = io.open(VERSION_FILE_PATH, "w")
-    versionFile:close()
-end
-local versionFile = io.open(VERSION_FILE_PATH, "r+")
+--#P:TEMPLATE("_SOURCE")
+--#P:TEMPLATE("common")
 
-local versions = {}
-for line in versionFile:lines("l") do
-    local script, version = line:match("(%g+): (%g+)")
-    if script then
-        versions[script] = version
-    end
-end
-if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-    if versions[SCRIPT] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT], function(result)
-            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-        end, function() util.log(SCRIPT ..": Could not get changelog") end)
-        async_http.dispatch()
-    end
-    versions[SCRIPT] = VERSION
-    versionFile:seek("set", 0)
-    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-    for script, version in pairs(versions) do
-        versionFile:write(script .. ": " .. version .. "\n")
-    end
-end
-versionFile:close()
--- END Version Check
-------------------------------------------------------------------
-
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
-end
 util.require_natives(1627063482)
 
 -- Models[1] && Models[2] are engines
