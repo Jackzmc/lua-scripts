@@ -860,7 +860,7 @@ function setup_builder_menus(name)
         editorActive = false
         _destroy_prop_previewer()
     end)
-    menu.text_input(mainMenu, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as myfoldername\\myvehiclename", function(name)
+    menu.text_input(mainMenu, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
         if save_vehicle(name) then
