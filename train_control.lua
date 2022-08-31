@@ -16,7 +16,7 @@ function compare_version(a, b) return 0 end
 util.require_natives(1627063482)
 
 -- Models[1] && Models[2] are engines
-local models = {
+local TRAIN_MODELS = {
     util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcar2"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
 }
 local last_train = 0
@@ -27,7 +27,7 @@ local globalTrainSpeed = 15
 local globalTrainSpeedControlEnabled = false
 
 show_busyspinner("Loading Train Models")
-for _, model in ipairs(models) do
+for _, model in ipairs(TRAIN_MODELS) do
     STREAMING.REQUEST_MODEL(model)
     while not STREAMING.HAS_MODEL_LOADED(model) do
         util.yield()
@@ -167,7 +167,7 @@ menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all 
     local count = 0
     for _, vehicle in pairs(vehicles) do
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
-        for _, model in ipairs(models) do
+        for _, model in ipairs(TRAIN_MODELS) do
             -- Check if the vehicle is a train
             if model == vehicleModel then
                 count = count + 1
@@ -183,7 +183,7 @@ menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains 
     local vehicles = entities.get_all_vehicles_as_handles()
     for _, vehicle in pairs(vehicles) do 
         local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
-        for _, model in ipairs(models) do
+        for _, model in ipairs(TRAIN_MODELS) do
             -- Check if the vehicle is a train
             if model == vehicleModel then
                 VEHICLE.SET_RENDER_TRAIN_AS_DERAILED(vehicle, on)
@@ -193,7 +193,7 @@ menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains 
 end, false)
 
 util.on_stop(function(_)
-    for _, model in ipairs(models) do
+    for _, model in ipairs(TRAIN_MODELS) do
         STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
     end
 end)
@@ -235,7 +235,7 @@ while true do
     elseif globalTrainSpeedControlEnabled then
         for _, vehicle in pairs(entities.get_all_vehicles_as_handles()) do
             local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-            if model == models[1] or model == models[2] then --Only need to set speed for engine
+            if model == TRAIN_MODELS[1] or model == TRAIN_MODELS[2] then --Only need to set speed for engine
                 local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
                 NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
                 NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
