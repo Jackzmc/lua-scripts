@@ -63,9 +63,6 @@ if i18n.VERSION ~= LANG_TARGET_VERSION then
 end
 i18n.set_autodownload_uri("jackz.me", "/stand/translations/")
 i18n.load_translation_file(SCRIPT)
-if wasUpdated then
-    i18n.update_translation_file(SCRIPT)
-end
 
 -- CONSTANTS
 local DOOR_NAMES = table.freeze({

@@ -60,7 +60,7 @@ function new_builder()
         name = nil,
         author = nil,
         base = {
-            handle = baseHandle,
+            handle = nil,
             data = nil
         },
         entities = {}, -- KV<Handle, Table>
