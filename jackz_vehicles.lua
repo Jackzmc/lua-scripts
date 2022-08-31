@@ -17,6 +17,15 @@ function compare_version(a, b) return 0 end
 --#P:TEMPLATE("common")
 
 util.require_natives(1627063482)
+
+if metaList then
+    menu.divider(metaList, "-- Credits --")
+    menu.divider(metaList, "hiers - Translator")
+    menu.divider(metaList, "voyager - Translator")
+    menu.divider(metaList, "Icedoomfist - Translator")
+end
+
+
 local json = require("json")
 local i18n = require("translations")
 local vehiclelib = require("jackzvehiclelib")
