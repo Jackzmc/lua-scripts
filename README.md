@@ -8,7 +8,7 @@ The base scripts (non pre-processed) do not include auto-updates, version change
 
 Feel free to submit issues or pull requests to the `release` branch, or ask about them on the guilded.
 
-Use https://jackz.me/stand/get-lua.php?script=SCRIPT_NAME_HERE_NO_EXT&source=manual&branch=master to download the preprocessed file.
+Use https://jackz.me/stand/get-lua.php?script=SCRIPT_NAME_HEREsource=manual&branch=master to download the preprocessed file. Extenstion is optional. 
 Use 'source=repo' to have a version that does not have any automatic updating logic.
 
 Exmaple: https://jackz.me/stand/get-lua.php?script=jackz_vehicle_builder&source=manual&branch=master
