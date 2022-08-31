@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.19.0"
+local VERSION = "1.20.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
@@ -733,26 +733,29 @@ function _setup_spawn_list_entry(parentList, filepath)
         optionParentMenus[filepath] = menu.list(parentList, filename, {}, description or "<INVALID METADATA>",
             function()
                 clear_menu_table(optionsMenuHandles)
-                local m = menu.action(optionParentMenus[filepath], "Spawn", {}, "", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Spawn", {}, "", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
                     spawn_build(data, false)
-                end)
-                table.insert(optionsMenuHandles, m)
+                end))
     
-                m = menu.action(optionParentMenus[filepath], "Edit", {}, "", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Edit", {}, "", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     import_build_to_builder(data, filename:sub(1, -6))
                     menu.focus(builder.entitiesMenuList)
-                end)
-                table.insert(optionsMenuHandles, m)
+                end))
 
-                m = menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
                     upload_build(filename:sub(1, -6), json.encode(data))
-                end)
-                table.insert(optionsMenuHandles, m)
+                end))
+
+                table.insert(menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your build. You will be unable to edit its entities.", function()
+                    local buildBaseEntity = spawn_build(data, false)
+                    add_entity_to_list(builder.entitiesMenuList, buildBaseEntity, data.name or data.filename)
+                    util.toast("Added build to your current build")
+                end))
             end,
             function() _destroy_options_menu() end
         )
@@ -912,12 +915,11 @@ function setup_builder_menus(name)
         FREE_EDIT = value
     end, FREE_EDIT)
     menu.divider(builder.entitiesMenuList, "Entities")
-    builder.propSpawner.root = menu.list(mainMenu, "Spawn Props", {"builderprops"}, "Browse props to spawn to attach to add to your build")
+    builder.propSpawner.root = menu.list(mainMenu, "Add Props", {"builderprops"}, "Browse props to spawn to attach to add to your build")
     menu.on_focus(builder.propSpawner.root, function() _destroy_browse_menu("propSpawner") end)
-    builder.vehSpawner.root = menu.list(mainMenu, "Spawn Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
+    builder.vehSpawner.root = menu.list(mainMenu, "Add Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
-    builder.pedSpawner.root = menu.list(mainMenu, "Spawn Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
-    menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
+    builder.pedSpawner.root = menu.list(mainMenu, "Add Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
     create_ped_spawner_list(builder.pedSpawner.root)
