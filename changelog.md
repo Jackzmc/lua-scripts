@@ -163,3 +163,9 @@ V1.18.0
 * (1.18.1) Fix save_recents error with null vehicle name
 * (1.18.2) Fix errors when entity disappears, and setting a new base
 * (1.18.3) Fix meta error typo
+
+V1.19.0
+
+* Auto smart distance for build previews and spawning
+* Added a "Create New Structure" menu
+* Cleaned up ui slightly
