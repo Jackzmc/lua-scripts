@@ -758,7 +758,8 @@ function _setup_spawn_list_entry(parentList, filepath)
                 end))
 
                 table.insert(menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your build. You will be unable to edit its entities.", function()
-                    add_build_to_list(builder.entitiesMenuList, data, data.name or data.filename)
+                    local subbaseHandle = spawn_build(data, false)
+                    add_build_to_list(builder.entitiesMenuList, subbaseHandle, data, data.name or data.filename)
                     util.toast("Added build to your current build")
                 end))
             end,
@@ -1699,9 +1700,8 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
-function add_build_to_list(list, buildData, name)
+function add_build_to_list(list, subbaseHandle, buildData, name)
     autosave(true)
-    local subbaseHandle = spawn_build(buildData, false)
     builder.entities[subbaseHandle] = {
         id = buildData.id or builder._index,
         name = name or ("Unknown build"),
@@ -2535,15 +2535,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
         end
     end
 
-    -- TODO: add nested builds
     if build.builds then
         for _, entry in ipairs(build.builds) do
+            local handle = spawn_build(entry, false)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
-                add_build_to_list(builder.entitiesMenuList, entry, entry.name)
+                add_build_to_list(builder.entitiesMenuList, handle, entry, entry.name)
             else
-                local handle = spawn_build(entry, false)
                 attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex)
             end
         end
