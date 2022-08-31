@@ -164,3 +164,5 @@ V1.18.0
 * (1.18.1) Fix save_recents error with null vehicle name
 * (1.18.2) Fix errors when entity disappears, and setting a new base
 * (1.18.3) Fix meta error typo
+* (1.18.4) Fix Attach to: Missing base vehicle
+* (1.18.4) Only show overlays when builder menus are open
