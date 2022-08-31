@@ -37,7 +37,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.3.1" -- For version diff warnings
+local BUILDER_VERSION = "1.4.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -54,7 +54,7 @@ function new_builder()
         name = nil,
         author = nil,
         base = {
-            handle = baseHandle,
+            handle = nil,
             data = nil
         },
         entities = {}, -- KV<Handle, Table>
@@ -577,7 +577,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
         tries = tries + 1
     end
     if tries > 10 then
-        util.toast("Build data timed out")
+        util.toast("Timed out acquiring build data")
         return
     end
     while not vehicleData and tries < 30 do
@@ -616,7 +616,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
 end
 function rate_build(user, vehicleName, rating)
     if not user or not vehicleName or rating < 0 or rating > 5 then
-        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_vehicle")
+        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_build")
         return false
     end
     async_http.init("jackz.me", 
@@ -630,14 +630,14 @@ function rate_build(user, vehicleName, rating)
                 util.toast("Rating submitted")
             else
                 log(body)
-                util.toast("Failed to submit rating, see logs")
+                util.toast("Failed to submit rating, see logs for info")
             end
         else
-            util.toast("Server sent invalid response")
+            util.toast("Failed to submit rating, server sent invalid response")
         end
 
     end, function()
-        util.toast("Failed to submit rating")
+        util.toast("Failed to submit rating due to an unknown error")
     end)
     async_http.set_post("application/json", "")
     async_http.dispatch()
@@ -752,8 +752,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                 end))
 
                 table.insert(menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your build. You will be unable to edit its entities.", function()
-                    local buildBaseEntity = spawn_build(data, false)
-                    add_entity_to_list(builder.entitiesMenuList, buildBaseEntity, data.name or data.filename)
+                    add_build_to_list(builder.entitiesMenuList, data, data.name or data.filename)
                     util.toast("Added build to your current build")
                 end))
             end,
@@ -1694,6 +1693,39 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
+function add_build_to_list(list, buildData, name)
+    autosave(true)
+    local subbaseHandle = spawn_build(buildData, false)
+    builder.entities[subbaseHandle] = {
+        id = buildData.id or builder._index,
+        name = name or ("Unknown build"),
+        type = buildData.base.type,
+        build = buildData,
+        list = nil,
+        listMenus = {},
+        pos = buildData.offset or { x = 0.0, y = 0.0, z = 0.0 },
+        rot = buildData.rotation or { x = 0.0, y = 0.0, z = 0.0 },
+        boneIndex = buildData.boneIndex or 0,
+
+    }
+    if not buildData.id then
+        builder._index = builder._index + 1
+    end
+    attach_entity(builder.base.handle, subbaseHandle, builder.entities[subbaseHandle].pos, builder.entities[subbaseHandle].rot, builder.entities[subbaseHandle].boneIndex)
+    builder.entities[subbaseHandle].list = menu.list(
+        list, builder.entities[subbaseHandle].name, {}, string.format("Edit nested build"),
+        function() create_entity_section(builder.entities[subbaseHandle], subbaseHandle) end,
+        function()
+            isInEntityMenu = false
+            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+            ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
+            ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
+        end
+    )
+    menu.focus(builder.entities[subbaseHandle].list)
+    return builder.entities[subbaseHandle]
+
+end
 function add_entity_to_list(list, handle, name, data)
     if not data then data = {} end
     autosave(true)
@@ -2045,53 +2077,69 @@ function autosave(onDemand, name)
     save_favorites_list()
     save_recents()
 end
+
+function _serialize_entity(handle, data)
+    local serialized = {
+        id = data.id,
+        name = data.name,
+        model = data.model,
+        offset = data.pos,
+        rotation = data.rot,
+        visible = data.visible,
+        boneIndex = data.boneIndex,
+        parent = data.parent,
+    }
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        if data.godmode == nil then data.godmode = true end
+        serialized.savedata = vehiclelib.Serialize(handle)
+        serialized.godmode = data.godmode
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        serialized.animdata = data.animdata
+        if data.godmode == nil then data.godmode = true end
+        serialized.godmode = data.godmode
+    end
+
+    return serialized
+end
+function _serialize_build(build)
+    return {
+        id = build.id,
+        name = build.name,
+        offset = build.pos,
+        rotation = build.rot,
+        boneIndex = build.boneIndex,
+        data = build.buildData
+    }
+end
+
 function builder_to_json(is_autosave)
     local objects = {}
     local vehicles = {}
     local peds = {}
-    local baseSerialized
+    local builds = {}
+    local buildData
     for handle, data in pairs(builder.entities) do
-        local serialized = {
-            id = data.id,
-            name = data.name,
-            model = data.model,
-            offset = data.pos,
-            rotation = data.rot,
-            visible = data.visible,
-            boneIndex = data.boneIndex,
-            parent = data.parent
-        }
-        if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-            if data.godmode == nil then data.godmode = true end
-            serialized.godmode = data.godmode
-        elseif ENTITY.IS_ENTITY_A_PED(handle) then
-            serialized.animdata = data.animdata
-            if data.godmode == nil then data.godmode = true end
-            serialized.godmode = data.godmode
-        end
-
-        if handle == builder.base.handle then
-            baseSerialized = serialized
-            baseSerialized.type = data.type
-        elseif data.type == "VEHICLE" then
-            if ENTITY.DOES_ENTITY_EXIST(handle) then
-                serialized.savedata = vehiclelib.Serialize(handle)
-            else
-                log("Could not fetch vehicle savedata for deleted vehicle", "builder_to_json")
-            end
-            table.insert(vehicles, serialized)
-        elseif data.type == "PED" then
-            table.insert(peds, serialized)
+        if data.isBuild then
+            table.insert(builds, _serialize_build(data))
         else
-            table.insert(objects, serialized)
+            local entityData = _serialize_entity(handle, data)
+            if handle == builder.base.handle then
+                entityData.offset = nil
+                buildData = entityData
+                buildData.type = data.type
+                -- Move savedata out of 'base.data' to 'base'
+                buildData.savedata = entityData.savedata
+                entityData.savedata = nil
+            elseif data.type == "VEHICLE" then
+                table.insert(vehicles, entityData)
+            elseif data.type == "PED" then
+                table.insert(peds, entityData)
+            else
+                table.insert(objects, entityData)
+            end
         end
     end
 
-    -- Remove base offseet
-    if baseSerialized then
-        baseSerialized.offset = nil
-    end
-    
     local serialized = {
         name = builder.name,
         author = builder.author,
@@ -2099,12 +2147,13 @@ function builder_to_json(is_autosave)
         version = FORMAT_VERSION,
         base = {
             model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
-            data = baseSerialized,
+            data = buildData,
             savedata = nil
         },
         blipIcon = builder.blip_icon,
         objects = objects,
         vehicles = vehicles,
+        builds = builds,
         peds = peds
     }
 
