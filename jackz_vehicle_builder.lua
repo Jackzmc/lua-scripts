@@ -47,7 +47,7 @@ local pedAnimThread
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
-function new_builder(baseHandle)
+function new_builder()
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     return { -- All data needed for builder
         _index = 1, -- Starting entity index
@@ -821,6 +821,8 @@ end
     end
 menu.on_focus(savedVehicleList, function() clear_build_preview() end)
 
+local STRUCTURE_OBJECT_MODEL = util.joaat("prop_roadcone02a")
+
 --[ Setup menus, depending on base exists ]--
 function setup_pre_menu()
     if mainMenu then
@@ -828,16 +830,27 @@ function setup_pre_menu()
         mainMenu = nil
     end
     -- mainMenu = menu.list(menu.my_root(), "Create New Vehicle")
-    mainMenu = menu.action(menu.my_root(), "Set current vehicle as base", {}, "", function()
+    mainMenu = menu.action(menu.my_root(), "Set current vehicle as base", {}, "Creates a new custom vehicle with your current vehicle as the base", function()
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
         if vehicle > 0 then
-            builder = new_builder(vehicle)
+            builder = new_builder()
             load_recents()
             set_builder_base(vehicle)
             setup_builder_menus()
         else
             util.toast("You are not in a vehicle.")
         end
+    end)
+
+    mainMenu = menu.action(menu.my_root(), "Create new structure", {"jvbstruct"}, "Creates a new structure, instead of a custom vehicle", function()
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, 0.3)
+        local base = spawn_object({
+            model = STRUCTURE_OBJECT_MODEL
+        }, false, pos)
+        builder = new_builder()
+        set_builder_base(base)
+        setup_builder_menus()
     end)
 end
 
@@ -1001,6 +1014,12 @@ function set_builder_base(handle)
     builder.base.handle = handle
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
+    end
+    builder.base.type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        builder.base.type = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        builder.base.type = "PED"
     end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Build")
 end
@@ -2239,7 +2258,7 @@ function import_build_to_builder(build, name)
     if not build.base.data.model then build.base.data.model = build.base.model end
     local baseHandle = spawn_entity(build.base.data, build.base.data.type or "VEHICLE")
     if baseHandle then
-        builder = new_builder(baseHandle)
+        builder = new_builder()
         builder.name = name
         builder.author = build.author
         builder.base.data = build.base.data
