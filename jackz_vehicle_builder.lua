@@ -2577,7 +2577,7 @@ end
 while true do
     local seconds = os.seconds()
     if builder ~= nil then
-        if menu.is_open() then
+        if menu.is_open() and editorActive then
             if scriptSettings.autosaveEnabled and seconds >= autosaveNextTime then
                 autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
                 autosave()
@@ -2607,7 +2607,7 @@ while true do
                 end)
             end
         end
-        if highlightedHandle ~= nil and builder.entities[highlightedHandle] then
+        if editorActive and highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
