@@ -2426,12 +2426,12 @@ function spawn_build(build, isPreview, previewFunc, previewData)
 end
 
 -- This code is awfully made and a bad copy paste... but oh well
-function add_attachments(baseHandle, data, addToBuilder, isPreview)
+function add_attachments(baseHandle, build, addToBuilder, isPreview)
     local handles = {}
     local idMap = {} -- KV<id, handle>
     local parentQueue = {} -- Any entities who need to be parented
-    if data.objects then
-        for _, entityData in ipairs(data.objects) do
+    if build.objects then
+        for _, entityData in ipairs(build.objects) do
             local name = entityData.name or "<nil>"
             if not STREAMING.IS_MODEL_VALID(entityData.model) then
                 util.toast("Object has invalid model: " .. name .. " model " .. entityData.model, TOAST_DEFAULT | TOAST_LOGGER)
@@ -2460,8 +2460,8 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
             end
         end
     end
-    if data.peds then
-        for _, pedData in ipairs(data.peds) do
+    if build.peds then
+        for _, pedData in ipairs(build.peds) do
             local name = pedData.name or "<nil>"
             if not STREAMING.IS_MODEL_VALID(pedData.model) then
                 util.toast("Ped has invalid model: " .. name .. " model " .. pedData.model, TOAST_DEFAULT | TOAST_LOGGER)
@@ -2505,8 +2505,8 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
         end)
     end
 
-    if data.vehicles then
-        for _, vehData in ipairs(data.vehicles) do
+    if build.vehicles then
+        for _, vehData in ipairs(build.vehicles) do
             local handle = spawn_vehicle(vehData, isPreview)
     
             if vehData.visible == false then
@@ -2531,6 +2531,20 @@ function add_attachments(baseHandle, data, addToBuilder, isPreview)
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
                 attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
+            end
+        end
+    end
+
+    -- TODO: add nested builds
+    if build.builds then
+        for _, entry in ipairs(build.builds) do
+            if entry.id then idMap[tostring(entry.id)] = handle end
+
+            if addToBuilder then
+                add_build_to_list(builder.entitiesMenuList, entry, entry.name)
+            else
+                local handle = spawn_build(entry, false)
+                attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex)
             end
         end
     end
