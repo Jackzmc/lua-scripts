@@ -30,6 +30,9 @@
 !resources/translations
 !resources/translations/*
 
+!templates/
+!templates/*
+
 !.vscode/
 !.vscode/settings.json
 !.gitignore
