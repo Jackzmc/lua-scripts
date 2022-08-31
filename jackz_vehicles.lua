@@ -34,6 +34,9 @@ if vehiclelib == nil then
     util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'jackzvehiclelib' was not loaded, cannot continue. Exiting.", TOAST_ALL)
     util.stop_script()
     return
+elseif vehiclelib == true then
+    util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
+    util.stop_script()
 elseif i18n == nil then
     util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'translations' was not loaded, cannot continue. Exiting.", TOAST_ALL)
     util.stop_script()
@@ -41,9 +44,12 @@ elseif i18n == nil then
 end
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
-        util.toast("Outdated vehiclelib library, attempting update...")
+        util.log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
+        util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
+    else
+        util.toast("Outdated lib: 'jackzvehiclelib'")
     end
 end
 if i18n.VERSION ~= LANG_TARGET_VERSION then
@@ -57,9 +63,6 @@ if i18n.VERSION ~= LANG_TARGET_VERSION then
 end
 i18n.set_autodownload_uri("jackz.me", "/stand/translations/")
 i18n.load_translation_file(SCRIPT)
-if wasUpdated then
-    i18n.update_translation_file(SCRIPT)
-end
 
 -- CONSTANTS
 local DOOR_NAMES = table.freeze({

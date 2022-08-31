@@ -18,12 +18,18 @@ function compare_version(a, b) return 0 end
 util.require_natives(1627063482)
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
+if vehiclelib == true then
+    util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
+    util.stop_script()
+end
 
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
+        log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
         util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
+        
     else
         util.toast("Outdated lib: 'jackzvehiclelib'")
     end
@@ -1949,7 +1955,7 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
-    if builder.entities[child].parent == nil then
+    if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
             attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
@@ -2699,7 +2705,7 @@ end
 while true do
     local seconds = os.seconds()
     if builder ~= nil then
-        if menu.is_open() then
+        if menu.is_open() and editorActive then
             if scriptSettings.autosaveEnabled and seconds >= autosaveNextTime then
                 autosaveNextTime = seconds + AUTOSAVE_INTERVAL_SEC
                 autosave()
@@ -2729,7 +2735,7 @@ while true do
                 end)
             end
         end
-        if highlightedHandle ~= nil and builder.entities[highlightedHandle] then
+        if editorActive and highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)

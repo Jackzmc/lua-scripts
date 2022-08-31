@@ -85,6 +85,7 @@ V1.2.0
 * (1.2.18) Switched chat server to fix script not working
 * (1.2.21) Fix some deprecated and weird time based bugs
 * (1.2.22) Actually fix it (fixes messages not clearing)
+* (1.2.23) Fix preprocessor bug
 
 # train control (v1)
 
@@ -163,6 +164,8 @@ V1.18.0
 * (1.18.1) Fix save_recents error with null vehicle name
 * (1.18.2) Fix errors when entity disappears, and setting a new base
 * (1.18.3) Fix meta error typo
+* (1.18.4) Fix Attach to: Missing base vehicle
+* (1.18.4) Only show overlays when builder menus are open
 
 V1.19.0
 
