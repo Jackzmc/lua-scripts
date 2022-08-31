@@ -1903,7 +1903,7 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
-    if builder.entities[child].parent == nil then
+    if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
             attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
