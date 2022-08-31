@@ -2145,19 +2145,19 @@ function copy_file(source, dest)
 end
 
 
-function spawn_entity(data, type, isPreview)
+function spawn_entity(data, type, isPreview, pos, heading)
     if type == "VEHICLE" then
-        return spawn_vehicle(data, isPreview)
+        return spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
-        return spawn_ped(data, isPreview)
+        return spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
-        return spawn_object(data, isPreview)
+        return spawn_object(data, isPreview, pos)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
     end
 end
 
-function spawn_vehicle(vehicleData, isPreview)
+function spawn_vehicle(vehicleData, isPreview, pos, heading)
     if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
         log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
         util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
@@ -2168,8 +2168,12 @@ function spawn_vehicle(vehicleData, isPreview)
         util.yield()
     end
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
-    local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+    if not pos then
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
+    end
+    if not heading then
+        heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+    end
 
     local handle
     if isPreview then
@@ -2273,6 +2277,41 @@ function import_build_to_builder(build, name)
     end
 end
 
+function _compute_build_size(build)
+    local size = 7.5
+    if build.vehicles then
+        for _, entity in ipairs(build.vehicles) do
+            if entity.offset.x > size then
+                size = entity.offset.x
+            end
+            if entity.offset.y > size then
+                size = entity.offset.y
+            end
+        end
+    end
+    if build.peds then
+        for _, entity in ipairs(build.peds) do
+            if entity.offset.x > size then
+                size = entity.offset.x
+            end
+            if entity.offset.y > size then
+                size = entity.offset.y
+            end
+        end
+    end
+    if build.objects then
+        for _, entity in ipairs(build.objects) do
+            if entity.offset.x > size then
+                size = entity.offset.x
+            end
+            if entity.offset.y > size then
+                size = entity.offset.y
+            end
+        end
+    end
+    return size
+end
+
 -- Spawns a custom build, requires build.base to be set, others optional
 function spawn_build(build, isPreview, previewFunc, previewData)
     if not build then
@@ -2285,10 +2324,15 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
+
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local size = _compute_build_size(build)
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, size, 1.0)
+
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
     local baseType = build.type or "VEHICLE"
-    local baseHandle, pos = spawn_entity(build.base.data, baseType, isPreview)
+    local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
         if isPreview then
             set_preview(baseHandle, "_base", 100.0, previewFunc, previewData)
