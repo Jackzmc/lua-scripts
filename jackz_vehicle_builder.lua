@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.18.4"
+local VERSION = "1.19.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
@@ -53,7 +53,7 @@ local pedAnimThread
 local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
-function new_builder(baseHandle)
+function new_builder()
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     return { -- All data needed for builder
         _index = 1, -- Starting entity index
@@ -127,11 +127,12 @@ local preview = { -- Handles preview tracking and clearing
     id = nil,
     thread = nil,
     range = -1,
+    rangeZ = 0.3,
     rendercb = nil, -- Function to render a text preview 
     renderdata = nil
 }
 local highlightedHandle = nil -- Will highlight the handle with this ID
-local mainMenu
+local setupMenus = {}
 
 local POS_SENSITIVITY = 10
 local ROT_SENSITIVITY = 5
@@ -346,7 +347,7 @@ function create_preview_handler_if_not_exists()
                 if heading == 360 then
                     heading = 0
                 end
-                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, 0.3)
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, preview.rangeZ or 0.3)
                 ENTITY.SET_ENTITY_COORDS(preview.entity, pos.x, pos.y, pos.z, true, true, false, false)
                 ENTITY.SET_ENTITY_HEADING(preview.entity, heading)
 
@@ -827,28 +828,37 @@ end
     end
 menu.on_focus(savedVehicleList, function() clear_build_preview() end)
 
+local STRUCTURE_OBJECT_MODEL = util.joaat("prop_roadcone02a")
+
 --[ Setup menus, depending on base exists ]--
 function setup_pre_menu()
-    if mainMenu then
-        menu.delete(mainMenu)
-        mainMenu = nil
-    end
-    -- mainMenu = menu.list(menu.my_root(), "Create New Vehicle")
-    mainMenu = menu.action(menu.my_root(), "Set current vehicle as base", {}, "", function()
+    clear_menu_array(setupMenus)
+    table.insert(setupMenus, menu.action(menu.my_root(), "Set current vehicle as base", {}, "Creates a new custom vehicle with your current vehicle as the base", function()
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(PLAYER.PLAYER_PED_ID(), false)
         if vehicle > 0 then
-            builder = new_builder(vehicle)
+            builder = new_builder()
             load_recents()
             set_builder_base(vehicle)
             setup_builder_menus()
         else
             util.toast("You are not in a vehicle.")
         end
-    end)
+    end))
+
+    table.insert(setupMenus, menu.action(menu.my_root(), "Create new structure", {"jvbstruct"}, "Creates a new structure, instead of a custom vehicle", function()
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, preview.range or 7.5, 0.3)
+        local base = spawn_object({
+            model = STRUCTURE_OBJECT_MODEL
+        }, false, pos)
+        builder = new_builder()
+        set_builder_base(base)
+        setup_builder_menus()
+    end))
 end
 
 function setup_builder_menus(name)
-    menu.delete(mainMenu)
+    clear_menu_array(setupMenus)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
@@ -865,6 +875,7 @@ function setup_builder_menus(name)
         editorActive = false
         _destroy_prop_previewer()
     end)
+    menu.focus(mainMenu)
     menu.text_input(mainMenu, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
         if name == "" or scriptEnding then return end
         set_builder_name(name)
@@ -1007,6 +1018,12 @@ function set_builder_base(handle)
     builder.base.handle = handle
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
+    end
+    builder.base.type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        builder.base.type = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        builder.base.type = "PED"
     end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Build")
 end
@@ -1575,11 +1592,12 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
 end
 --[ Previewer Stuff ]--
 
-function set_preview(entity, id, range, renderfunc, renderdata)
+function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
     clear_build_preview()
     preview.entity = entity
     preview.id = id
     preview.range = range or nil
+    preview.rangeZ = rangeZ or 0.3
     preview.rendercb = renderfunc
     preview.renderdata = renderdata
     create_preview_handler_if_not_exists()
@@ -2132,19 +2150,19 @@ function copy_file(source, dest)
 end
 
 
-function spawn_entity(data, type, isPreview)
+function spawn_entity(data, type, isPreview, pos, heading)
     if type == "VEHICLE" then
-        return spawn_vehicle(data, isPreview)
+        return spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
-        return spawn_ped(data, isPreview)
+        return spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
-        return spawn_object(data, isPreview)
+        return spawn_object(data, isPreview, pos)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
     end
 end
 
-function spawn_vehicle(vehicleData, isPreview)
+function spawn_vehicle(vehicleData, isPreview, pos, heading)
     if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
         log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
         util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
@@ -2155,8 +2173,12 @@ function spawn_vehicle(vehicleData, isPreview)
         util.yield()
     end
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
-    local heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+    if not pos then
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, isPreview and 20.0 or 7.5, 1.0)
+    end
+    if not heading then
+        heading = ENTITY.GET_ENTITY_HEADING(my_ped)
+    end
 
     local handle
     if isPreview then
@@ -2245,7 +2267,7 @@ function import_build_to_builder(build, name)
     if not build.base.data.model then build.base.data.model = build.base.model end
     local baseHandle = spawn_entity(build.base.data, build.base.data.type or "VEHICLE")
     if baseHandle then
-        builder = new_builder(baseHandle)
+        builder = new_builder()
         builder.name = name
         builder.author = build.author
         builder.base.data = build.base.data
@@ -2260,6 +2282,55 @@ function import_build_to_builder(build, name)
     end
 end
 
+function calculate_model_size(model, minVec, maxVec)
+    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
+    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
+end
+
+function _compute_build_size(build)
+    local r_size = 0.0
+    local h_size = 0.0
+    local minVec = v3.new()
+    local maxVec = v3.new()
+    function _compute_size(entity)
+        local l, w, h = calculate_model_size(entity.model, minVec, maxVec)
+        l = l + entity.offset.x
+        w = w + entity.offset.y
+        if entity.offset.z < 0 then
+            h = h + math.abs(entity.offset.z)
+        else
+            h = 0
+        end
+
+        if l > r_size then
+            r_size = l
+        end
+        if w > h_size then
+            r_size = w
+        end
+        if h > h_size then
+            h_size = h
+        end
+    end
+    if build.vehicles then
+        for _, entity in ipairs(build.vehicles) do
+            _compute_size(entity)
+        end
+    end
+    if build.peds then
+        for _, entity in ipairs(build.peds) do
+            _compute_size(entity)
+
+        end
+    end
+    if build.objects then
+        for _, entity in ipairs(build.objects) do
+            _compute_size(entity)
+        end
+    end
+    return (r_size + 7.5), h_size
+end
+
 -- Spawns a custom build, requires build.base to be set, others optional
 function spawn_build(build, isPreview, previewFunc, previewData)
     if not build then
@@ -2272,13 +2343,18 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     if not build.base.data.model then
         build.base.data.model = build.base.model
     end
+
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local wSize, hSize = _compute_build_size(build)
+    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
     local baseType = build.type or "VEHICLE"
-    local baseHandle, pos = spawn_entity(build.base.data, baseType, isPreview)
+    local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
         if isPreview then
-            set_preview(baseHandle, "_base", 100.0, previewFunc, previewData)
+            set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
             create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Unnamed Build")
         end
@@ -2489,6 +2565,7 @@ function show_marker(handle, markerType, ang)
     if ang == nil then ang = {} end
     GRAPHICS.DRAW_MARKER(markerType or 0, pos.x, pos.y, pos.z + 4.0, 0.0, 0.0, 0.0, ang.x or 0, ang.y or 0, ang.z or 0, 1, 1, 1, 255, 255, 255, 100, false, true, 2, false, 0, 0, false)
 end
+menu.divider(menu.my_root(), "Setup new build")
 setup_pre_menu()
 
 util.on_stop(function()

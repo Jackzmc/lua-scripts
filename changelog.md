@@ -166,3 +166,9 @@ V1.18.0
 * (1.18.3) Fix meta error typo
 * (1.18.4) Fix Attach to: Missing base vehicle
 * (1.18.4) Only show overlays when builder menus are open
+
+V1.19.0
+
+* Auto smart distance for build previews and spawning
+* Added a "Create New Structure" menu
+* Cleaned up ui slightly
