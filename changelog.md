@@ -172,3 +172,10 @@ V1.19.0
 * Auto smart distance for build previews and spawning
 * Added a "Create New Structure" menu
 * Cleaned up ui slightly
+
+V1.20.0
+
+* Allow adding other builds to your build
+* UI Improvements
+* Bug fixes
+* Fix non-vehicle bases not spawning
