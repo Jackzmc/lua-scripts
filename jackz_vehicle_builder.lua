@@ -1803,7 +1803,7 @@ function add_entity_to_list(list, handle, name, data)
     local parent = get_entity_by_id(data.parent) or builder.base.handle
     attach_entity(parent, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
-        list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nModel name: %s\nHash: %s", handle, name, model),
+        list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nHash: %s\nModel Name: %s", handle, model, builder.entities[handle].name),
         function() create_entity_section(builder.entities[handle], handle) end,
         function()
             isInEntityMenu = false
