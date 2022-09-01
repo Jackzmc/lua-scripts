@@ -2489,7 +2489,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, object, entityData.name, entityData)
+                        add_entity_to_list(builder.entitiesMenuList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
                         table.insert(parentQueue, { handle = object, data = entityData })
                     else
@@ -2516,7 +2516,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
 
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name, pedData)
+                        local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name or "unknown ped", pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
                         table.insert(parentQueue, { handle = ped, data = pedData })
@@ -2565,7 +2565,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             if vehData.id then idMap[tostring(vehData.id)] = handle end
 
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name, vehData)
+                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name or "unknown vehicle", vehData)
             elseif vehData.parent then
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
