@@ -2368,9 +2368,11 @@ end
 --[ Savedata Options ]--
 function import_build_to_builder(build, name)
     -- Wipe old build:
-    remove_all_attachments(builder.base.handle)
-    if HUD.DOES_BLIP_EXIST(builder.blip) then
-        util.remove_blip(builder.blip)
+    if builder then
+        remove_all_attachments(builder.base.handle)
+        if HUD.DOES_BLIP_EXIST(builder.blip) then
+            util.remove_blip(builder.blip)
+        end
     end
 
     clear_build_preview()
