@@ -2160,7 +2160,7 @@ function _serialize_build(build)
         offset = build.pos,
         rotation = build.rot,
         boneIndex = build.boneIndex,
-        data = build.buildData
+        build = build.build
     }
 end
 
@@ -2171,7 +2171,7 @@ function builder_to_json(is_autosave)
     local builds = {}
     local buildData
     for handle, data in pairs(builder.entities) do
-        if data.isBuild then
+        if data.build then
             table.insert(builds, _serialize_build(data))
         else
             local entityData = _serialize_entity(handle, data)
@@ -2578,7 +2578,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
     if build.builds then
         for _, entry in ipairs(build.builds) do
-            local handle = spawn_build(entry, false)
+            local handle = spawn_build(entry.build, isPreview)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
