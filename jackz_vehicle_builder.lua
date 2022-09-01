@@ -1,15 +1,12 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-local VERSION = "1.20.0"
+VERSION = "1.20.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
 --#P:DEBUG_ONLY
--- Still needed for local dev
-function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
-function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
-function compare_version(a, b) return 0 end
+require('templates/common')
 --#P:END
 
 --#P:TEMPLATE("_SOURCE")
@@ -711,6 +708,7 @@ function _format_vehicle_info(version, timestamp, author, rating)
         end
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
+        util.toast("Diff: " .. versionDiff)
         if versionDiff == 1 then
             versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
@@ -744,7 +742,7 @@ function _setup_spawn_list_entry(parentList, filepath)
 
         optionParentMenus[filepath] = menu.list(parentList, filename, {}, description or "<INVALID METADATA>",
             function()
-                clear_menu_table(optionsMenuHandles)
+                clear_menu_array(optionsMenuHandles)
                 table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Spawn", {}, "", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
