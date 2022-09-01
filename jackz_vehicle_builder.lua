@@ -2248,6 +2248,7 @@ end
 
 
 function spawn_entity(data, type, isPreview, pos, heading)
+    util.toast("spawning: " .. type)
     if type == "VEHICLE" then
         return spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
@@ -2344,7 +2345,7 @@ function spawn_object(data, isPreview, pos)
     local object = isPreview
         and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
         or entities.create_object(data.model, pos)
-
+    util.toast("created " .. object .. " at " .. string.format("%f %f %f", pos.x, pos.y, pos.z), TOAST_ALL)
     if object == 0 then
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
@@ -2447,7 +2448,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
 
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
-    local baseType = build.type or "VEHICLE"
+    local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
         if isPreview then
