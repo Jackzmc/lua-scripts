@@ -603,8 +603,11 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     end)
 
     menu.action(rootList, "Edit", {}, "", function()
-        import_build_to_builder(vehicleData['vehicle'], vehicleName)
-        menu.focus(builder.entitiesMenuList)
+        if import_build_to_builder(vehicleData['vehicle'], vehicleName) then
+            menu.focus(builder.entitiesMenuList)
+        else
+            util.toast("Could not spawn build's base entity; cannot spawn build.")
+        end
     end)
     menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
         if filename == "" or scriptEnding then return end
@@ -2385,8 +2388,10 @@ function import_build_to_builder(build, name)
         setup_builder_menus(name)
         set_builder_base(baseHandle)
         add_attachments(baseHandle, build, true, false)
+        return true
     else
-        util.toast("Cannot create base entity, editing not possible.")
+        log("Base entity failed to spawn. Name: " .. name .. " Model: " .. build.base.model, "import_build_to_builder")
+        return false
     end
 end
 
