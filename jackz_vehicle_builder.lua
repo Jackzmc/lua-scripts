@@ -1038,7 +1038,7 @@ function setup_builder_menus(name)
        
     menu.divider(mainMenu, "")
 
-    builder.propSpawner.root = menu.list(mainMenu, "Add Props", {"builderprops"}, "Browse props to spawn to attach to add to your build")
+    builder.propSpawner.root = menu.list(mainMenu, "Add Props", {"builderprops"}, "Browse props to spawn to add to your build")
     menu.on_focus(builder.propSpawner.root, function() _destroy_browse_menu("propSpawner") end)
     builder.vehSpawner.root = menu.list(mainMenu, "Add Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
