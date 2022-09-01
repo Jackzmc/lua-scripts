@@ -52,6 +52,8 @@ local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8
 -- Returns a new builder instance
 function new_builder()
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
+    
+
     return { -- All data needed for builder
         _index = 1, -- Starting entity index
         name = nil,
@@ -1655,7 +1657,7 @@ end
 function _recurse_remove_attachments(handle, table)
     for _, entity in ipairs(table) do
         if entity ~= handle then
-            -- Recurse it's attachments
+            -- Remove all second level attachments
             if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(entity, handle) then
                 for _, subEntity in ipairs(table) do
                     if subEntity ~= entity and subEntity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(subEntity, entity) then
@@ -2357,6 +2359,12 @@ end
 
 --[ Savedata Options ]--
 function import_build_to_builder(build, name)
+    -- Wipe old build:
+    remove_all_attachments(builder.base.handle)
+    if HUD.DOES_BLIP_EXIST(builder.blip) then
+        util.remove_blip(builder.blip)
+    end
+
     clear_build_preview()
     if not build.base.data then build.base.data = {} end
     if not build.base.data.model then build.base.data.model = build.base.model end
@@ -2465,6 +2473,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
 end
 
 -- This code is awfully made and a bad copy paste... but oh well
+-- Also addToBuilder and isPreview shouldn't be both true
 function add_attachments(baseHandle, build, addToBuilder, isPreview)
     local handles = {}
     local idMap = {} -- KV<id, handle>
