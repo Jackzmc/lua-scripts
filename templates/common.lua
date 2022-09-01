@@ -32,14 +32,14 @@ for line in versionFile:lines("l") do
         versions[script] = version
     end
 end
-if versions[SCRIPT] == nil or compare_version(VERSION, versions[SCRIPT]) == 1 then
-    if versions[SCRIPT] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT .. "&since=" .. versions[SCRIPT] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-            util.toast("Changelog for " .. SCRIPT .. " version " .. VERSION .. ":\n" .. result)
-        end, function() util.log(SCRIPT ..": Could not get changelog") end)
+if versions[SCRIPT_NAME] == nil or compare_version(VERSION, versions[SCRIPT_NAME]) == 1 then
+    if versions[SCRIPT_NAME] ~= nil then
+        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. versions[SCRIPT_NAME] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+            util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
+        end, function() util.log(SCRIPT_NAME ..": Could not get changelog") end)
         async_http.dispatch()
     end
-    versions[SCRIPT] = VERSION
+    versions[SCRIPT_NAME] = VERSION
     versionFile:seek("set", 0)
     versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
     for script, version in pairs(versions) do
@@ -50,16 +50,16 @@ versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
 local metaList = menu.list(menu.my_root(), "Script Meta")
-menu.divider(metaList, SCRIPT .. " V" .. VERSION)
-menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT)
+menu.divider(metaList, SCRIPT_NAME .. " V" .. VERSION)
+menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT_NAME)
 menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 if SCRIPT_SOURCE == "MANUAL" then
-    menu.list_select(metaList, "Release Channel", {SCRIPT.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
+    menu.list_select(metaList, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
         show_busyspinner("Downloading update...")
         download_script_update(SCRIPT_BRANCH_IDS[index], function()
             HUD.BUSYSPINNER_OFF()
-            util.log(SCRIPT .. ": Released channel changed to " .. SCRIPT_BRANCH_IDS[index])
+            util.log(SCRIPT_NAME .. ": Released channel changed to " .. SCRIPT_BRANCH_IDS[index])
             util.toast("Release channel changed to " .. name .. " (" .. SCRIPT_BRANCH_IDS[index] .. ")\nReload to apply changes")
         end, function()
             util.toast("Failed to download latest version for release channel.")
