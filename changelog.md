@@ -176,3 +176,5 @@ V1.19.0
 V1.20.0
 
 * Allow adding other builds to your build
+* UI Improvements
+* Bug fixes
