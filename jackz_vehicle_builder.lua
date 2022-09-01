@@ -2387,8 +2387,8 @@ function import_build_to_builder(build, name)
         builder.blip_icon = build.blipIcon or build.blip_icon
         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
-        setup_builder_menus(name)
         set_builder_base(baseHandle)
+        setup_builder_menus(name)
         add_attachments(baseHandle, build, true, false)
         return true
     else
