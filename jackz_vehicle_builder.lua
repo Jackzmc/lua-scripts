@@ -946,6 +946,7 @@ function setup_builder_menus(name)
             end)
         end)
     menu.focus(buildList)
+    editorActive = true
     
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "", function() highlightedHandle = nil end)
         menu.slider(builder.entitiesMenuList, "Coordinate Sensitivity", {"offsetsensitivity"}, "Sets the sensitivity of changing the offset coordinates of an entity", 1, 20, POS_SENSITIVITY, 1, function(value)
@@ -2752,7 +2753,7 @@ function get_screen_coords(worldPos)
     return hudPos
 end
 
-
+local lastAddKeyPress = 0
 while true do
     local seconds = os.seconds()
     if builder ~= nil then
@@ -2780,7 +2781,10 @@ while true do
                         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, "Press 'J' to add to build", ALIGN_TOP_LEFT, 0.5, { r = 0.8, g = 0.8, b = 0.8, a = 0.8})
                         
                         if util.is_key_down(0x4A) then
-                            add_entity_to_list(builder.entitiesMenuList, entity, name)
+                            if seconds - lastAddKeyPress > 1 then
+                                lastAddKeyPress = seconds
+                                add_entity_to_list(builder.entitiesMenuList, entity, name)
+                            end
                         end
                     end
                 end)
