@@ -101,7 +101,8 @@ function new_builder()
             }
         },
         ent_spawner_active = false,
-        blip_icon = 225 -- Saved as blipIcon
+        blip_icon = 225, -- Saved as blipIcon
+        spawnLocation = nil
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -911,6 +912,28 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
+        local spawnLocationList = menu.list(buildList, "Spawn Location", {}, "Specifies the location where the build will spawn")
+            local spawnX, spawnY, spawnZ
+            menu.toggle(spawnLocationList, "Spawn at specific coordinates", {}, "If checked, the build's base entity will spawn at this position. If not, it will spawn in front of you", function(value)
+                if value then
+                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    builder.spawnLocation = ENTITY.GET_ENTITY_COORDS(my_ped)
+                    menu.set_value(spawnX, 0)
+                    menu.set_value(spawnY, 0)
+                    menu.set_value(spawnZ, 0)
+                else
+                    builder.spawnLocation = nil
+                end
+            end)
+            spawnX = menu.slider_float(spawnLocationList, "X", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.x = value / 100
+            end)
+            spawnY = menu.slider_float(spawnLocationList, "Y", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.y = value / 100
+            end)
+            spawnZ = menu.slider_float(spawnLocationList, "Z", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.z = value / 100
+            end)
         menu.text_input(buildList, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
@@ -949,6 +972,7 @@ function setup_builder_menus(name)
                 builder = nil
             end)
         end)
+
     menu.focus(buildList)
     editorActive = true
     
