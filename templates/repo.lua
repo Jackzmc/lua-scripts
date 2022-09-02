@@ -4,9 +4,13 @@ function download_resources_update(filepath, destOverwritePath)
         util.log(SCRIPT_NAME .. ": Skipping resource update \" .. lib .. \", found update lockfile")
     end
     local lock = io.open(lockPath, "w")
+    if lock == nil then
+        util.toast(SCRIPT_NAME .. ": Could not create lockfile, skipping update", TOAST_ALL)
+        return
+    end
     lock:close()
     async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-        io.remove(lock)
+        os.remove(lockPath)
         if result:startswith("<") then
             util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
             util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
@@ -22,7 +26,7 @@ function download_resources_update(filepath, destOverwritePath)
         file:close()
         util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
     end, function(e)
-        io.remove(lock)
+        os.remove(lockPath)
         util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. filepath .. ")", 10)
         util.stop_script()
     end)
