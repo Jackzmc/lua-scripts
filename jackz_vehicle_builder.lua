@@ -1488,9 +1488,9 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
         if preview.id == nil or preview.id ~= propName then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(propName)
-                preview.id = propName
-                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-                if STREAMING.IS_MODEL_VALID(hash) then
+            preview.id = propName
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+            if STREAMING.IS_MODEL_VALID(hash) then
                 STREAMING.REQUEST_MODEL(hash)
                 while not STREAMING.HAS_MODEL_LOADED(hash) do
                     util.yield()
@@ -2321,6 +2321,11 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
 end
 
 function spawn_ped(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid ped model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn ped (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
@@ -2360,6 +2365,11 @@ function spawn_ped(data, isPreview, pos)
 end
 
 function spawn_object(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid object model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn object (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
