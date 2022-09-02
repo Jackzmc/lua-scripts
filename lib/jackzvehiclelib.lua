@@ -186,10 +186,11 @@ function vehiclelib.Serialize(vehicle)
             Vehicle = Vehicle,
             Extras = ColorExtras
         },
+        SirenActive = VEHICLE.IS_VEHICLE_SIREN_AUDIO_ON(vehicle),
         Lights = {
             ["Xenon Color"] = VEHICLE._GET_VEHICLE_XENON_LIGHTS_COLOR(vehicle),
             Neon = Neon,
-            SirenActive = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle),
+            EmergencyLightsActive = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle),
             SearchLightActive = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle)
         },
         RadioLoud = AUDIO._IS_VEHICLE_RADIO_LOUD(vehicle),
@@ -245,10 +246,14 @@ function vehiclelib.ApplyToVehicle(vehicle, saveData)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 1, saveData.Lights.Neon.Right or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 2, saveData.Lights.Neon.Front or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle, 3, saveData.Lights.Neon.Back or false)
-    if saveData.Lights.SirenActive then
-        VEHICLE._SET_SIREN_KEEP_ON(vehicle, true)
-        VEHICLE.SET_VEHICLE_SIREN(vehicle, saveData.Lights.SirenActive or false)
+
+    if saveData.SirenActive then
+        AUDIO.SET_SIREN_WITH_NO_DRIVER(vehicle, true)
+        VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle, false)
+        AUDIO._SET_SIREN_KEEP_ON(vehicle, true)
+        AUDIO._TRIGGER_SIREN(vehicle, true)
     end
+    VEHICLE.SET_VEHICLE_SIREN(vehicle, saveData.Lights.EmergencyLightsActive or false)
     VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle, saveData.Lights.SearchLightActive or false, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle, saveData.RadioLoud or false)
 
@@ -328,11 +333,14 @@ function vehiclelib.MigrateVehicle(saveData)
                 saveData.Extras[tostring(x)] = state
             end
         end
-        if saveData.Lights.SirenActive == nil then
-            saveData.Lights.SirenActive = false
+        if saveData.Lights.EmergencyLightsActive == nil then
+            saveData.Lights.EmergencyLightsActive = false
+        end
+        if saveData.SirenActive == nil then
+            saveData.SirenActive = false
         end
         if saveData.Lights.SearchLightActive == nil then
-            saveData.Lights.SirenActive = false
+            saveData.Lights.SearchLightActive = false
         end
         if saveData.Colors.Primary.Custom and saveData.Colors.Primary["Custom Color"] then
             local b = saveData.Colors.Primary["Custom Color"].g
@@ -390,4 +398,3 @@ function vehiclelib.ConvertXML(xmlStr)
 end
 
 return vehiclelib
-
