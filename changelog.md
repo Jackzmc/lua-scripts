@@ -179,3 +179,9 @@ V1.20.0
 * UI Improvements
 * Bug fixes
 * Fix non-vehicle bases not spawning
+
+V1.21.0
+
+* Allow to set a build's spawn location (Builder > Build > Spawn Location)
+* Add some checks to increase stability
+* Ensure nested builds entities don't collide with other build entities
