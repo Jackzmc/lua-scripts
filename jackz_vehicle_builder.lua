@@ -2230,7 +2230,8 @@ function builder_to_json(is_autosave)
         objects = objects,
         vehicles = vehicles,
         builds = builds,
-        peds = peds
+        peds = peds,
+        spawnLocation = nil
     }
 
     -- Only calculate save data for vehicle-based custom builds
@@ -2484,9 +2485,14 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         build.base.data.model = build.base.model
     end
 
-    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local wSize, hSize = _compute_build_size(build)
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    local pos
+    if build.spawnLocation then
+        pos = build.spawnLocation
+    else
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    end
 
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
