@@ -22,7 +22,7 @@ end
 local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
 if not filesystem.exists(VERSION_FILE_PATH) then
     local versionFile = io.open(VERSION_FILE_PATH, "w")
-    if versionFile
+    if versionFile then
         versionFile:close()
     end
 end
