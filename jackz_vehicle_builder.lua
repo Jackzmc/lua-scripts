@@ -713,7 +713,6 @@ function _format_vehicle_info(version, timestamp, author, rating)
         end
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
-        util.toast("Diff: " .. versionDiff)
         if versionDiff == 1 then
             versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
@@ -2493,8 +2492,8 @@ function spawn_build(build, isPreview, previewFunc, previewData)
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
         end
         ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
-        add_attachments(baseHandle, build, false, isPreview)
-        return baseHandle
+        local attachments = add_attachments(baseHandle, build, false, isPreview)
+        return baseHandle, attachments
     else
         util.toast("Could not spawn build's base entity")
     end
@@ -2613,7 +2612,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
     if build.builds then
         for _, entry in ipairs(build.builds) do
-            local handle = spawn_build(entry.build, isPreview)
+            local handle, attachments = spawn_build(entry.build, isPreview)
+            for _, attachment in ipairs(attachments) do
+                for _, handle2 in ipairs(handles) do
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, handle2)
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, builder.base.handle)
+                end
+            end
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(builder.base.handle, handle)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
@@ -2634,6 +2640,8 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
         end
     end
+
+    return handles
 end
 
 
