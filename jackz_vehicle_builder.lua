@@ -1489,20 +1489,25 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
         if preview.id == nil or preview.id ~= propName then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(propName)
-            preview.id = propName
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+                preview.id = propName
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+                if STREAMING.IS_MODEL_VALID(hash) then
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= propName then return end
+                local entity = OBJECT.CREATE_OBJECT(hash, pos.x, pos.y, pos.z, false, false, 0);
+                if entity == 0 then
+                    log("Could not create preview for " .. propName .. "(" .. hash .. ")")
+                    return
+                end
+                set_preview(entity, propName)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. propName, "add_prop_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= propName then return end
-            local entity = OBJECT.CREATE_OBJECT(hash, pos.x, pos.y, pos.z, false, false, 0);
-            if entity == 0 then
-                log("Could not create preview for " .. propName .. "(" .. hash .. ")")
-                return
-            end
-            set_preview(entity, propName)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
@@ -1554,24 +1559,30 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
         if preview.id == nil or preview.id ~= pedName then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(pedName)
-            preview.id = pedName
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+            if STREAMING.IS_MODEL_VALID(hash) then
+                preview.id = pedName
+
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= pedName then return end
+                local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
+                ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
+                ENTITY.FREEZE_ENTITY_POSITION(entity)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+                if entity == 0 then
+                    log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
+                    return
+                end
+                set_preview(entity, pedName)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. pedName, "add_ped_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= pedName then return end
-            local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
-            ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
-            ENTITY.FREEZE_ENTITY_POSITION(entity)
-            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
-            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
-            if entity == 0 then
-                log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
-                return
-            end
-            set_preview(entity, pedName)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
@@ -1617,19 +1628,24 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
         if preview.id == nil or preview.id ~= vehicleID then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(vehicleID)
-            preview.id = vehicleID
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+            if STREAMING.IS_MODEL_VALID(hash) then
+                preview.id = vehicleID
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= vehicleID then return end
+                local entity = VEHICLE.CREATE_VEHICLE(hash, pos.x, pos.y, pos.z, 0, false, false)
+                if entity == 0 then
+                    return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
+                end
+                set_preview(entity, vehicleID)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. vehicleID, "add_vehicle_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= vehicleID then return end
-            local entity = VEHICLE.CREATE_VEHICLE(hash, pos.x, pos.y, pos.z, 0, false, false)
-            if entity == 0 then
-                return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
-            end
-            set_preview(entity, vehicleID)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
