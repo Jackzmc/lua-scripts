@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.20.0"
+VERSION = "1.21.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.2.0"
 
@@ -40,7 +40,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.4.0" -- For version diff warnings
+local BUILDER_VERSION = "1.5.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -101,7 +101,8 @@ function new_builder()
             }
         },
         ent_spawner_active = false,
-        blip_icon = 225 -- Saved as blipIcon
+        blip_icon = 225, -- Saved as blipIcon
+        spawnLocation = nil
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -715,7 +716,6 @@ function _format_vehicle_info(version, timestamp, author, rating)
         end
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
-        util.toast("Diff: " .. versionDiff)
         if versionDiff == 1 then
             versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
@@ -914,6 +914,28 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
+        local spawnLocationList = menu.list(buildList, "Spawn Location", {}, "Specifies the location where the build will spawn")
+            local spawnX, spawnY, spawnZ
+            menu.toggle(spawnLocationList, "Spawn at specific coordinates", {}, "If checked, the build's base entity will spawn at this position. If not, it will spawn in front of you", function(value)
+                if value then
+                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                    builder.spawnLocation = ENTITY.GET_ENTITY_COORDS(my_ped)
+                    menu.set_value(spawnX, 0)
+                    menu.set_value(spawnY, 0)
+                    menu.set_value(spawnZ, 0)
+                else
+                    builder.spawnLocation = nil
+                end
+            end)
+            spawnX = menu.slider_float(spawnLocationList, "X", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.x = value / 100
+            end)
+            spawnY = menu.slider_float(spawnLocationList, "Y", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.y = value / 100
+            end)
+            spawnZ = menu.slider_float(spawnLocationList, "Z", {}, "", -100000, 100000, 0, 1, function(value)
+                builder.spawnLocation.z = value / 100
+            end)
         menu.text_input(buildList, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
@@ -952,6 +974,7 @@ function setup_builder_menus(name)
                 builder = nil
             end)
         end)
+
     menu.focus(buildList)
     editorActive = true
     
@@ -1491,9 +1514,9 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
         if preview.id == nil or preview.id ~= propName then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(propName)
-                preview.id = propName
-                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-                if STREAMING.IS_MODEL_VALID(hash) then
+            preview.id = propName
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+            if STREAMING.IS_MODEL_VALID(hash) then
                 STREAMING.REQUEST_MODEL(hash)
                 while not STREAMING.HAS_MODEL_LOADED(hash) do
                     util.yield()
@@ -2233,7 +2256,8 @@ function builder_to_json(is_autosave)
         objects = objects,
         vehicles = vehicles,
         builds = builds,
-        peds = peds
+        peds = peds,
+        spawnLocation = nil
     }
 
     -- Only calculate save data for vehicle-based custom builds
@@ -2324,6 +2348,11 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
 end
 
 function spawn_ped(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid ped model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn ped (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
@@ -2363,6 +2392,11 @@ function spawn_ped(data, isPreview, pos)
 end
 
 function spawn_object(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid object model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn object (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
@@ -2477,9 +2511,14 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         build.base.data.model = build.base.model
     end
 
-    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local wSize, hSize = _compute_build_size(build)
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    local pos
+    if build.spawnLocation then
+        pos = build.spawnLocation
+    else
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    end
 
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
@@ -2495,8 +2534,8 @@ function spawn_build(build, isPreview, previewFunc, previewData)
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
         end
         ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
-        add_attachments(baseHandle, build, false, isPreview)
-        return baseHandle
+        local attachments = add_attachments(baseHandle, build, false, isPreview)
+        return baseHandle, attachments
     else
         util.toast("Could not spawn build's base entity")
     end
@@ -2615,7 +2654,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
     if build.builds then
         for _, entry in ipairs(build.builds) do
-            local handle = spawn_build(entry.build, isPreview)
+            local handle, attachments = spawn_build(entry.build, isPreview)
+            for _, attachment in ipairs(attachments) do
+                for _, handle2 in ipairs(handles) do
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, handle2)
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, builder.base.handle)
+                end
+            end
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(builder.base.handle, handle)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
@@ -2636,6 +2682,8 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
         end
     end
+
+    return handles
 end
 
 
