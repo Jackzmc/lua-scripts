@@ -1939,16 +1939,15 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
-            -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
 
@@ -1957,16 +1956,17 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
     end))
 
     --[ MISC ]--
@@ -1974,7 +1974,7 @@ function create_entity_section(tableref, handle, options)
     if handle ~= builder.base.handle then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
             tableref.boneIndex = index
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         if not options.isBuild then
             local attachEntList
@@ -1992,6 +1992,10 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
+    table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
+        tableref.collision = value
+        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+    end, tableref.visible))
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
@@ -2060,7 +2064,7 @@ function _load_attach_list(list, child)
     if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
-            attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+            attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
             util.toast("Entity's parent restored to base entity")
             menu.set_menu_name(list, "Attach to: Base")
             menu.focus(list)
@@ -2073,7 +2077,7 @@ function _load_attach_list(list, child)
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
                 builder.entities[child].parent = builder.entities[handle].id
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, child)
-                attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+                attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
                 util.toast("Entity's parent changed")
                 menu.set_menu_name(list, "Attach to: #" .. builder.entities[child].id)
                 menu.focus(list)
@@ -2196,6 +2200,7 @@ function _serialize_entity(handle, data)
         visible = data.visible,
         boneIndex = data.boneIndex,
         parent = data.parent,
+        collision = data.collision or true
     }
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         if data.godmode == nil then data.godmode = true end
@@ -2540,6 +2545,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
+        log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
@@ -2559,7 +2565,9 @@ end
 -- This code is awfully made and a bad copy paste... but oh well
 -- Also addToBuilder and isPreview shouldn't be both true
 function add_attachments(baseHandle, build, addToBuilder, isPreview)
-    local handles = {}
+    local handles = {
+        baseHandle
+    }
     local idMap = {} -- KV<id, handle>
     local parentQueue = {} -- Any entities who need to be parented
     if build.objects then
@@ -2574,9 +2582,9 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         ENTITY.SET_ENTITY_ALPHA(object, 0, false)
                     end
                     for _, handle2 in ipairs(handles) do
+                        log(string.format("%d: disable collision for %d", object, handle2), "_debug")
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, object)
                     table.insert(handles, object)
 
                     if entityData.id then idMap[tostring(entityData.id)] = object end
@@ -2591,7 +2599,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                             log(string.format("Object %d ID#%d parented to self. Name: %s, Model: %s", object, entityData.id, entityData.name or "-none-", entityData.model))
                         end
                     else
-                        attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex)
+                        attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.collision)
                     end
                 end
             end
@@ -2608,7 +2616,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     for _, handle2 in ipairs(handles) do
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(ped, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, ped)
                     table.insert(handles, ped)
 
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
@@ -2624,7 +2631,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                             log(string.format("Ped %d ID#%d parented to self. Name: %s, Model: %s", ped, pedData.id, pedData.name or "-none-", pedData.model))
                         end
                     else
-                        attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex)
+                        attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.collision)
                     end
                 end
             end
@@ -2661,7 +2668,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             for _, handle2 in ipairs(handles) do
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
             end
-            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
             ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
             table.insert(handles, handle)
 
@@ -2678,7 +2684,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                 end
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
-                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
+                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex, vehData.collision)
             end
         end
     end
@@ -2689,16 +2695,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             for _, attachment in ipairs(attachments) do
                 for _, handle2 in ipairs(handles) do
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, handle2)
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, baseHandle)
                 end
             end
-            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
                 add_build_to_list(builder.entitiesMenuList, handle, entry, entry.name)
             else
-                attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex)
+                attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex, entry.collision)
             end
         end
     end
@@ -2752,18 +2756,19 @@ function get_entity_by_id(id)
     return nil
 end
 
-function attach_entity(parent, handle, pos, rot, index)
+function attach_entity(parent, handle, pos, rot, index, collision)
     if pos == nil or rot == nil then
         log("null pos or rot" .. debug.traceback(), "attach_entity")
         return
     end
+    if not collision then collision = true end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
             pos.x or 0, pos.y or 0, pos.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
-            false, false, true, false, 2, true
+            false, false, collision or true, false, 2, true
         )
     end
 
