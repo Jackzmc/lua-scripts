@@ -2658,10 +2658,10 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             for _, attachment in ipairs(attachments) do
                 for _, handle2 in ipairs(handles) do
                     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, handle2)
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, builder.base.handle)
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, baseHandle)
                 end
             end
-            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(builder.base.handle, handle)
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
