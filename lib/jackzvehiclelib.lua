@@ -320,7 +320,7 @@ function vehiclelib.MigrateVehicle(saveData)
     local version = _getVersion(saveData.Format)
     -- Version is outdated
     if version ~= latestVersion and compareSemvar(version, latestVersion) == -1 then
-        util.log("[JackzVehicleLib] Migrating vehicle save data from " .. version .. " to " .. latestVersion)
+        -- util.log("[JackzVehicleLib] Migrating vehicle save data from " .. version .. " to " .. latestVersion)
         if saveData.Extras then
             for x = 1, vehiclelib.MAX_EXTRAS do
                 local state = true
