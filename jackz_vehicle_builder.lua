@@ -13,6 +13,11 @@ require('templates/common')
 --#P:TEMPLATE("common")
 
 util.require_natives(1627063482)
+if SCRIPT_META_LIST then
+    menu.divider(SCRIPT_META_LIST, "-- Credits --")
+    menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixees")
+end
+
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
 if vehiclelib == true then
