@@ -1681,16 +1681,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     return menuHandle
 end
 --[ Previewer Stuff ]--
-
-function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
-    clear_build_preview()
-    preview.entity = entity
-    preview.id = id
-    preview.range = range or nil
-    preview.rangeZ = rangeZ or 0.3
-    preview.rendercb = renderfunc
-    preview.renderdata = renderdata
-    create_preview_handler_if_not_exists()
+function setup_entity_preview(entity)
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
     ENTITY.SET_ENTITY_INVINCIBLE(entity, true)
@@ -1700,7 +1691,17 @@ function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
         VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(entity)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
-    
+end
+function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
+    clear_build_preview()
+    preview.entity = entity
+    preview.id = id
+    preview.range = range or nil
+    preview.rangeZ = rangeZ or 0.3
+    preview.rendercb = renderfunc
+    preview.renderdata = renderdata
+    create_preview_handler_if_not_exists()
+    setup_entity_preview(entity)
 end
 -- Handle typically base vehicle
 function _recurse_remove_attachments(handle, table)
@@ -2336,6 +2337,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
     local handle
     if isPreview then
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
+        setup_entity_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         if vehicleData.visible == false then
@@ -2363,9 +2365,13 @@ function spawn_ped(data, isPreview, pos)
         util.yield()
     end
     if not pos then pos = { x = 0, y = 0, z = 0} end
-    local handle = isPreview
-        and PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
-        or entities.create_ped(0, data.model, pos, 0)
+    local handle
+    if isPreview then
+        handle = PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
+        setup_entity_preview(handle)
+    else
+        handle = entities.create_ped(0, data.model, pos, 0)
+    end
     if handle == 0 then
         util.toast("Ped failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
@@ -2407,9 +2413,13 @@ function spawn_object(data, isPreview, pos)
         util.yield()
     end
     if not pos then pos = { x = 0, y = 0, z = 0} end
-    local object = isPreview
-        and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
-        or entities.create_object(data.model, pos)
+    local object
+    if isPreview then
+        object = OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
+        setup_entity_preview(object)
+    else
+        entities.create_object(data.model, pos)
+    end
     if object == 0 then
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
