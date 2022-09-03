@@ -419,7 +419,7 @@ menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears a
     util.toast("Deleted " .. count .. " peds")
 end)
 
-function _clear_ents(list, range)
+function _clear_ents(list, range, dryRun)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -429,7 +429,9 @@ function _clear_ents(list, range)
         local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
         if dist <= range then
             util.draw_debug_text(string.format("deleted entity %d - %f m away", entity, dist))
-            entities.delete_by_handle(entity)
+            if not dryRun then
+                entities.delete_by_handle(entity)
+            end
             count = count + 1
         end
     end
