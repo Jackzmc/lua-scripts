@@ -78,7 +78,7 @@ if _lang ~= nil then
     menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
 end
-menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT or "Dev Build")
+menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
 
 function show_busyspinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
