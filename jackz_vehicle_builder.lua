@@ -2584,7 +2584,12 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if addToBuilder then
                         add_entity_to_list(builder.entitiesMenuList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
-                        table.insert(parentQueue, { handle = object, data = entityData })
+                        if entityData.parent ~= entityData.id then
+                            table.insert(parentQueue, { handle = object, data = entityData })
+                        else
+                            util.toast("Object parented to itself: #" .. entityData.id .. ". See logs for details")
+                            log(string.format("Object %d ID#%d parented to self. Name: %s, Model: %s", object, entityData.id, entityData.name or "-none-", entityData.model))
+                        end
                     else
                         attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex)
                     end
@@ -2612,7 +2617,12 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name or "unknown ped", pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
-                        table.insert(parentQueue, { handle = ped, data = pedData })
+                        if pedData.parent ~= pedData.id then
+                            table.insert(parentQueue, { handle = ped, data = pedData })
+                        else
+                            util.toast("Ped parented to itself: #" .. pedData.id .. ". See logs for details")
+                            log(string.format("Ped %d ID#%d parented to self. Name: %s, Model: %s", ped, pedData.id, pedData.name or "-none-", pedData.model))
+                        end
                     else
                         attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex)
                     end
@@ -2660,6 +2670,12 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             if addToBuilder then
                 add_entity_to_list(builder.entitiesMenuList, handle, vehData.name or "unknown vehicle", vehData)
             elseif vehData.parent then
+                if vehData.parent ~= vehData.id then
+                    table.insert(parentQueue, { handle = handle, data = vehData })
+                else
+                    util.toast("Vehicle parented to itself: #" .. vehData.id .. ". See logs for details")
+                    log(string.format("Vehicle %d ID#%d parented to self. Name: %s, Model: %s", handle, vehData.id, vehData.name or "-none-", vehData.model))
+                end
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
                 attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
