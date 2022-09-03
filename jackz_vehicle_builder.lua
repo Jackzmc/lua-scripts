@@ -896,7 +896,6 @@ function get_ground_z(x, y, z, tries, ignoreWater)
         end
         tries = tries - 1
     end
-    memory.free(pZ)
     return new_z
 end
 
@@ -1780,10 +1779,6 @@ function get_entity_lookat(distance, radius, flags, callback)
             endCoords = memory.read_vector3(p_endPos)
             surfaceNormal = memory.read_vector3(p_surfaceNormal)
         end
-        memory.free(p_bool)
-        memory.free(p_endPos)
-        memory.free(p_surfaceNormal)
-        memory.free(p_entityHit)
         callback(did_hit, entity, endCoords, surfaceNormal)
     end)
 end
@@ -2798,9 +2793,6 @@ util.on_stop(function()
     scriptEnding = true
     if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
-    end
-    for k in pairs(hud_coords) do
-        memory.free(hud_coords[k])
     end
     clear_build_preview()
 end)

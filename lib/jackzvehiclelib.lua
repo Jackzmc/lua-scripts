@@ -145,9 +145,7 @@ function vehiclelib.Serialize(vehicle)
     VEHICLE.GET_VEHICLE_COLOURS(vehicle, Color.r, Color.g)
     Vehicle["Primary"] = memory.read_int(Color.r)
     Vehicle["Secondary"] = memory.read_int(Color.g)
-    memory.free(Color.r)
-    memory.free(Color.g)
-    memory.free(Color.b)
+
     local Extras = {}
     for x = 1, vehiclelib.MAX_EXTRAS do
         if VEHICLE.DOES_EXTRA_EXIST(vehicle, x) then

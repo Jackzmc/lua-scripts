@@ -279,7 +279,6 @@ function spawn_tow_for_vehicle(vehicle)
     local heading = ENTITY.GET_ENTITY_HEADING(vehicle)
     MISC.GET_GROUND_Z_FOR_3D_COORD(pos.x, pos.y, pos.z, pz, true)
     pos.z = memory.read_float(pz)
-    memory.free(pz)
     local model = math.random(2) == 2 and TOW_TRUCK_MODEL_1 or TOW_TRUCK_MODEL_2
     load_hash(model)
     local tow = entities.create_vehicle(model, pos, heading)
@@ -460,7 +459,6 @@ function setup_player_menu(pid)
                     local dest = { x = 0, y = 0, z = -5.0}
                     if PATHFIND.GET_NTH_CLOSEST_VEHICLE_NODE(pos.x, pos.y, pos.z, 15, vec, 3, 3.0, 0) then
                     dest = memory.read_vector3(vec)
-                    memory.free(vec)
                         dest.z = -5.0
                     else
                         dest.x = -2156
@@ -1650,7 +1648,6 @@ menu.action(nearbyMenu, i18n.format("NEARBY_TOW_ALL_NAME"), {}, i18n.format("NEA
             end
         end
     end
-    memory.free(pz)
     table.sort(nearby_vehicles, function(a, b) return b[2] > a[2] end)
     for i = 1,30 do
         if nearby_vehicles[i] then
