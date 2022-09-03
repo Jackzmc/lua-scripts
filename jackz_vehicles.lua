@@ -18,11 +18,11 @@ function compare_version(a, b) return 0 end
 
 util.require_natives(1627063482)
 
-if metaList then
-    menu.divider(metaList, "-- Credits --")
-    menu.divider(metaList, "hiers - Translator")
-    menu.divider(metaList, "voyager - Translator")
-    menu.divider(metaList, "Icedoomfist - Translator")
+if SCRIPT_META_LIST then
+    menu.divider(SCRIPT_META_LIST, "-- Credits --")
+    menu.divider(SCRIPT_META_LIST, "hiers - Translator")
+    menu.divider(SCRIPT_META_LIST, "voyager - Translator")
+    menu.divider(SCRIPT_META_LIST, "Icedoomfist - Translator")
 end
 
 
