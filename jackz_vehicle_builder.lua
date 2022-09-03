@@ -2418,7 +2418,7 @@ function spawn_object(data, isPreview, pos)
         object = OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
         setup_entity_preview(object)
     else
-        entities.create_object(data.model, pos)
+        object = entities.create_object(data.model, pos)
     end
     if object == 0 then
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
