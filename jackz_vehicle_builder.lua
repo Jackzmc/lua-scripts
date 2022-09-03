@@ -918,28 +918,6 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
-        local spawnLocationList = menu.list(buildList, "Spawn Location", {}, "Specifies the location where the build will spawn")
-            local spawnX, spawnY, spawnZ
-            menu.toggle(spawnLocationList, "Spawn at specific coordinates", {}, "If checked, the build's base entity will spawn at this position. If not, it will spawn in front of you", function(value)
-                if value then
-                    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                    builder.spawnLocation = ENTITY.GET_ENTITY_COORDS(my_ped)
-                    menu.set_value(spawnX, 0)
-                    menu.set_value(spawnY, 0)
-                    menu.set_value(spawnZ, 0)
-                else
-                    builder.spawnLocation = nil
-                end
-            end)
-            spawnX = menu.slider_float(spawnLocationList, "X", {}, "", -100000, 100000, 0, 1, function(value)
-                builder.spawnLocation.x = value / 100
-            end)
-            spawnY = menu.slider_float(spawnLocationList, "Y", {}, "", -100000, 100000, 0, 1, function(value)
-                builder.spawnLocation.y = value / 100
-            end)
-            spawnZ = menu.slider_float(spawnLocationList, "Z", {}, "", -100000, 100000, 0, 1, function(value)
-                builder.spawnLocation.z = value / 100
-            end)
         menu.text_input(buildList, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
@@ -968,6 +946,51 @@ function setup_builder_menus(name)
             builder.author = input
             util.toast("Set the builds's author to: " .. input)
         end, builder.author or "")
+        local spawnLocationList = menu.list(buildList, "Spawn Location", {}, "Specifies the location where the build will spawn")
+            local spawnX, spawnY, spawnZ
+            menu.toggle(spawnLocationList, "Spawn at specific coordinates", {}, "If checked, the build's base entity will spawn at this position. If not, it will spawn in front of you", function(value)
+                if value then
+                    local spawnLocation = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+                    menu.set_value(spawnX, math.floor(spawnLocation.x * 100))
+                    menu.set_visible(spawnX, true)
+                    menu.set_value(spawnY, math.floor(spawnLocation.y * 100))
+                    menu.set_visible(spawnY, true)
+                    menu.set_value(spawnZ, math.floor(spawnLocation.z * 100))
+                    menu.set_visible(spawnZ, true)
+                    builder.spawnLocation = { x = spawnLocation.x, y = spawnLocation.y, z = spawnLocation.z }
+                else
+                    builder.spawnLocation = nil
+                    menu.set_value(spawnX, 0)
+                    menu.set_visible(spawnX, false)
+                    menu.set_value(spawnY, 0)
+                    menu.set_visible(spawnY, false)
+                    menu.set_value(spawnZ, 0)
+                    menu.set_visible(spawnZ, false)
+
+                end
+            end)
+            spawnX = menu.slider_float(spawnLocationList, "X", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.x = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnX, false)
+            spawnY = menu.slider_float(spawnLocationList, "Y", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.y = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnY, false)
+            spawnZ = menu.slider_float(spawnLocationList, "Z", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.z = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnZ, false)
+
         local deleteMenu
         deleteMenu = menu.action(buildList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
@@ -2263,7 +2286,7 @@ function builder_to_json(is_autosave)
         vehicles = vehicles,
         builds = builds,
         peds = peds,
-        spawnLocation = nil
+        spawnLocation = builder.spawnLocation
     }
 
     -- Only calculate save data for vehicle-based custom builds
