@@ -2563,7 +2563,6 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
-        log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
@@ -2600,7 +2599,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         ENTITY.SET_ENTITY_ALPHA(object, 0, false)
                     end
                     for _, handle2 in ipairs(handles) do
-                        log(string.format("%d: disable collision for %d", object, handle2), "_debug")
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
                     table.insert(handles, object)
