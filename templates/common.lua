@@ -101,7 +101,7 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your 
         logs:seek("end", -2048)
         local content = logs:read("*a")
         async_http.set_post("text/plain",
-            string.format("Script: %s\nSource: %s\nVersion: %s\nCommit: %s\n%s", SCRIPT_NAME, SCRIPT_SOURCE or "UNK", VERSION or "UNK", BRANCH_LAST_COMMIT or "DEV BUILD", content)
+            string.format("Script: %s\nSource: %s\nBranch: %s\nVersion: %s\nCommit: %s\n%s", SCRIPT_NAME, SCRIPT_SOURCE or "UNK", SCRIPT_BRANCH or "UNK", VERSION or "UNK", BRANCH_LAST_COMMIT or "DEV BUILD", content)
         )
         async_http.dispatch()
         logs:close()
