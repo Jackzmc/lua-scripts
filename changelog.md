@@ -190,3 +190,4 @@ V1.21.0
 * Fix non-base entities not being transparent
 * jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
 * Bug fixes and improvements hopefully
+* Updated natives to latest version`
