@@ -191,3 +191,7 @@ V1.21.0
 * jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
 * Bug fixes and improvements hopefully
 * Updated natives to latest version`
+
+V1.22.0
+
+* Allow reassigning any entity as the new base entity

@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.21.0"
+VERSION = "1.22.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.0"
 
@@ -918,7 +918,7 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
-        menu.text_input(buildList, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
+        menu.text_input(buildList, "Save", {"savebuild"}, "Enter a name to save the build as\nSupports relative paths such as foldername\\buildname\n\nSaved to %appdata%\\Stand\\Vehicles\\Custom", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
             if save_vehicle(name) then
@@ -1051,20 +1051,7 @@ function setup_builder_menus(name)
                 if vehicle == builder.base.handle then
                     util.toast("This vehicle is already the base vehicle.")
                 else
-                    if highlightedHandle == builder.base.handle then
-                        highlightedHandle = nil
-                    end
-                    log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
-                    builder.entities[vehicle] = builder.entities[builder.base.handle]
-                    builder.entities[builder.base.handle] = nil
-                    builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     set_builder_base(vehicle)
-                    for handle, data in pairs(builder.entities) do
-                        -- Ignore entity if parent is not builder, as it's parent should be re-attached
-                        if not data.parent then
-                            attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
-                        end
-                    end
                 end
             else
                 util.toast("You are not in a vehicle.")
@@ -1110,18 +1097,38 @@ function setup_builder_menus(name)
     builder.ent_spawner_active = true
 end
 
-function set_builder_base(handle)
+function set_builder_base(handle, preserveExisting)
+    builder.entities[handle] = builder.entities[builder.base.handle]
+    if not preserveExisting then
+        builder.entities[builder.base.handle] = nil
+        builder.entities[builder.base.handle].pos = { x = 0, y = 0, z = 0 }
+    end
+    builder.entities[handle].model = ENTITY.GET_ENTITY_MODEL(handle)
+    builder.entities[handle].type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        builder.entities[handle].type = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        builder.entities[handle].type = "PED"
+    end
+    builder.base.type = builder.entities[handle].type
+
     builder.base.handle = handle
+
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
     end
-    builder.base.type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        builder.base.type = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        builder.base.type = "PED"
-    end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Build")
+    if highlightedHandle == builder.base.handle then
+        highlightedHandle = nil
+    end
+
+    log("Reassigned base " .. builder.base.handle .. " -> " .. handle)
+    for subhandle, data in pairs(builder.entities) do
+        -- Ignore entity if parent is not builder, as it's parent should be re-attached
+        if not data.parent then
+            attach_entity(handle, subhandle, data.pos, data.rot, data.boneIndex)
+        end
+    end
 end
 
 function set_builder_name(name)
@@ -2049,31 +2056,37 @@ function create_entity_section(tableref, handle, options)
             clone_entity(handle, tableref.name, 3)
         end)
     end
-    local deleteMenu
-    deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
-        menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
-            if highlightedHandle == handle then
-                highlightedHandle = nil
-            end
-            if options.isBuild then
-                remove_all_attachments(handle)
-            end
-            for _, data in pairs(builder.entities) do
-                if data.parent == tableref.id then
-                    util.toast("Parent was removed for entity #" .. data.id)
-                    data.parent = nil
-                end
-            end
-            menu.delete(entityroot)
-            -- Fix deleting not working
-            if builder.entities[handle] then
-                builder.entities[handle] = nil
-            end
-            entities.delete_by_handle(handle)
+    if handle ~= builder.base.handle then
+        menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
+            set_builder_base(handle, true)
+            util.toast("Set entity as build's new base")
         end)
-        
-    end)
-    table.insert(tableref.listMenus, deleteMenu)
+        local deleteMenu
+        deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
+                if highlightedHandle == handle then
+                    highlightedHandle = nil
+                end
+                if options.isBuild then
+                    remove_all_attachments(handle)
+                end
+                for _, data in pairs(builder.entities) do
+                    if data.parent == tableref.id then
+                        util.toast("Parent was removed for entity #" .. data.id)
+                        data.parent = nil
+                    end
+                end
+                menu.delete(entityroot)
+                -- Fix deleting not working
+                if builder.entities[handle] then
+                    builder.entities[handle] = nil
+                end
+                entities.delete_by_handle(handle)
+            end)
+            
+        end)
+        table.insert(tableref.listMenus, deleteMenu)
+    end
 end
 
 local attachEntSubmenus = {}
