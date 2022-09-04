@@ -32,6 +32,7 @@ v3.9.0
 * (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
 * (3.9.6) Auto migrate older vehicles
 * (3.9.7) Fix meta error typo
+* (3.9.8) Vehiclelib: Fix error with new natives
 
 # actions (v1)
 
@@ -191,3 +192,4 @@ V1.21.0
 * jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
 * Bug fixes and improvements hopefully
 * Updated natives to latest version`
+* (1.21.1) Vehiclelib: Fix error with new natives
