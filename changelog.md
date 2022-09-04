@@ -179,3 +179,15 @@ V1.20.0
 * UI Improvements
 * Bug fixes
 * Fix non-vehicle bases not spawning
+
+V1.21.0
+
+* Allow to set a build's spawn location (Builder > Build > Spawn Location)
+* Add some checks to increase stability
+* Ensure nested builds entities don't collide with other build entities
+* Fix builds not spawning objects
+* Added option to turn off an entity's collision
+* Fix non-base entities not being transparent
+* jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
+* Bug fixes and improvements hopefully
+* Updated natives to latest version`

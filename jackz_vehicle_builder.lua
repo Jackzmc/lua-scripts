@@ -1,9 +1,9 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.20.0"
+VERSION = "1.21.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.2.0"
+local VEHICLELIB_TARGET_VERSION = "1.3.0"
 
 --#P:DEBUG_ONLY
 require('templates/common')
@@ -12,7 +12,12 @@ require('templates/common')
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
 
-util.require_natives(1627063482)
+util.require_natives(1660775568)
+if SCRIPT_META_LIST then
+    menu.divider(SCRIPT_META_LIST, "-- Credits --")
+    menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixees")
+end
+
 local json = require("json")
 local vehiclelib = require("jackzvehiclelib")
 if vehiclelib == true then
@@ -40,7 +45,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.4.0" -- For version diff warnings
+local BUILDER_VERSION = "1.5.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -101,7 +106,8 @@ function new_builder()
             }
         },
         ent_spawner_active = false,
-        blip_icon = 225 -- Saved as blipIcon
+        blip_icon = 225, -- Saved as blipIcon
+        spawnLocation = nil
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -419,7 +425,7 @@ menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears a
     util.toast("Deleted " .. count .. " peds")
 end)
 
-function _clear_ents(list, range)
+function _clear_ents(list, range, dryRun)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -429,7 +435,9 @@ function _clear_ents(list, range)
         local dist = SYSTEM.VDIST(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
         if dist <= range then
             util.draw_debug_text(string.format("deleted entity %d - %f m away", entity, dist))
-            entities.delete_by_handle(entity)
+            if not dryRun then
+                entities.delete_by_handle(entity)
+            end
             count = count + 1
         end
     end
@@ -713,7 +721,6 @@ function _format_vehicle_info(version, timestamp, author, rating)
         end
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
-        util.toast("Diff: " .. versionDiff)
         if versionDiff == 1 then
             versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
@@ -889,7 +896,6 @@ function get_ground_z(x, y, z, tries, ignoreWater)
         end
         tries = tries - 1
     end
-    memory.free(pZ)
     return new_z
 end
 
@@ -940,6 +946,51 @@ function setup_builder_menus(name)
             builder.author = input
             util.toast("Set the builds's author to: " .. input)
         end, builder.author or "")
+        local spawnLocationList = menu.list(buildList, "Spawn Location", {}, "Specifies the location where the build will spawn")
+            local spawnX, spawnY, spawnZ
+            menu.toggle(spawnLocationList, "Spawn at specific coordinates", {}, "If checked, the build's base entity will spawn at this position. If not, it will spawn in front of you", function(value)
+                if value then
+                    local spawnLocation = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+                    menu.set_value(spawnX, math.floor(spawnLocation.x * 100))
+                    menu.set_visible(spawnX, true)
+                    menu.set_value(spawnY, math.floor(spawnLocation.y * 100))
+                    menu.set_visible(spawnY, true)
+                    menu.set_value(spawnZ, math.floor(spawnLocation.z * 100))
+                    menu.set_visible(spawnZ, true)
+                    builder.spawnLocation = { x = spawnLocation.x, y = spawnLocation.y, z = spawnLocation.z }
+                else
+                    builder.spawnLocation = nil
+                    menu.set_value(spawnX, 0)
+                    menu.set_visible(spawnX, false)
+                    menu.set_value(spawnY, 0)
+                    menu.set_visible(spawnY, false)
+                    menu.set_value(spawnZ, 0)
+                    menu.set_visible(spawnZ, false)
+
+                end
+            end)
+            spawnX = menu.slider_float(spawnLocationList, "X", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.x = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnX, false)
+            spawnY = menu.slider_float(spawnLocationList, "Y", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.y = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnY, false)
+            spawnZ = menu.slider_float(spawnLocationList, "Z", {}, "", -1000000, 1000000, 0, 1, function(value)
+                if builder.spawnLocation then
+                    builder.spawnLocation.z = value / 100
+                    ENTITY.SET_ENTITY_COORDS(builder.base.handle, builder.spawnLocation.x, builder.spawnLocation.y, builder.spawnLocation.z)
+                end
+            end)
+            menu.set_visible(spawnZ, false)
+
         local deleteMenu
         deleteMenu = menu.action(buildList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
@@ -950,6 +1001,7 @@ function setup_builder_menus(name)
                 builder = nil
             end)
         end)
+
     menu.focus(buildList)
     editorActive = true
     
@@ -1491,18 +1543,23 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
             local hash = util.joaat(propName)
             preview.id = propName
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+            if STREAMING.IS_MODEL_VALID(hash) then
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= propName then return end
+                local entity = OBJECT.CREATE_OBJECT(hash, pos.x, pos.y, pos.z, false, false, 0);
+                if entity == 0 then
+                    log("Could not create preview for " .. propName .. "(" .. hash .. ")")
+                    return
+                end
+                set_preview(entity, propName)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. propName, "add_prop_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= propName then return end
-            local entity = OBJECT.CREATE_OBJECT(hash, pos.x, pos.y, pos.z, false, false, 0);
-            if entity == 0 then
-                log("Could not create preview for " .. propName .. "(" .. hash .. ")")
-                return
-            end
-            set_preview(entity, propName)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
@@ -1554,24 +1611,30 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
         if preview.id == nil or preview.id ~= pedName then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(pedName)
-            preview.id = pedName
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+            if STREAMING.IS_MODEL_VALID(hash) then
+                preview.id = pedName
+
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= pedName then return end
+                local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
+                ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
+                ENTITY.FREEZE_ENTITY_POSITION(entity)
+                PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+                TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
+                if entity == 0 then
+                    log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
+                    return
+                end
+                set_preview(entity, pedName)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. pedName, "add_ped_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= pedName then return end
-            local entity = PED.CREATE_PED(0, hash, 0, 0, 0, 0, false, false);
-            ENTITY.SET_ENTITY_COORDS(entity, pos.x, pos.y, pos.z)
-            ENTITY.FREEZE_ENTITY_POSITION(entity)
-            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
-            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
-            if entity == 0 then
-                log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
-                return
-            end
-            set_preview(entity, pedName)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
@@ -1617,34 +1680,30 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
         if preview.id == nil or preview.id ~= vehicleID then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local hash = util.joaat(vehicleID)
-            preview.id = vehicleID
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
+            if STREAMING.IS_MODEL_VALID(hash) then
+                preview.id = vehicleID
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(builder.base.handle, 0, 7.5, 1.0)
+                STREAMING.REQUEST_MODEL(hash)
+                while not STREAMING.HAS_MODEL_LOADED(hash) do
+                    util.yield()
+                end
+                if preview.id ~= vehicleID then return end
+                local entity = VEHICLE.CREATE_VEHICLE(hash, pos.x, pos.y, pos.z, 0, false, false)
+                if entity == 0 then
+                    return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
+                end
+                set_preview(entity, vehicleID)
+                STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+            else
+                log("invalid model for preview. " .. vehicleID, "add_vehicle_menu")
+                util.toast("Cannot spawn preview: Invalid model")
             end
-            if preview.id ~= vehicleID then return end
-            local entity = VEHICLE.CREATE_VEHICLE(hash, pos.x, pos.y, pos.z, 0, false, false)
-            if entity == 0 then
-                return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
-            end
-            set_preview(entity, vehicleID)
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
         end
     end)
     return menuHandle
 end
 --[ Previewer Stuff ]--
-
-function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
-    clear_build_preview()
-    preview.entity = entity
-    preview.id = id
-    preview.range = range or nil
-    preview.rangeZ = rangeZ or 0.3
-    preview.rendercb = renderfunc
-    preview.renderdata = renderdata
-    create_preview_handler_if_not_exists()
+function setup_entity_preview(entity)
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(entity, false, false)
     ENTITY.SET_ENTITY_INVINCIBLE(entity, true)
@@ -1654,7 +1713,17 @@ function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
         VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(entity)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
-    
+end
+function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
+    clear_build_preview()
+    preview.entity = entity
+    preview.id = id
+    preview.range = range or nil
+    preview.rangeZ = rangeZ or 0.3
+    preview.rendercb = renderfunc
+    preview.renderdata = renderdata
+    create_preview_handler_if_not_exists()
+    setup_entity_preview(entity)
 end
 -- Handle typically base vehicle
 function _recurse_remove_attachments(handle, table)
@@ -1733,10 +1802,6 @@ function get_entity_lookat(distance, radius, flags, callback)
             endCoords = memory.read_vector3(p_endPos)
             surfaceNormal = memory.read_vector3(p_surfaceNormal)
         end
-        memory.free(p_bool)
-        memory.free(p_endPos)
-        memory.free(p_surfaceNormal)
-        memory.free(p_entityHit)
         callback(did_hit, entity, endCoords, surfaceNormal)
     end)
 end
@@ -1892,16 +1957,15 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
-            -- ENTITY.SET_ENTITY_COORDS(handle, pos.x, pos.y, pos.z)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
 
@@ -1910,16 +1974,17 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
     end))
 
     --[ MISC ]--
@@ -1927,7 +1992,7 @@ function create_entity_section(tableref, handle, options)
     if handle ~= builder.base.handle then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
             tableref.boneIndex = index
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex)
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         if not options.isBuild then
             local attachEntList
@@ -1945,6 +2010,10 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
+    table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
+        tableref.collision = value
+        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+    end, tableref.visible))
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
@@ -2013,7 +2082,7 @@ function _load_attach_list(list, child)
     if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
-            attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+            attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
             util.toast("Entity's parent restored to base entity")
             menu.set_menu_name(list, "Attach to: Base")
             menu.focus(list)
@@ -2026,7 +2095,7 @@ function _load_attach_list(list, child)
             table.insert(attachEntSubmenus, menu.action(list, data.name or ("Unnamed " .. data.type), {}, string.format("Handle: %s\nType: %s", handle, data.type), function()
                 builder.entities[child].parent = builder.entities[handle].id
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, child)
-                attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex)
+                attach_entity(handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
                 util.toast("Entity's parent changed")
                 menu.set_menu_name(list, "Attach to: #" .. builder.entities[child].id)
                 menu.focus(list)
@@ -2149,6 +2218,7 @@ function _serialize_entity(handle, data)
         visible = data.visible,
         boneIndex = data.boneIndex,
         parent = data.parent,
+        collision = data.collision or true
     }
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         if data.godmode == nil then data.godmode = true end
@@ -2215,7 +2285,8 @@ function builder_to_json(is_autosave)
         objects = objects,
         vehicles = vehicles,
         builds = builds,
-        peds = peds
+        peds = peds,
+        spawnLocation = builder.spawnLocation
     }
 
     -- Only calculate save data for vehicle-based custom builds
@@ -2289,6 +2360,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
     local handle
     if isPreview then
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
+        setup_entity_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         if vehicleData.visible == false then
@@ -2306,14 +2378,23 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
 end
 
 function spawn_ped(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid ped model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn ped (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
     end
     if not pos then pos = { x = 0, y = 0, z = 0} end
-    local handle = isPreview
-        and PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
-        or entities.create_ped(0, data.model, pos, 0)
+    local handle
+    if isPreview then
+        handle = PED.CREATE_PED(0, data.model, pos.x, pos.y, pos.z, 0, false, false)
+        setup_entity_preview(handle)
+    else
+        handle = entities.create_ped(0, data.model, pos, 0)
+    end
     if handle == 0 then
         util.toast("Ped failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
@@ -2345,14 +2426,23 @@ function spawn_ped(data, isPreview, pos)
 end
 
 function spawn_object(data, isPreview, pos)
+    if not STREAMING.IS_MODEL_VALID(data.model) then
+        log(string.format("invalid object model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        util.toast(string.format("Failing to spawn object (%s) due to invalid model.", data.name or "<no name>"))
+        return
+    end
     STREAMING.REQUEST_MODEL(data.model)
     while not STREAMING.HAS_MODEL_LOADED(data.model) do
         util.yield()
     end
     if not pos then pos = { x = 0, y = 0, z = 0} end
-    local object = isPreview
-        and OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
-        or entities.create_object(data.model, pos)
+    local object
+    if isPreview then
+        object = OBJECT.CREATE_OBJECT(data.model, pos.x, pos.y, pos.z, false, false, 0)
+        setup_entity_preview(object)
+    else
+        object = entities.create_object(data.model, pos)
+    end
     if object == 0 then
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
@@ -2459,15 +2549,21 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         build.base.data.model = build.base.model
     end
 
-    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local wSize, hSize = _compute_build_size(build)
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    local pos
+    if build.spawnLocation then
+        pos = build.spawnLocation
+    else
+        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, wSize, 0)
+    end
 
     -- Pass save data to spawn_entity -> spawn_vehicle
     build.base.data.savedata = build.base.savedata
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
+        log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
@@ -2477,8 +2573,8 @@ function spawn_build(build, isPreview, previewFunc, previewData)
             ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
         end
         ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
-        add_attachments(baseHandle, build, false, isPreview)
-        return baseHandle
+        local attachments = add_attachments(baseHandle, build, false, isPreview)
+        return baseHandle, attachments
     else
         util.toast("Could not spawn build's base entity")
     end
@@ -2487,7 +2583,9 @@ end
 -- This code is awfully made and a bad copy paste... but oh well
 -- Also addToBuilder and isPreview shouldn't be both true
 function add_attachments(baseHandle, build, addToBuilder, isPreview)
-    local handles = {}
+    local handles = {
+        baseHandle
+    }
     local idMap = {} -- KV<id, handle>
     local parentQueue = {} -- Any entities who need to be parented
     if build.objects then
@@ -2502,9 +2600,9 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         ENTITY.SET_ENTITY_ALPHA(object, 0, false)
                     end
                     for _, handle2 in ipairs(handles) do
+                        log(string.format("%d: disable collision for %d", object, handle2), "_debug")
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, object)
                     table.insert(handles, object)
 
                     if entityData.id then idMap[tostring(entityData.id)] = object end
@@ -2512,9 +2610,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if addToBuilder then
                         add_entity_to_list(builder.entitiesMenuList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
-                        table.insert(parentQueue, { handle = object, data = entityData })
+                        if entityData.parent ~= entityData.id then
+                            table.insert(parentQueue, { handle = object, data = entityData })
+                        else
+                            util.toast("Object parented to itself: #" .. entityData.id .. ". See logs for details")
+                            log(string.format("Object %d ID#%d parented to self. Name: %s, Model: %s", object, entityData.id, entityData.name or "-none-", entityData.model))
+                        end
                     else
-                        attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex)
+                        attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.collision)
                     end
                 end
             end
@@ -2531,7 +2634,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     for _, handle2 in ipairs(handles) do
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(ped, handle2)
                     end
-                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, ped)
                     table.insert(handles, ped)
 
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
@@ -2540,9 +2642,14 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name or "unknown ped", pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
-                        table.insert(parentQueue, { handle = ped, data = pedData })
+                        if pedData.parent ~= pedData.id then
+                            table.insert(parentQueue, { handle = ped, data = pedData })
+                        else
+                            util.toast("Ped parented to itself: #" .. pedData.id .. ". See logs for details")
+                            log(string.format("Ped %d ID#%d parented to self. Name: %s, Model: %s", ped, pedData.id, pedData.name or "-none-", pedData.model))
+                        end
                     else
-                        attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex)
+                        attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.collision)
                     end
                 end
             end
@@ -2579,7 +2686,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             for _, handle2 in ipairs(handles) do
                 ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(handle, handle2)
             end
-            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(baseHandle, handle)
             ENTITY.SET_ENTITY_HAS_GRAVITY(handle, false)
             table.insert(handles, handle)
 
@@ -2588,22 +2694,33 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             if addToBuilder then
                 add_entity_to_list(builder.entitiesMenuList, handle, vehData.name or "unknown vehicle", vehData)
             elseif vehData.parent then
+                if vehData.parent ~= vehData.id then
+                    table.insert(parentQueue, { handle = handle, data = vehData })
+                else
+                    util.toast("Vehicle parented to itself: #" .. vehData.id .. ". See logs for details")
+                    log(string.format("Vehicle %d ID#%d parented to self. Name: %s, Model: %s", handle, vehData.id, vehData.name or "-none-", vehData.model))
+                end
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
-                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex)
+                attach_entity(baseHandle, handle, vehData.offset, vehData.rotation, vehData.boneIndex, vehData.collision)
             end
         end
     end
 
     if build.builds then
         for _, entry in ipairs(build.builds) do
-            local handle = spawn_build(entry.build, isPreview)
+            local handle, attachments = spawn_build(entry.build, isPreview)
+            for _, attachment in ipairs(attachments) do
+                for _, handle2 in ipairs(handles) do
+                    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment, handle2)
+                end
+            end
             if entry.id then idMap[tostring(entry.id)] = handle end
 
             if addToBuilder then
                 add_build_to_list(builder.entitiesMenuList, handle, entry, entry.name)
             else
-                attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex)
+                attach_entity(baseHandle, handle, entry.offset, entry.rotation, entry.boneIndex, entry.collision)
             end
         end
     end
@@ -2618,6 +2735,8 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
         end
     end
+
+    return handles
 end
 
 
@@ -2655,18 +2774,19 @@ function get_entity_by_id(id)
     return nil
 end
 
-function attach_entity(parent, handle, pos, rot, index)
+function attach_entity(parent, handle, pos, rot, index, collision)
     if pos == nil or rot == nil then
         log("null pos or rot" .. debug.traceback(), "attach_entity")
         return
     end
+    if not collision then collision = true end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
             pos.x or 0, pos.y or 0, pos.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
-            false, false, true, false, 2, true
+            false, false, collision or true, false, 2, true
         )
     end
 
@@ -2696,9 +2816,6 @@ util.on_stop(function()
     scriptEnding = true
     if builder and builder.blip and HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
-    end
-    for k in pairs(hud_coords) do
-        memory.free(hud_coords[k])
     end
     clear_build_preview()
 end)

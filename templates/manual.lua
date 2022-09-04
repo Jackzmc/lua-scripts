@@ -28,20 +28,52 @@ end
 check_for_update(SCRIPT_BRANCH)
 
 function download_lib_update(lib)
-    async_http.init("jackz.me", "/stand/get-lua.php?ucv=2&script=lib/" .. lib .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+    local lockPath = filesystem.scripts_dir() .. "/lib/" .. lib .. ".lock"
+    if filesystem.exists(lockPath) then
+        util.log(SCRIPT_NAME .. ": Skipping lib update \" .. lib .. \", found update lockfile")
+    end
+    local lock = io.open(lockPath, "w")
+    if lock == nil then
+        util.toast(SCRIPT_NAME .. ": Could not create lockfile, skipping update", TOAST_ALL)
+        return
+    end
+    lock:close()
+    async_http.init("jackz.me", "/stand/get-lua.php?script=lib/" .. lib .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+        os.remove(lockPath)
+        if result:startswith("<") then
+            util.toast("Lib returned invalid response for \"" .. lib .. "\"\nSee logs for details")
+            util.log(string.format("%s: Lib \"%s\" returned: %s", SCRIPT_NAME, lib, result))
+            return
+        end
         local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
+        if file == nil then
+            util.toast("Could not write lib file for: " .. lib .. "\nSee logs for details")
+            util.log(string.format("%s: Resource \"%s\" file could not be created.", SCRIPT_NAME, lib))
+            return
+        end
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
         util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
     end, function(e)
         util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
+        os.remove(lockPath)
         util.stop_script()
     end)
     async_http.dispatch()
 end
 function download_resources_update(filepath, destOverwritePath)
-    util.toast("/stand/resources/" .. filepath)
-    async_http.init("jackz.me", "/stand/get-lua.php?ucv=2&script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+    local lockPath = filesystem.scripts_dir() .. "/lib/" .. filepath .. ".lock"
+    if filesystem.exists(lockPath) then
+        util.log(SCRIPT_NAME .. ": Skipping resource update \" .. lib .. \", found update lockfile")
+    end
+    local lock = io.open(lockPath, "w")
+    if lock == nil then
+        util.toast(SCRIPT_NAME .. ": Could not create lockfile, skipping update", TOAST_ALL)
+        return
+    end
+    lock:close()
+    async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+        os.remove(lockPath)
         if result:startswith("<") then
             util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
             util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
@@ -57,6 +89,7 @@ function download_resources_update(filepath, destOverwritePath)
         file:close()
         util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
     end, function(e)
+        os.remove(lockPath)
         util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. filepath .. ")", 10)
         util.stop_script()
     end)

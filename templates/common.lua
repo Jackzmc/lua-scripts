@@ -22,40 +22,46 @@ end
 local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
 if not filesystem.exists(VERSION_FILE_PATH) then
     local versionFile = io.open(VERSION_FILE_PATH, "w")
-    versionFile:close()
+    if versionFile then
+        versionFile:close()
+    end
 end
 local versionFile = io.open(VERSION_FILE_PATH, "r+")
-local versions = {}
-for line in versionFile:lines("l") do
-    local script, version = line:match("(%g+): (%g+)")
-    if script then
-        versions[script] = version
+if versionFile then
+    local versions = {}
+    for line in versionFile:lines("l") do
+        local script, version = line:match("(%g+): (%g+)")
+        if script then
+            versions[script] = version
+        end
     end
+    if versions[SCRIPT_NAME] == nil or compare_version(VERSION, versions[SCRIPT_NAME]) == 1 then
+        if versions[SCRIPT_NAME] ~= nil then
+            async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. versions[SCRIPT_NAME] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+                util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
+            end, function() util.log(SCRIPT_NAME ..": Could not get changelog") end)
+            async_http.dispatch()
+        end
+        versions[SCRIPT_NAME] = VERSION
+        versionFile:seek("set", 0)
+        versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+        for script, version in pairs(versions) do
+            versionFile:write(script .. ": " .. version .. "\n")
+        end
+    end
+    versionFile:close()
+else
+    util.log(SCRIPT_NAME .. ": Failed to access to version file")
 end
-if versions[SCRIPT_NAME] == nil or compare_version(VERSION, versions[SCRIPT_NAME]) == 1 then
-    if versions[SCRIPT_NAME] ~= nil then
-        async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. versions[SCRIPT_NAME] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-            util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
-        end, function() util.log(SCRIPT_NAME ..": Could not get changelog") end)
-        async_http.dispatch()
-    end
-    versions[SCRIPT_NAME] = VERSION
-    versionFile:seek("set", 0)
-    versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-    for script, version in pairs(versions) do
-        versionFile:write(script .. ": " .. version .. "\n")
-    end
-end
-versionFile:close()
 -- END Version Check
 ------------------------------------------------------------------
-local metaList = menu.list(menu.my_root(), "Script Meta")
-menu.divider(metaList, SCRIPT_NAME .. " V" .. VERSION)
-menu.hyperlink(metaList, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT_NAME)
-menu.hyperlink(metaList, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
-menu.hyperlink(metaList, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
+SCRIPT_META_LIST = menu.list(menu.my_root(), "Script Meta")
+menu.divider(SCRIPT_META_LIST, SCRIPT_NAME .. " V" .. VERSION)
+menu.hyperlink(SCRIPT_META_LIST, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT_NAME)
+menu.hyperlink(SCRIPT_META_LIST, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
+menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 if SCRIPT_SOURCE == "MANUAL" then
-    menu.list_select(metaList, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
+    menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
         show_busyspinner("Downloading update...")
         download_script_update(SCRIPT_BRANCH_IDS[index], function()
             HUD.BUSYSPINNER_OFF()
@@ -66,13 +72,13 @@ if SCRIPT_SOURCE == "MANUAL" then
         end)
     end)
 else
-    menu.readonly(metaList, "Release Channel", "Use the manual version from https://jackz.me/stand/get-latest-zip to change the release channel.")
+    menu.readonly(SCRIPT_META_LIST, "Release Channel", "Use the manual version from https://jackz.me/stand/get-latest-zip to change the release channel.")
 end
 if _lang ~= nil then
-    menu.hyperlink(metaList, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
-    _lang.add_language_selector_to_menu(metaList)
+    menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
+    _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
 end
-menu.readonly(metaList, "Build Commit", BRANCH_LAST_COMMIT or "Dev Build")
+menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
 
 function show_busyspinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
