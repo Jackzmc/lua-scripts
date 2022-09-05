@@ -1008,6 +1008,11 @@ function setup_builder_menus(name)
                     util.remove_blip(builder.blip)
                 end
                 builder = nil
+                if mainMenu then
+                    menu.delete(mainMenu)
+                    mainMenu = nil
+                end
+                setup_pre_menu()
             end)
         end)
 
