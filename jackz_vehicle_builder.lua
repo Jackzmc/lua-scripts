@@ -125,7 +125,7 @@ end
 -- legacy setting i guess
 local spawnInVehicle = true
 local scriptSettings = {
-    debugMode = SCRIPT_SOURCE ~= nil,
+    debugMode = SCRIPT_SOURCE == nil,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -1037,7 +1037,7 @@ function setup_builder_menus(name)
             FREE_EDIT = value
         end, FREE_EDIT)
         menu.divider(builder.entitiesMenuList, "Entities")
-    
+    dlog("id: " .. builder.entitiesMenuList)
     local baseList = menu.list(mainMenu, "Base Entity", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1117,27 +1117,32 @@ function setup_builder_menus(name)
 end
 
 function set_builder_base(handle, preserveExisting)
-    builder.base.type = "OBJET"
+    builder.base.type = "OBJECT"
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         builder.base.type  = "VEHICLE"
     elseif ENTITY.IS_ENTITY_A_PED(handle) then
         builder.base.type  = "PED"
     end
 
-    if builder.entities[handle] then
-        builder.entities[handle] = builder.entities[builder.base.handle]
-        if builder.entities[builder.base.handle] then
-            if preserveExisting then
-                builder.entities[builder.base.handle].pos = { x = 0, y = 0, z = 0 }
-            else
-                builder.entities[builder.base.handle] = nil
-            end
-        end
-        builder.entities[handle].model = ENTITY.GET_ENTITY_MODEL(handle)
-        builder.entities[handle].type = builder.base.typee
+    local oldHandle = builder.base.handle
+    builder.base.handle = handle
+
+    if builder.entities[oldHandle] then
+        builder.entities[handle] = builder.entities[oldHandle]
+        builder.entities[oldHandle] = nil
+    else
+        builder.entities[builder.base.handle] = {
+            list = settingsList,
+            type = builder.base.type,
+            model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
+            listMenus = {},
+            pos = { x = 0.0, y = 0.0, z = 0.0 },
+            rot = { x = 0.0, y = 0.0, z = 0.0 },
+            visible = true,
+            godmode = true
+        }
     end
 
-    builder.base.handle = handle
 
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
@@ -2082,10 +2087,10 @@ function create_entity_section(tableref, handle, options)
         end)
     end
     if handle ~= builder.base.handle then
-        menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
-            set_builder_base(handle, true)
-            util.toast("Set entity as build's new base")
-        end)
+        -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
+        --     set_builder_base(handle, true)
+        --     util.toast("Set entity as build's new base")
+        -- end)
         local deleteMenu
         deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
