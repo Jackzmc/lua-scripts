@@ -1,9 +1,9 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.22.0"
+VERSION = "1.22.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
-local VEHICLELIB_TARGET_VERSION = "1.3.0"
+local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
 --#P:DEBUG_ONLY
 require('templates/common')
@@ -125,7 +125,7 @@ end
 -- legacy setting i guess
 local spawnInVehicle = true
 local scriptSettings = {
-    debugMode = false,
+    debugMode = SCRIPT_SOURCE ~= nil,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -568,8 +568,8 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
     async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
         HUD.BUSYSPINNER_OFF()
+        clear_build_preview()
         if body[1] == "{" then
-            clear_build_preview()
             local data = json.decode(body)
             if not data.vehicle then
                 log(body, "_fetch_vehicle_data")
@@ -822,7 +822,12 @@ function _render_cloud_build_overlay(pos, data)
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.042, "Uploaded by " .. data.uploader, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.065, data.vehicle.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.08, string.format("%d vehicles, %d objects, %d peds", data.vehicle.vehicles and #data.vehicle.vehicles or 0, data.vehicle.objects and #data.vehicle.objects or 0, data.vehicle.peds and #data.vehicle.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%d star rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    if data.rating == "0.0" then
+        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, "No ratings", ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    else
+        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%.1f/5.0 rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    end
+
 end
 function _load_saved_list()
     clear_build_preview()
@@ -2345,15 +2350,18 @@ end
 
 
 function spawn_entity(data, type, isPreview, pos, heading)
+    local handle
     if type == "VEHICLE" then
-        return spawn_vehicle(data, isPreview, pos, heading)
+        handle = spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
-        return spawn_ped(data, isPreview, pos)
+        handle = spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
-        return spawn_object(data, isPreview, pos)
+        handle = spawn_object(data, isPreview, pos)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
     end
+    dlog(string.format("spawned %s handle %d model %s", type, handle, data.model))
+    return handle
 end
 
 function spawn_vehicle(vehicleData, isPreview, pos, heading)
@@ -2617,7 +2625,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                         ENTITY.SET_ENTITY_ALPHA(object, 0, false)
                     end
                     for _, handle2 in ipairs(handles) do
-                        log(string.format("%d: disable collision for %d", object, handle2), "_debug")
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
                     table.insert(handles, object)
