@@ -893,6 +893,7 @@ function setup_pre_menu()
         }, false, pos)
         builder = new_builder()
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
+        ENTITY.FREEZE_ENTITY_POSITION(base, true)
         set_builder_base(base)
         setup_builder_menus()
     end))
@@ -2047,10 +2048,12 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
-    table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
-        tableref.collision = value
-        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
-    end, tableref.visible))
+    if handle ~= builder.base.handle then
+        table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
+            tableref.collision = value
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+        end, tableref.visible))
+    end
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
