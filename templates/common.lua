@@ -55,6 +55,12 @@ else
 end
 -- END Version Check
 ------------------------------------------------------------------
+function show_busyspinner(text)
+    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
+    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
+    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
+end
+
 SCRIPT_META_LIST = menu.list(menu.my_root(), "Script Meta")
 menu.divider(SCRIPT_META_LIST, SCRIPT_NAME .. " V" .. VERSION)
 menu.hyperlink(SCRIPT_META_LIST, "View full changelog", "https://jackz.me/stand/changelog?html=1&script=" .. SCRIPT_NAME)
@@ -79,9 +85,29 @@ if _lang ~= nil then
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
 end
 menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
+menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.", function()
+    local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
+    if logs then
+        show_busyspinner("Uploading logs....")
+        async_http.init("hastebin.com", "/documents", function(body)
+            HUD.BUSYSPINNER_OFF()
+            local url = "https://hastebin.com/" .. body:sub(9, -3)
+            util.toast("Uploaded: " .. url)
+            menu.hyperlink(SCRIPT_META_LIST, "Open Uploaded Log", url)
+        end, function()
+            util.toast("Failed to submit logs, network error")
+            HUD.BUSYSPINNER_OFF() 
+        end)
+        logs:seek("end", -2048)
+        local content = logs:read("*a")
+        async_http.set_post("text/plain",
+            string.format("Script: %s\nSource: %s\nBranch: %s\nVersion: %s\nCommit: %s\n%s", SCRIPT_NAME, SCRIPT_SOURCE or "UNK", SCRIPT_BRANCH or "UNK", VERSION or "UNK", BRANCH_LAST_COMMIT or "DEV BUILD", content)
+        )
+        async_http.dispatch()
+        logs:close()
+    else
+        util.toast("Could not read your stand log file")
+    end
+end)
 
-function show_busyspinner(text)
-    HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
-end
+

@@ -32,7 +32,7 @@ v3.9.0
 * (3.9.5) Fix vehicle colors being wrong, save wheel types, fix livery spawning
 * (3.9.6) Auto migrate older vehicles
 * (3.9.7) Fix meta error typo
-* (3.9.8) Vehiclelib: Fix error with new natives
+* (3.9.8) jackzvehiclelib: Fix bug with license plates
 
 # actions (v1)
 
@@ -106,26 +106,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-V1.15.0
-
-* Added cloud vehicles
-* (1.15.1) Fix double extension bug
-* (1.15.2) Fix preview issue
-* (1.15.2) Add rating system
-* (1.15.3) Fix broken uploading (double encoded json)
-* (1.15.3) Fix name being incorrect (lua sucks)
-
-V1.16.0
-
-* Made custom vehicle previews further back
-* Hopefully actually fix preview issues... for realsies
-* Remove previews when exiting cloud preview
-* Add settings option (allow to disable autosave)
-* Add utilities list (clear peds/vehs/objs)
-* (1.16.1) Catch server upload errors
-* (1.16.2) Catch invalid models
-* (1.16.3) Fix false error on successful upload
-
 V1.17.0
 
 * Allowed changing to a dev release channel
@@ -192,4 +172,7 @@ V1.21.0
 * jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
 * Bug fixes and improvements hopefully
 * Updated natives to latest version`
-* (1.21.1) Vehiclelib: Fix error with new natives
+* (1.21.1) Add Script Meta > Upload logs for support purposes
+* (1.21.1) Add Settings > Debug Mode for support purposes
+* (1.21.1) jackzvehiclelib: Fix bug with license plates
+* (1.21.1) Fix cloud overlays erroring

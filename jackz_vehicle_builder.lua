@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.21.1"
+VERSION = "1.21.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -125,6 +125,7 @@ end
 -- legacy setting i guess
 local spawnInVehicle = true
 local scriptSettings = {
+    debugMode = SCRIPT_SOURCE == nil,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -448,6 +449,9 @@ end
 ]]--
 
 local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change settings of script")
+menu.toggle(settingsList, "Debug Mode", {"jvbdebug"}, "Enables debugs log to help with issues", function(value)
+    scriptSettings.debugMode = value
+end, scriptSettings.debugMode)
 menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
     scriptSettings.autosaveEnabled = value
 end, scriptSettings.autosaveEnabled)
@@ -564,8 +568,8 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
     async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
         HUD.BUSYSPINNER_OFF()
+        clear_build_preview()
         if body[1] == "{" then
-            clear_build_preview()
             local data = json.decode(body)
             if not data.vehicle then
                 log(body, "_fetch_vehicle_data")
@@ -579,8 +583,13 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
             data.uploader = user
             spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
+            local isRatelimited = body:find("503 Service Temporarily Unavailable")
+            if isRatelimited then
+                util.toast("Rate limited, please wait")
+            else
+                log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+            end
         end
     end)
     async_http.dispatch()
@@ -818,7 +827,12 @@ function _render_cloud_build_overlay(pos, data)
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.042, "Uploaded by " .. data.uploader, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.065, data.vehicle.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.08, string.format("%d vehicles, %d objects, %d peds", data.vehicle.vehicles and #data.vehicle.vehicles or 0, data.vehicle.objects and #data.vehicle.objects or 0, data.vehicle.peds and #data.vehicle.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%d star rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    if data.rating == "0.0" then
+        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, "No ratings", ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    else
+        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, string.format("%.1f/5.0 rating", data.rating), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    end
+
 end
 function _load_saved_list()
     clear_build_preview()
@@ -879,6 +893,7 @@ function setup_pre_menu()
         }, false, pos)
         builder = new_builder()
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
+        ENTITY.FREEZE_ENTITY_POSITION(base, true)
         set_builder_base(base)
         setup_builder_menus()
     end))
@@ -918,7 +933,7 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
-        menu.text_input(buildList, "Save", {"savebuild"}, "Enter the name to save the build as\nSupports relative paths such as foldername\\buildname", function(name)
+        menu.text_input(buildList, "Save", {"savebuild"}, "Enter a name to save the build as\nSupports relative paths such as foldername\\buildname\n\nSaved to %appdata%\\Stand\\Vehicles\\Custom", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
             if save_vehicle(name) then
@@ -993,12 +1008,17 @@ function setup_builder_menus(name)
 
         local deleteMenu
         deleteMenu = menu.action(buildList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
-            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     util.remove_blip(builder.blip)
                 end
                 builder = nil
+                if mainMenu then
+                    menu.delete(mainMenu)
+                    mainMenu = nil
+                end
+                setup_pre_menu()
             end)
         end)
 
@@ -1018,7 +1038,7 @@ function setup_builder_menus(name)
             FREE_EDIT = value
         end, FREE_EDIT)
         menu.divider(builder.entitiesMenuList, "Entities")
-    
+    dlog("id: " .. builder.entitiesMenuList)
     local baseList = menu.list(mainMenu, "Base Entity", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1051,20 +1071,7 @@ function setup_builder_menus(name)
                 if vehicle == builder.base.handle then
                     util.toast("This vehicle is already the base vehicle.")
                 else
-                    if highlightedHandle == builder.base.handle then
-                        highlightedHandle = nil
-                    end
-                    log("Reassigned base " .. builder.base.handle .. " -> " .. vehicle)
-                    builder.entities[vehicle] = builder.entities[builder.base.handle]
-                    builder.entities[builder.base.handle] = nil
-                    builder.entities[vehicle].model = ENTITY.GET_ENTITY_MODEL(vehicle)
                     set_builder_base(vehicle)
-                    for handle, data in pairs(builder.entities) do
-                        -- Ignore entity if parent is not builder, as it's parent should be re-attached
-                        if not data.parent then
-                            attach_entity(vehicle, handle, data.pos, data.rot, data.boneIndex)
-                        end
-                    end
                 end
             else
                 util.toast("You are not in a vehicle.")
@@ -1110,18 +1117,49 @@ function setup_builder_menus(name)
     builder.ent_spawner_active = true
 end
 
-function set_builder_base(handle)
+function set_builder_base(handle, preserveExisting)
+    builder.base.type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        builder.base.type  = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        builder.base.type  = "PED"
+    end
+
+    local oldHandle = builder.base.handle
     builder.base.handle = handle
+
+    if builder.entities[oldHandle] then
+        builder.entities[handle] = builder.entities[oldHandle]
+        builder.entities[oldHandle] = nil
+    else
+        builder.entities[builder.base.handle] = {
+            list = settingsList,
+            type = builder.base.type,
+            model = ENTITY.GET_ENTITY_MODEL(builder.base.handle),
+            listMenus = {},
+            pos = { x = 0.0, y = 0.0, z = 0.0 },
+            rot = { x = 0.0, y = 0.0, z = 0.0 },
+            visible = true,
+            godmode = true
+        }
+    end
+
+
     if HUD.DOES_BLIP_EXIST(builder.blip) then
         util.remove_blip(builder.blip)
     end
-    builder.base.type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        builder.base.type = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        builder.base.type = "PED"
-    end
     builder.blip = create_blip_for_entity(handle, builder.blip_icon, builder.name or "Custom Build")
+    if highlightedHandle == builder.base.handle then
+        highlightedHandle = nil
+    end
+
+    log("Reassigned base " .. builder.base.handle .. " -> " .. handle)
+    for subhandle, data in pairs(builder.entities) do
+        -- Ignore entity if parent is not builder, as it's parent should be re-attached
+        if not data.parent then
+            attach_entity(handle, subhandle, data.pos, data.rot, data.boneIndex)
+        end
+    end
 end
 
 function set_builder_name(name)
@@ -2010,10 +2048,12 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
-    table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
-        tableref.collision = value
-        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
-    end, tableref.visible))
+    if handle ~= builder.base.handle then
+        table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
+            tableref.collision = value
+            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+        end, tableref.visible))
+    end
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
@@ -2049,31 +2089,37 @@ function create_entity_section(tableref, handle, options)
             clone_entity(handle, tableref.name, 3)
         end)
     end
-    local deleteMenu
-    deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
-        menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
-            if highlightedHandle == handle then
-                highlightedHandle = nil
-            end
-            if options.isBuild then
-                remove_all_attachments(handle)
-            end
-            for _, data in pairs(builder.entities) do
-                if data.parent == tableref.id then
-                    util.toast("Parent was removed for entity #" .. data.id)
-                    data.parent = nil
+    if handle ~= builder.base.handle then
+        -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
+        --     set_builder_base(handle, true)
+        --     util.toast("Set entity as build's new base")
+        -- end)
+        local deleteMenu
+        deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
+                if highlightedHandle == handle then
+                    highlightedHandle = nil
                 end
-            end
-            menu.delete(entityroot)
-            -- Fix deleting not working
-            if builder.entities[handle] then
-                builder.entities[handle] = nil
-            end
-            entities.delete_by_handle(handle)
+                if options.isBuild then
+                    remove_all_attachments(handle)
+                end
+                for _, data in pairs(builder.entities) do
+                    if data.parent == tableref.id then
+                        util.toast("Parent was removed for entity #" .. data.id)
+                        data.parent = nil
+                    end
+                end
+                menu.delete(entityroot)
+                -- Fix deleting not working
+                if builder.entities[handle] then
+                    builder.entities[handle] = nil
+                end
+                entities.delete_by_handle(handle)
+            end)
+            
         end)
-        
-    end)
-    table.insert(tableref.listMenus, deleteMenu)
+        table.insert(tableref.listMenus, deleteMenu)
+    end
 end
 
 local attachEntSubmenus = {}
@@ -2328,15 +2374,18 @@ end
 
 
 function spawn_entity(data, type, isPreview, pos, heading)
+    local handle
     if type == "VEHICLE" then
-        return spawn_vehicle(data, isPreview, pos, heading)
+        handle = spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
-        return spawn_ped(data, isPreview, pos)
+        handle = spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
-        return spawn_object(data, isPreview, pos)
+        handle = spawn_object(data, isPreview, pos)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
     end
+    dlog(string.format("spawned %s handle %d model %s", type, handle, data.model))
+    return handle
 end
 
 function spawn_vehicle(vehicleData, isPreview, pos, heading)
@@ -2563,6 +2612,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
+        log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
@@ -2744,6 +2794,15 @@ function log(str, mod)
         util.log("jackz_vehicle_builder[" .. (SCRIPT_SOURCE or "DEV") .. "]/" .. mod .. ": " .. str)
     else
         util.log("jackz_vehicle_builder[" .. (SCRIPT_SOURCE or "DEV") .. "]: " .. str)
+    end
+end
+function dlog(str, mod)
+    if scriptSettings.debugMode then
+        if mod then
+            util.log("[debug] jackz_vehicle_builder:" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+        else
+            util.log("[debug] jackz_vehicle_builder/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+        end
     end
 end
 
