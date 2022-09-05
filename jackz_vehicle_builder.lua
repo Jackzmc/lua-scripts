@@ -1002,7 +1002,7 @@ function setup_builder_menus(name)
 
         local deleteMenu
         deleteMenu = menu.action(buildList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
-            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data  and entities will be wiped.", function()
+            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
                 remove_all_attachments(builder.base.handle)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     util.remove_blip(builder.blip)
@@ -1107,19 +1107,25 @@ function setup_builder_menus(name)
 end
 
 function set_builder_base(handle, preserveExisting)
-    builder.entities[handle] = builder.entities[builder.base.handle]
-    if not preserveExisting then
-        builder.entities[builder.base.handle] = nil
-        builder.entities[builder.base.handle].pos = { x = 0, y = 0, z = 0 }
-    end
-    builder.entities[handle].model = ENTITY.GET_ENTITY_MODEL(handle)
-    builder.entities[handle].type = "OBJECT"
+    builder.base.type = "OBJET"
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        builder.entities[handle].type = "VEHICLE"
+        builder.base.type  = "VEHICLE"
     elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        builder.entities[handle].type = "PED"
+        builder.base.type  = "PED"
     end
-    builder.base.type = builder.entities[handle].type
+
+    if builder.entities[handle] then
+        builder.entities[handle] = builder.entities[builder.base.handle]
+        if builder.entities[builder.base.handle] then
+            if preserveExisting then
+                builder.entities[builder.base.handle].pos = { x = 0, y = 0, z = 0 }
+            else
+                builder.entities[builder.base.handle] = nil
+            end
+        end
+        builder.entities[handle].model = ENTITY.GET_ENTITY_MODEL(handle)
+        builder.entities[handle].type = builder.base.typee
+    end
 
     builder.base.handle = handle
 
