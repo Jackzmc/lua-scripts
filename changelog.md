@@ -175,7 +175,6 @@ V1.21.0
 
 V1.22.0
 
-* Allow reassigning any entity as the new base entity
 * Add Script Meta > Upload logs for support purposes
 * Add Settings > Debug Mode for support purposes
 * jackzvehiclelib: Fix bug with license plates
