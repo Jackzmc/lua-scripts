@@ -172,10 +172,7 @@ V1.21.0
 * jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
 * Bug fixes and improvements hopefully
 * Updated natives to latest version`
-
-V1.22.0
-
-* Add Script Meta > Upload logs for support purposes
-* Add Settings > Debug Mode for support purposes
-* jackzvehiclelib: Fix bug with license plates
-* Fix cloud overlays erroring
+* (1.21.1) Add Script Meta > Upload logs for support purposes
+* (1.21.1) Add Settings > Debug Mode for support purposes
+* (1.21.1) jackzvehiclelib: Fix bug with license plates
+* (1.21.1) Fix cloud overlays erroring
