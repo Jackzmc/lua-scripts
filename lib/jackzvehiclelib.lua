@@ -191,7 +191,7 @@ function vehiclelib.Serialize(vehicle)
             EmergencyLightsActive = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle),
             SearchLightActive = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle)
         },
-        RadioLoud = AUDIO._IS_VEHICLE_RADIO_LOUD(vehicle),
+        RadioLoud = AUDIO.CAN_VEHICLE_RECEIVE_CB_RADIO(vehicle),
         ["Engine Running"] = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle),
         ["Dashboard Color"] = DashboardColor,
         ["Interior Color"] = InteriorColor,
