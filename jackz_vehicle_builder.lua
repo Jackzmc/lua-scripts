@@ -583,8 +583,13 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
             data.uploader = user
             spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned an invalid response. Possibly ratelimited or server under maintenance")
+            local isRatelimited = body:find("503 Service Temporarily Unavailable")
+            if isRatelimited then
+                util.toast("Rate limited, please wait")
+            else
+                log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+            end
         end
     end)
     async_http.dispatch()
