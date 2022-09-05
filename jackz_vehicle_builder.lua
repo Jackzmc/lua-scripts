@@ -27,7 +27,7 @@ end
 
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
-        log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
+        util.log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
         util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
