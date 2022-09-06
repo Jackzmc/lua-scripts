@@ -16,7 +16,7 @@ function compare_version(a, b) return 0 end
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
 
-util.require_natives(1627063482)
+util.require_natives(1660775568)
 
 if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "-- Credits --")
