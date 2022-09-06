@@ -33,6 +33,7 @@ v3.9.0
 * (3.9.6) Auto migrate older vehicles
 * (3.9.7) Fix meta error typo
 * (3.9.8) jackzvehiclelib: Fix bug with license plates
+* (3.9.9) Update natives
 
 # actions (v1)
 
