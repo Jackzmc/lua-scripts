@@ -38,9 +38,9 @@ function download_lib_update(lib)
         return
     end
     lock:close()
-    async_http.init("jackz.me", "/stand/get-lua.php?script=lib/" .. lib .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+    async_http.init("jackz.me", "/stand/get-lua.php?script=lib/" .. lib .. "&source=" .. SCRIPT_SOURCE .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
         os.remove(lockPath)
-        if result:startswith("<") then
+        if result:startswith("<") or result == "" then
             util.toast("Lib returned invalid response for \"" .. lib .. "\"\nSee logs for details")
             util.log(string.format("%s: Lib \"%s\" returned: %s", SCRIPT_NAME, lib, result))
             return
@@ -72,7 +72,7 @@ function download_resources_update(filepath, destOverwritePath)
         return
     end
     lock:close()
-    async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+    async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&source=" .. SCRIPT_SOURCE .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
         os.remove(lockPath)
         if result:startswith("<") then
             util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
