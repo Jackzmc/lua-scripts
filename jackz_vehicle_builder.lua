@@ -18,7 +18,17 @@ if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixees")
 end
 
-local json = require("json")
+local status, json = pcall(require, "json")
+if not status then
+    if SCRIPT_SOURCE == "REPO" then
+        util.toast(SCRIPT_NAME .. " Missing dependency 'json'. Please install this from the repo > dependencies list")
+        util.stop_script()
+    else
+        util.toast(SCRIPT_NAME .. ": Installing missing dependency: json")
+        download_lib_update("json")
+        json = require("json")
+    end
+end
 local vehiclelib = require("jackzvehiclelib")
 if vehiclelib == true then
     util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
