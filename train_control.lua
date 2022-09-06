@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-local VERSION = "1.1.6"
+VERSION = "1.1.6"
 
 --#P:DEBUG_ONLY
 -- Still needed for local dev
