@@ -132,13 +132,13 @@ function try_require(name, isOptional)
                 Log.severe("Missing required dependency:", name)
             end
         else
-            download_lib_update(name, function()
+            local lockPath = download_lib_update(name, function()
                 Log.log("Downloaded ", isOptional and "optional" or "required", "library:", name)
-                if not isOptional then
-                    util.toast("Please restart script to load missing dependency.")
-                    util.stop_script()
-                end
             end)
+            while filesystem.exists(lockPath) do
+                util.yield(500)
+            end
+            return require(name)
         end
         return nil
     end

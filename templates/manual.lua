@@ -74,6 +74,7 @@ function download_lib_update(lib, on_success, on_error)
         util.stop_script()
     end)
     async_http.dispatch()
+    return lockPath
 end
 function download_resources_update(filepath, destOverwritePath)
     local lockPath = filesystem.scripts_dir() .. "/lib/" .. filepath .. ".lock"
