@@ -1967,8 +1967,8 @@ function clone_entity(handle, name, mirror_axis)
     local pos
     if mirror_axis then
         if not builder.entities[handle] then
-            log("clone_entity with mirror_axis set on non-builder entity", "clone_entity")
-            return false
+            log("clone_entity with mirror_axis set on non-builder entity")
+            return nil
         end
         pos = {
             x = builder.entities[handle].pos.x,
@@ -2005,7 +2005,7 @@ function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
     local entityroot = tableref.list
     if not ENTITY.DOES_ENTITY_EXIST(handle) then
-        log("Entity (" .. handle .. ") vanished, deleting", "create_entity_section")
+        log(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
         end
@@ -2191,20 +2191,21 @@ function save_vehicle(saveName, folder, is_autosave)
         folder = SAVE_DIRECTORY
     end
     filesystem.mkdirs(folder)
-    local file = io.open(folder .. "/" .. saveName .. ".json", "w")
-    if file then
-        local data = builder_to_json(is_autosave)
-        if data then
+    local data = builder_to_json(is_autosave)
+    if data then
+        local file = io.open(folder .. "/" .. saveName .. ".json", "w")
+        if file then
             file:write(data)
             file:close()
             return true
         else
-            file:close()
-            return false
+            return error("Could not create file ' " .. saveName .. ".json'")
         end
     else
-        error("Could not create file ' " .. saveName .. ".json'")
+        log("Ignoring call to save, no data")
+        return nil
     end
+
 end
 function upload_build(name, data)
     show_busyspinner("Uploading build...")
