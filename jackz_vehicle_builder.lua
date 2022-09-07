@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.21.2"
+VERSION = "1.21.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -2999,16 +2999,21 @@ while true do
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-                local is_base = builder.base.handle == highlightedHandle
+                local isBase = builder.base.handle == highlightedHandle
+                local isBuild = entData.build
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
-                if is_base then
+                if isBase then
                     local vehicleCount, objectCount, pedCount = compute_builder_stats()
                     local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                elseif isBuild then
+                    local authorText = entData.build.author and ("Created by " .. entData.build.author) or "Unknown creator"
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, entData.build.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                 else
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})

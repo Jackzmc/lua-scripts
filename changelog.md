@@ -177,3 +177,4 @@ V1.21.0
 * (1.21.2) Add Settings > Debug Mode for support purposes
 * (1.21.2) jackzvehiclelib: Fix bug with license plates
 * (1.21.2) Fix cloud overlays erroring
+* (1.21.3) Fix overlay on builds erroring
