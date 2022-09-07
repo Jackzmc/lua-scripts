@@ -43,7 +43,11 @@ function pairsByKeys(t, f)
     end
     return iter
  end
-require('resources/jackz_actions/actions_data')
+local status = pcall(require, 'resources/jackz_actions/actions_data')
+if not status then
+    util.toast("Failed to load resource file: jackz_actions/actions_data.lua")
+    util.stop_script()
+end
 if ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
         download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
