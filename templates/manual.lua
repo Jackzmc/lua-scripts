@@ -1,8 +1,8 @@
 -- Check for updates & auto-update:
 function check_for_update(branch)
-    async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION  .. "&branch=" .. (branch or "master") .. "&commit=" .. (BRANCH_LAST_COMMIT or ""), function(result)
+    async_http.init("jackz.me", "/stand/updatecheck.php?ucv=2&script=" .. SCRIPT .. "&v=" .. VERSION  .. "&branch=" .. (branch or "master") .. "&commit=" .. (BRANCH_LAST_COMMIT or ""), function(body, res_headaers, status)
         local chunks = {}
-        for substring in string.gmatch(result, "%S+") do
+        for substring in string.gmatch(body, "%S+") do
             table.insert(chunks, substring)
         end
         if chunks[1] == "OUTDATED" then
@@ -17,11 +17,16 @@ function check_for_update(branch)
     async_http.dispatch()
 end
 function download_script_update(branch, on_success, on_err)
-    async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. (branch or "master"), function(result)
-        local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
-        file:write(result:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-        file:close()
-        if on_success then on_success() end
+    async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. (branch or "master"), function(body, res_headers, status_code)
+        if status_code == 200 then
+            local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
+            file:write(body:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+            file:close()
+            if on_success then on_success() end
+        else
+            log("script update failed due to server error: " .. status_code .. "\n" .. body)
+            if on_err then on_err(status_code, body) end
+        end
     end, on_err)
     async_http.dispatch()
 end
