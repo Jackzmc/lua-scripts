@@ -118,11 +118,28 @@ function log(str, mod)
     end
 end
 SCRIPT_DEBUG = SCRIPT_SOURCE == nil
-function dlog(str, mod)
-    if SCRIPT_DEBUG then
-        if not mod then
-            mod = debug.getinfo(2).name or "anon_func"
+
+function try_require(name, isOptional)
+    local status, data = pcall(require, name)
+    if status then
+        return data
+    else
+        if SCRIPT_SOURCE == "REPO" then
+            if isOptional then
+                Log.debug("Missing optional dependency: " .. name)
+            else
+                util.toast("Missing a required depencency (\"" .. name .. "\"). Please report this issue.")
+                Log.severe("Missing required dependency:", name)
+            end
+        else
+            download_lib_update(name, function()
+                Log.log("Downloaded ", isOptional and "optional" or "required", "library:", name)
+                if not isOptional then
+                    util.toast("Please restart script to load missing dependency.")
+                    util.stop_script()
+                end
+            end)
         end
-        util.log("[debug] " .. SCRIPT_NAME .. ":" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+        return nil
     end
 end
