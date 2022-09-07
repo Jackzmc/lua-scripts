@@ -683,17 +683,22 @@ function rate_build(user, vehicleName, rating)
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
-    function(body)
-        if body:sub(1, 1) == "{" then
-            local data = json.decode(body)
-            if data.success then
-                util.toast("Rating submitted")
+    function(body, res_header, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local data = json.decode(body)
+                if data.success then
+                    util.toast("Rating submitted")
+                else
+                    log(body)
+                    util.toast("Failed to submit rating, see logs for info")
+                end
             else
-                log(body)
-                util.toast("Failed to submit rating, see logs for info")
+                util.toast("Failed to submit rating, server sent invalid response")
             end
         else
-            util.toast("Failed to submit rating, server sent invalid response")
+            log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
 
     end, function()
@@ -2212,23 +2217,28 @@ function upload_build(name, data)
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
-    ), function(body)
-        if body:sub(1, 1) == "{" then
-            local response = json.decode(body)
-            if response.error then
-                log(string.format("name:%s, name: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
-                util.toast("Upload error: " .. response.message)
-            elseif response.status then
-                if response.status == "updated" then
-                    util.toast("Successfully updated build")
+    ), function(body, res_headers, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local response = json.decode(body)
+                if response.error then
+                    log(string.format("name:%s, name: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
+                    util.toast("Upload error: " .. response.message)
+                elseif response.status then
+                    if response.status == "updated" then
+                        util.toast("Successfully updated build")
+                    else
+                        util.toast("Successfully uploaded build")
+                    end
                 else
-                    util.toast("Successfully uploaded build")
+                    util.toast("Server sent invalid response")
                 end
             else
                 util.toast("Server sent invalid response")
             end
         else
-            util.toast("Server sent invalid response")
+            log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
         HUD.BUSYSPINNER_OFF()
     end, function()
