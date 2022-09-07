@@ -58,13 +58,12 @@ local editorActive = false
 local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread
-local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
+local hud_coords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
 function new_builder()
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     
-
     return { -- All data needed for builder
         _index = 1, -- Starting entity index
         name = nil,
@@ -113,7 +112,8 @@ function new_builder()
         },
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
-        spawnLocation = nil
+        spawnLocation = nil,
+        spawnInBase = false
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -128,9 +128,8 @@ function create_blip_for_entity(entity, type, name)
     end
     return blip
 end
--- legacy setting i guess
-local spawnInVehicle = true
 local scriptSettings = {
+    spawnInVehicle = true,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -632,7 +631,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     menu.action(rootList, "Spawn", {}, "", function()
         clear_build_preview()
         local baseHandle = spawn_build(vehicleData['vehicle'], false)
-        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and spawnInVehicle then
+        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
             util.yield()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -708,8 +707,8 @@ local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "",
 local folderLists = {}
 local xmlMenusHandles = {}
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
-    spawnInVehicle = on
-end, spawnInVehicle)
+    scriptSettings.spawnInVehicle = on
+end, scriptSettings.spawnInVehicle)
 local xmlList = menu.list(savedVehicleList, "Convert XML Builds", {}, "Convert XML Builds/Vehicles (including menyoo)")
 local savedVehicleListInner = menu.divider(savedVehicleList, "Folders")
 local optionsMenuHandles = {}
@@ -794,7 +793,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
                     local baseHandle = spawn_build(data, false)
-                    if (data.type or "VEHICLE") == "VEHICLE" and spawnInVehicle then
+                    if (data.type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
                         util.yield()
                         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
