@@ -110,13 +110,6 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your 
     end
 end)
 
-function log(str, mod)
-    if mod then
-        util.log(SCRIPT_NAME .. "[" .. (SCRIPT_SOURCE or "DEV") .. "]/" .. mod .. ": " .. str)
-    else
-        util.log(SCRIPT_NAME .. "[" .. (SCRIPT_SOURCE or "DEV") .. "]: " .. str)
-    end
-end
 SCRIPT_DEBUG = SCRIPT_SOURCE == nil
 
 function try_require(name, isOptional)
