@@ -497,32 +497,37 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body)
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
-        if body[1] == "{" then
-            local results = json.decode(body).results
-            if #results == 0 then
-                util.toast("No builds found")
-                return
-            end
-            for _, vehicle in ipairs(results) do
-                
-                local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
-                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
-                    list = nil,
-                    data = nil
-                }
-                local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
-                    _setup_cloud_build_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
-                end)
-                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
-                menu.on_focus(vehicleList, function()
-                    _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
-                end)
+        if status_code ~= 200 then
+            if body[1] == "{" then
+                local results = json.decode(body).results
+                if #results == 0 then
+                    util.toast("No builds found")
+                    return
+                end
+                for _, vehicle in ipairs(results) do
+                    
+                    local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
+                    cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
+                        list = nil,
+                        data = nil
+                    }
+                    local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
+                        _setup_cloud_build_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
+                    end)
+                    cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
+                    menu.on_focus(vehicleList, function()
+                        _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
+                    end)
+                end
+            else
+                log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned invalid response")
             end
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned invalid response")
+            log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
@@ -530,28 +535,33 @@ end)
 menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body)
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
-        HUD.BUSYSPINNER_OFF()
-        if body[1] == "{" then
-            cloudData = json.decode(body).users
-            for user, vehicles in pairsByKeys(cloudData) do
-                local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
-                    _load_cloud_vehicles(user)
-                end, function()
-                    cloudData[user].vehicleData = {}
-                end)
-                menu.on_focus(userList, clear_build_preview)
-                cloudData[user] = {
-                    vehicles = vehicles,
-                    vehicleData = {},
-                    parentList = userList,
-                    vehicleMenuIds = {}
-                }
+        if status_code ~= 200 then
+            HUD.BUSYSPINNER_OFF()
+            if body[1] == "{" then
+                cloudData = json.decode(body).users
+                for user, vehicles in pairsByKeys(cloudData) do
+                    local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
+                        _load_cloud_vehicles(user)
+                    end, function()
+                        cloudData[user].vehicleData = {}
+                    end)
+                    menu.on_focus(userList, clear_build_preview)
+                    cloudData[user] = {
+                        vehicles = vehicles,
+                        vehicleData = {},
+                        parentList = userList,
+                        vehicleMenuIds = {}
+                    }
+                end
+            else
+                log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned invalid response")
             end
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned invalid response")
+            log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
@@ -579,30 +589,35 @@ function _load_cloud_vehicles(user)
 end
 function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
-    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
+    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         clear_build_preview()
-        if body[1] == "{" then
-            local data = json.decode(body)
-            if not data.vehicle then
-                log(body, "_fetch_vehicle_data")
-                util.toast("Invalid build data was fetched")
-                return
-            end
-            tableref['vehicle'] = data.vehicle
-            if not data.vehicle.name then
-                data.vehicle.name = vehicleName
-            end
-            data.uploader = user
-            spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
-        else
-            local isRatelimited = body:find("503 Service Temporarily Unavailable")
-            if isRatelimited then
-                util.toast("Rate limited, please wait")
+        if status_code ~= 200 then
+            if body[1] == "{" then
+                local data = json.decode(body)
+                if not data.vehicle then
+                    log(body, "_fetch_vehicle_data")
+                    util.toast("Invalid build data was fetched")
+                    return
+                end
+                tableref['vehicle'] = data.vehicle
+                if not data.vehicle.name then
+                    data.vehicle.name = vehicleName
+                end
+                data.uploader = user
+                spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
             else
-                log("invalid server response : " .. body, "_fetch_cloud_users")
-                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+                local isRatelimited = body:find("503 Service Temporarily Unavailable")
+                if isRatelimited then
+                    util.toast("Rate limited, please wait")
+                else
+                    log("invalid server response : " .. body, "_fetch_cloud_users")
+                    util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+                end
             end
+        else
+            log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
