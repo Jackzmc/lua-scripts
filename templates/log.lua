@@ -8,7 +8,7 @@ function Log._log(prefix, ...)
     for _, a in ipairs(...) do
         msg = msg .. tostring(a) .. "\t"
     end
-    util.toast(string.format("[%s] %s:%s/%s: %s", prefix, SCRIPT_NAME, SCRIPT_SOURCE or "DEV", mod, msg))
+    util.log(string.format("[%s] %s:%s/%s: %s", prefix, SCRIPT_NAME, SCRIPT_SOURCE or "DEV", mod, msg))
 end
 function Log.debug(...)
     if SCRIPT_DEBUG then
