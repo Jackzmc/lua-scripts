@@ -499,7 +499,7 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
     cloudSearchResults = {}
     async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
-        if status_code ~= 200 then
+        if status_code = 200 then
             if body[1] == "{" then
                 local results = json.decode(body).results
                 if #results == 0 then
@@ -537,7 +537,7 @@ function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
     async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
-        if status_code ~= 200 then
+        if status_code = 200 then
             HUD.BUSYSPINNER_OFF()
             if body[1] == "{" then
                 cloudData = json.decode(body).users
@@ -592,7 +592,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
     async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         clear_build_preview()
-        if status_code ~= 200 then
+        if status_code = 200 then
             if body[1] == "{" then
                 local data = json.decode(body)
                 if not data.vehicle then
