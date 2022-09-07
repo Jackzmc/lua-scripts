@@ -120,10 +120,9 @@ end
 SCRIPT_DEBUG = SCRIPT_SOURCE == nil
 function dlog(str, mod)
     if SCRIPT_DEBUG then
-        if mod then
-            util.log("[debug] " .. SCRIPT_NAME .. ":" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
-        else
-            util.log("[debug] " .. SCRIPT_NAME .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+        if not mod then
+            mod = debug.getinfo(2).name or "anon_func"
         end
+        util.log("[debug] " .. SCRIPT_NAME .. ":" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
     end
 end
