@@ -1808,6 +1808,7 @@ function _recurse_remove_attachments(handle, table)
     end
 end
 function remove_all_attachments(handle)
+    dlog("removing attachments from " .. handle)
     _recurse_remove_attachments(handle, entities.get_all_objects_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
@@ -1817,6 +1818,7 @@ function clear_build_preview()
     preview.entity = 0
     preview.id = nil
     if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
+        dlog("removed build preview")
         remove_all_attachments(old_entity)
         entities.delete_by_handle(old_entity)
     end
@@ -1826,6 +1828,7 @@ function _destroy_prop_previewer()
     show_busyspinner("Unloading prop previewer...")
     clear_menu_table(builder.propSpawner.menus)
     if preview.entity > 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
+        dlog("removing prop previewer")
         entities.delete_by_handle(preview.entity)
         preview.entity = 0
         preview.id = nil
@@ -2142,6 +2145,7 @@ function create_entity_section(tableref, handle, options)
                 if builder.entities[handle] then
                     builder.entities[handle] = nil
                 end
+                dlog("Deleting entity " .. handle)
                 entities.delete_by_handle(handle)
             end)
             
@@ -2273,9 +2277,10 @@ function autosave(onDemand, name)
     end
     local success = save_vehicle(name, AUTOSAVE_DIRECTORY)
     if success then
+        dlog("Autosaved " .. name)
         util.draw_debug_text("Auto saved " .. name)
     else
-        util.toast("Auto save has failed")
+        util.toast("Auto save (\"" .. name .. "\") has failed")
     end
     
     save_favorites_list()
