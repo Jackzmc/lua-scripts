@@ -35,14 +35,16 @@ function download_script_update(branch, on_success, on_err)
 end
 check_for_update(SCRIPT_BRANCH)
 
-function download_lib_update(lib)
+function download_lib_update(lib, on_success, on_error)
     local lockPath = filesystem.scripts_dir() .. "/lib/" .. lib .. ".lock"
     if filesystem.exists(lockPath) then
+        if on_error then on_error() end
         util.log(SCRIPT_NAME .. ": Skipping lib update \" .. lib .. \", found update lockfile")
     end
     local lock = io.open(lockPath, "w")
     if lock == nil then
         util.toast(SCRIPT_NAME .. ": Could not create lockfile, skipping update", TOAST_ALL)
+        if on_error then on_error() end
         return
     end
     lock:close()
@@ -51,20 +53,24 @@ function download_lib_update(lib)
         if status_code ~= 200 or result:startswith("<") or result == "" then
             util.toast("Lib returned invalid response for \"" .. lib .. "\"\nSee logs for details")
             util.log(string.format("%s: Lib \"%s\" returned: %s", SCRIPT_NAME, lib, result))
+            if on_error then on_error() end
             return
         end
         local file = io.open(filesystem.scripts_dir() .. "/lib/" .. lib, "w")
         if file == nil then
             util.toast("Could not write lib file for: " .. lib .. "\nSee logs for details")
             util.log(string.format("%s: Resource \"%s\" file could not be created.", SCRIPT_NAME, lib))
+            if on_error then on_error() end
             return
         end
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
         util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
+        if on_success then on_success() end
     end, function(e)
         util.toast(SCRIPT .. " cannot load: Library files are missing. (" .. lib .. ")", 10)
         os.remove(lockPath)
+        if on_error then on_error() end
         util.stop_script()
     end)
     async_http.dispatch()
