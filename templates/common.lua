@@ -128,7 +128,7 @@ function try_require(name, isOptional)
             if isOptional then
                 Log.debug("Missing optional dependency: " .. name)
             else
-                util.toast("Missing a required depencency (\"" .. name .. "\"). Please report this issue.")
+                util.toast("Missing a required depencency (\"" .. name .. "\"). Please install this from the repo > dependencies list")
                 Log.severe("Missing required dependency:", name)
             end
         else
