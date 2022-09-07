@@ -6,9 +6,11 @@ local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
 --#P:DEBUG_ONLY
+require('templates/log')
 require('templates/common')
 --#P:END
 
+--#P:TEMPLATE("log")
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
 
