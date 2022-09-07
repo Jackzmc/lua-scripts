@@ -31,7 +31,11 @@ if not status then
 end
 local vehiclelib = require("jackzvehiclelib")
 if vehiclelib == true then
-    util.toast("Fatal error: Failed to download 'jackzvehiclelib' and file is corrupted. Please reinstall library and report this issue")
+    if SCRIPT_SOURCE == "REPO" then
+        util.toast("Fatal error: Lib 'jackzvehiclelib' file is corrupted. Please report this issue.\n(REPO - V" .. VERSION .. ")")
+    else
+        util.toast("Fatal error: Lib 'jackzvehiclelib' file is corrupted. Please reinstall library and report this issue (MANUAL - V" .. VERSION .. ")")
+    end
     util.stop_script()
 end
 
