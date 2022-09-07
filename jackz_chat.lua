@@ -203,9 +203,10 @@ end)
 
 util.create_tick_handler(function(_)
   waiting = true
-  async_http.init("jackz.me", "/stand/chat/channels/" .. recvChannel .. "/" .. lastTimestamp, function(body)
+  async_http.init("jackz.me", "/stand/chat/channels/" .. recvChannel .. "/" .. lastTimestamp, function(body, res_headers, status_code)
     -- check if response is validish json (incase ratelimitted)
-    if body:sub(1, 1) == "{" then
+    -- Also ignore all errors, and 204 no content
+    if status_code == 200 and body:sub(1, 1) == "{" then
       local data = json.decode(body)
       for _, message in ipairs(data.m) do
         if message.u ~= user then
