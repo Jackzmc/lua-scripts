@@ -811,7 +811,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     upload_build(filename:sub(1, -6), json.encode(data))
                 end))
 
-                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your build. You will be unable to edit its entities.", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your current build. You will be unable to edit its entities.", function()
                     local subbaseHandle = spawn_build(data, false)
                     add_build_to_list(builder.entitiesMenuList, subbaseHandle, data, data.name or data.filename)
                     util.toast("Added build to your current build")
