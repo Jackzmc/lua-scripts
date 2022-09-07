@@ -139,7 +139,6 @@ end
 -- legacy setting i guess
 local spawnInVehicle = true
 local scriptSettings = {
-    debugMode = SCRIPT_SOURCE == nil,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -464,8 +463,8 @@ end
 
 local settingsList = menu.list(menu.my_root(), "Settings", {"jvbcfg"}, "Change settings of script")
 menu.toggle(settingsList, "Debug Mode", {"jvbdebug"}, "Enables debugs log to help with issues", function(value)
-    scriptSettings.debugMode = value
-end, scriptSettings.debugMode)
+    SCRIPT_DEBUG = value
+end, SCRIPT_DEBUG)
 menu.toggle(settingsList, "Autosave Active", {"jvbautosave"}, "Autosaves happen every 4 minutes, disable to turn off autosaving\nExisting autosaves will not be deleted.", function(value)
     scriptSettings.autosaveEnabled = value
 end, scriptSettings.autosaveEnabled)
@@ -2799,25 +2798,6 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
     end
 
     return handles
-end
-
-
--- [ UTILS ]--
-function log(str, mod)
-    if mod then
-        util.log("jackz_vehicle_builder[" .. (SCRIPT_SOURCE or "DEV") .. "]/" .. mod .. ": " .. str)
-    else
-        util.log("jackz_vehicle_builder[" .. (SCRIPT_SOURCE or "DEV") .. "]: " .. str)
-    end
-end
-function dlog(str, mod)
-    if scriptSettings.debugMode then
-        if mod then
-            util.log("[debug] jackz_vehicle_builder:" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
-        else
-            util.log("[debug] jackz_vehicle_builder/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
-        end
-    end
 end
 
 function dump_table(o)
