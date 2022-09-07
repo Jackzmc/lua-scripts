@@ -921,6 +921,35 @@ function setup_pre_menu()
         set_builder_base(base)
         setup_builder_menus()
     end))
+
+    table.insert(setupMenus, menu.action(menu.my_root(), "Create Manual Base", {"jvbmanual"}, "Spawns a ped, vehicle, or object by its exact name", function()
+        menu.show_command_box("jvbmanual ")
+    end, function(query)
+        local hash = util.joaat(query)
+        if STREAMING.IS_MODEL_VALID(hash) then
+            local type = "OBJECT"
+            -- TODO: Verify STREAMING is working
+            if STREAMING.IS_MODEL_A_VEHICLE(hash) then
+                type = "VEHICLE"
+            elseif STREAMING.IS_MODEL_A_PED(hash) then
+                type = "PED"
+            end
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 0.0)
+                local new_z = get_ground_z(pos.x, pos.y, pos.z)
+                if new_z then pos.z = new_z end
+                local base = spawn_entity({
+                    model = STRUCTURE_OBJECT_MODEL
+                }, type, false, pos)
+                builder = new_builder()
+                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
+                ENTITY.FREEZE_ENTITY_POSITION(base, true)
+                set_builder_base(base)
+                setup_builder_menus()
+        else
+            util.toast("Model is invalid")
+        end
+    end))
 end
 
 function get_ground_z(x, y, z, tries, ignoreWater)
