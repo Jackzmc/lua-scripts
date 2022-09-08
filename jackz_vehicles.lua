@@ -210,7 +210,7 @@ function spawn_cargobob_for_vehicle(vehicle, useMagnet)
     VEHICLE.BRING_VEHICLE_TO_HALT(vehicle, 0.0, 10)
     local cargobob = entities.create_vehicle(CARGOBOB_MODEL, pos, heading)
     add_vehicle_to_list(cargobob)
-    VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargobob, true)
+    VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargobob, true)
     VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
     VEHICLE.CREATE_PICK_UP_ROPE_FOR_CARGOBOB(cargobob, useMagnet and 1 or 0)
     if useMagnet then
@@ -1695,7 +1695,7 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_NAME"), {}, i18n.format
                 local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
                 if dist <= 10000.0 then
                     local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, false)
-                    VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargobob, false)
+                    VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargobob, false)
                     VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
                     ENTITY.SET_ENTITY_COLLISION(cargobob, false, false)
                     ENTITY.SET_ENTITY_INVINCIBLE(cargobob, true)
@@ -1729,7 +1729,7 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_NAME"), {}, i18n.format
         util.yield(3000)
         for _, cargo in ipairs(cargobobs) do
             ENTITY.SET_ENTITY_INVINCIBLE(cargo, false)
-            VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargo, true)
+            VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargo, true)
         end
         return false
     end)
@@ -1749,7 +1749,7 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, i18n
                 local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
                 if dist <= 10000.0 then
                     local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, true)
-                    VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargobob, false)
+                    VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargobob, false)
                     VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
                     ENTITY.SET_ENTITY_COLLISION(cargobob, false, false)
                     ENTITY.SET_ENTITY_INVINCIBLE(cargobob, true)
@@ -1783,7 +1783,7 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, i18n
         util.yield(3000)
         for _, cargo in ipairs(cargobobs) do
             ENTITY.SET_ENTITY_INVINCIBLE(cargo, false)
-            VEHICLE._SET_CARGOBOB_HOOK_CAN_DETACH(cargo, true)
+            VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargo, true)
         end
         return false
     end)
