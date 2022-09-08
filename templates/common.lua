@@ -1,6 +1,7 @@
 ----------------------------------------------------------------
 -- Version Check
 function get_version_info(version)
+    if not version then error("Missing version", 2) end
     local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
     return {
         major = tonumber(major) or 0,
@@ -11,6 +12,7 @@ end
 function compare_version(a, b)
     local av = get_version_info(a)
     local bv = get_version_info(b)
+    if not av or not bv then error("Missing versions to compare") end
     if av.major > bv.major then return 1
     elseif av.major < bv.major then return -1
     elseif av.minor > bv.minor then return 1
@@ -124,7 +126,7 @@ function try_require(name, isOptional)
                 util.toast("Missing a required depencency (\"" .. name .. "\"). Please install this from the repo > dependencies list")
                 Log.severe("Missing required dependency:", name)
             end
-        else
+        elseif download_lib_update then
             local lockPath = download_lib_update(name, function()
                 Log.log("Downloaded ", isOptional and "optional" or "required", "library:", name)
             end)

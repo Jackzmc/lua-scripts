@@ -6,6 +6,7 @@ function Log._log(prefix, ...)
     local mod = debug.getinfo(3, "n").name or debug.getinfo(4, "n").name or "_anon_func"
     local msg = ""
     for _, a in ipairs(...) do
+        if a == nil then a = "<nil>" end
         msg = msg .. tostring(a) .. "\t"
     end
     if prefix then prefix = "[" .. prefix .. "] "
