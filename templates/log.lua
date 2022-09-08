@@ -3,7 +3,7 @@ if SCRIPT_DEBUG == nil then
     SCRIPT_DEBUG = false
 end
 function Log._log(prefix, ...)
-    local mod = debug.getinfo(3).name or "_anon_func"
+    local mod = debug.getinfo(3, "n").name or debug.getinfo(4, "n").name or "_anon_func"
     local msg = ""
     for _, a in ipairs(...) do
         msg = msg .. tostring(a) .. "\t"
