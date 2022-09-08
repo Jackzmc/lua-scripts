@@ -321,7 +321,8 @@ local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
 local PEDS_PATH = join_path(filesystem.resources_dir(), "peds.txt")
 local VEHICLES_PATH = join_path(filesystem.resources_dir(), "vehicles.txt")
 
-local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
+local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Builds")
+local LEGACY_SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
 local AUTOSAVE_DIRECTORY = join_path(SAVE_DIRECTORY, "autosaves")
 local DOWNLOADS_DIRECTORY = join_path(SAVE_DIRECTORY, "downloads")
 if not filesystem.exists(PROPS_PATH) then
@@ -347,6 +348,28 @@ if not filesystem.exists(SAVE_DIRECTORY) then
 end
 if not filesystem.exists(AUTOSAVE_DIRECTORY) then
     filesystem.mkdir(AUTOSAVE_DIRECTORY)
+end
+
+
+function move_folder_recursive(dir, dest)
+    for _, path in filesystem.list_files(dir) do
+        local _, filename = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+        if filesystem.is_dir(path) then
+            filesystem.mkdir(dest .. "/" .. filename)
+            move_folder_recursive(path, dest .. "/" .. filename)
+        else
+            Log.debug(path, "-->", dest .. "/" .. filename)
+            os.rename(path, dest .. "/" .. filename)
+        end
+    end
+end
+if filesystem.exists(LEGACY_SAVE_DIRECTORY) then
+    Log.log("Found old save directory, migrating files")
+    move_folder_recursive(LEGACY_SAVE_DIRECTORY, SAVE_DIRECTORY)
+    util.toast(SCRIPT_NAME .. ": Your builds have moved from Stand\\Vehicles\\Custom to %appdata%\\Stand\\Builds", TOAST_ALL)
+    local tmpDir = os.tmpname()
+    Log.log("Moved legacy fodler to temp dir:", tmpDir)
+    os.rename(LEGACY_SAVE_DIRECTORY, tmpDir)
 end
 
 function create_preview_handler_if_not_exists()
@@ -988,11 +1011,11 @@ function setup_builder_menus(name)
         _destroy_prop_previewer()
     end)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
-        menu.text_input(buildList, "Save", {"savebuild"}, "Enter a name to save the build as\nSupports relative paths such as foldername\\buildname\n\nSaved to %appdata%\\Stand\\Vehicles\\Custom", function(name)
+        menu.text_input(buildList, "Save", {"savebuild"}, "Enter a name to save the build as\nSupports relative paths such as foldername\\buildname\n\nSaved to %appdata%\\Stand\\Builds", function(name)
             if name == "" or scriptEnding then return end
             set_builder_name(name)
             if save_vehicle(name) then
-                util.toast("Saved build as " .. name .. ".json to %appdata%\\Stand\\Vehicles\\Custom")
+                util.toast("Saved build as " .. name .. ".json to %appdata%\\Stand\\Builds")
             end
         end, name or "")
         local uploadMenu
