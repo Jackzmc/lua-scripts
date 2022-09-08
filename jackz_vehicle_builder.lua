@@ -922,7 +922,7 @@ function setup_pre_menu()
         setup_builder_menus()
     end))
 
-    table.insert(setupMenus, menu.action(menu.my_root(), "Create Manual Base", {"jvbmanual"}, "Spawns a ped, vehicle, or object by its exact name", function()
+    table.insert(setupMenus, menu.action(menu.my_root(), "Create manual base", {"jvbmanual"}, "Spawns a ped, vehicle, or object by its exact name", function()
         menu.show_command_box("jvbmanual ")
     end, function(query)
         local hash = util.joaat(query)
@@ -935,17 +935,19 @@ function setup_pre_menu()
                 type = "PED"
             end
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 0.0)
-                local new_z = get_ground_z(pos.x, pos.y, pos.z)
-                if new_z then pos.z = new_z end
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 0.2)
                 local base = spawn_entity({
-                    model = STRUCTURE_OBJECT_MODEL
+                    model = hash
                 }, type, false, pos)
-                builder = new_builder()
-                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
-                ENTITY.FREEZE_ENTITY_POSITION(base, true)
-                set_builder_base(base)
-                setup_builder_menus()
+                if base then
+                    builder = new_builder()
+                    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
+                    ENTITY.FREEZE_ENTITY_POSITION(base, true)
+                    set_builder_base(base)
+                    setup_builder_menus()
+                else
+                    util.toast("Entity failed to spawn")
+                end
         else
             util.toast("Model is invalid")
         end
@@ -1091,7 +1093,6 @@ function setup_builder_menus(name)
             FREE_EDIT = value
         end, FREE_EDIT)
         menu.divider(builder.entitiesMenuList, "Entities")
-    Log.debug("id: " .. builder.entitiesMenuList)
     local baseList = menu.list(mainMenu, "Base Entity", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1205,8 +1206,7 @@ function set_builder_base(handle, preserveExisting)
     if highlightedHandle == builder.base.handle then
         highlightedHandle = nil
     end
-
-    Log.log("Reassigned base " .. builder.base.handle .. " -> " .. handle)
+    Log.log("Reassigned base " .. (oldHandle or "-none-") .. " -> " .. handle)
     for subhandle, data in pairs(builder.entities) do
         -- Ignore entity if parent is not builder, as it's parent should be re-attached
         if not data.parent then
