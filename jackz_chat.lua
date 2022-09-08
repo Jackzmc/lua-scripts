@@ -5,14 +5,14 @@ VERSION = "1.2.24"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
--- Still needed for local dev
-function show_busyspinner(text) HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING");HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text);HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2) end
-function get_version_info(version) local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)") return { major = tonumber(major),minor = tonumber(minor),patch = tonumber(patch) } end
-function compare_version(a, b) return 0 end
+require('templates/log')
+require('templates/common')
 --#P:END
 
+--#P:TEMPLATE("log")
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
+
 
 util.require_natives(1627063482)
 
