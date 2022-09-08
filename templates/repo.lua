@@ -9,9 +9,9 @@ function download_resources_update(filepath, destOverwritePath)
         return
     end
     lock:close()
-    async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&source=" .. SCRIPT_SOURCE .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+    async_http.init("jackz.me", "/stand/get-lua.php?script=resources/" .. filepath .. "&source=" .. SCRIPT_SOURCE .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result, res_headers, status_code)
         os.remove(lockPath)
-        if result:startswith("<") then
+        if status_code ~= 200 or result:startswith("<") then
             util.toast("Resource returned invalid response for \"" .. filepath .. "\"\nSee logs for details")
             util.log(string.format("%s: Resource \"%s\" returned: %s", SCRIPT_NAME, filepath, result))
             return

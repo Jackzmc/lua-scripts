@@ -85,7 +85,7 @@ if _lang ~= nil then
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
 end
 menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
-menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.", function()
+menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then
         show_busyspinner("Uploading logs....")
@@ -110,20 +110,29 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your 
     end
 end)
 
-function log(str, mod)
-    if mod then
-        util.log(SCRIPT_NAME .. "[" .. (SCRIPT_SOURCE or "DEV") .. "]/" .. mod .. ": " .. str)
-    else
-        util.log(SCRIPT_NAME .. "[" .. (SCRIPT_SOURCE or "DEV") .. "]: " .. str)
-    end
-end
 SCRIPT_DEBUG = SCRIPT_SOURCE == nil
-function dlog(str, mod)
-    if SCRIPT_DEBUG then
-        if mod then
-            util.log("[debug] " .. SCRIPT_NAME .. ":" .. mod .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+
+function try_require(name, isOptional)
+    local status, data = pcall(require, name)
+    if status then
+        return data
+    else
+        if SCRIPT_SOURCE == "REPO" then
+            if isOptional then
+                Log.debug("Missing optional dependency: " .. name)
+            else
+                util.toast("Missing a required depencency (\"" .. name .. "\"). Please install this from the repo > dependencies list")
+                Log.severe("Missing required dependency:", name)
+            end
         else
-            util.log("[debug] " .. SCRIPT_NAME .. "/" .. (SCRIPT_SOURCE or "DEV") .. ": " .. str)
+            local lockPath = download_lib_update(name, function()
+                Log.log("Downloaded ", isOptional and "optional" or "required", "library:", name)
+            end)
+            while filesystem.exists(lockPath) do
+                util.yield(500)
+            end
+            return require(name)
         end
+        return nil
     end
 end

@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.9.9"
+local VERSION = "3.9.10"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -859,9 +859,9 @@ function setup_player_menu(pid)
         end)
     end)
 
-    menu.action(lsc, i18n.format("VEH_LICENSE_NAME"), {"setlicenseplate"}, i18n.format("VEH_LICENSE_DESC"), function(on)
+    menu.action(lsc, i18n.format("VEH_LICENSE_NAME"), {"jvlicense"}, i18n.format("VEH_LICENSE_DESC"), function(on)
         local name = PLAYER.GET_PLAYER_NAME(pid)
-        menu.show_command_box("setlicenseplate" .. name .. " ")
+        menu.show_command_box("jvlicense" .. name .. " ")
     end, function(args)
         control_vehicle(pid, function(vehicle)
             ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle, true, true)
@@ -890,7 +890,7 @@ function setup_player_menu(pid)
 
     menu.action(submenu, i18n.format("VEH_SAVE_NAME"), {"saveplayervehicle"}, i18n.format("VEH_SAVE_DESC"), function(_)
         i18n.toast("VEH_SAVE_HINT")
-        menu.show_command_box("savevehicle ")
+        menu.show_command_box("saveplayervehicle ")
     end, function(args)
         control_vehicle(pid, function(vehicle)
             local saveData = vehiclelib.Serialize(vehicle)
@@ -1133,8 +1133,8 @@ end
 ----------------------------
 -- CLOUD SEARCH
 ----------------------------
-menu.action(cloudSearchMenu, "> " .. i18n.format("CLOUD_SEARCH_NEW_NAME"), {"searchcloud"}, "", function(_)
-    menu.show_command_box("searchcloud ")
+menu.action(cloudSearchMenu, "> " .. i18n.format("CLOUD_SEARCH_NEW_NAME"), {"jvcsearch"}, "", function(_)
+    menu.show_command_box("jvcsearch ")
 end, function(query)
     show_busyspinner("Searching " .. query)
     async_http.init("jackz.me", "/stand/vehicles/list2?q=" .. query, function(result)
@@ -1317,8 +1317,8 @@ menu.on_focus(savedVehiclesList, function() clear_menu_table(savedVehicleMenus) 
 local xmlMenusHandles = {}
 local xmlList = menu.list(savedVehiclesList, "Convert XML Vehicles", {}, "Vehicles (*.xml), typically from menyoo. Able to convert them through this menu.")
 local applySaved = false
-i18n.menus.action(menu.my_root(), "VEH_SAVE_CURRENT", {"savevehicle2"}, function(_)
-    menu.show_command_box("savevehicle2 ")
+i18n.menus.action(menu.my_root(), "VEH_SAVE_CURRENT", {"jvsave"}, function(_)
+    menu.show_command_box("jvsave ")
     i18n.toast("VEH_SAVE_CURRENT_HINT")
 end, function(args)
     local vehicle = entities.get_user_vehicle_as_handle()
@@ -1327,7 +1327,7 @@ end, function(args)
     file:write(json.encode(saveData))
     file:close()
     i18n.toast("FILE_SAVED", args .. ".json")
-end, "savevehicle2 name")
+end, "jvsave name")
 i18n.menus.toggle(menu.my_root(), "SPAWN_IN_VEHICLE", {}, function(on)
     spawnInVehicle = on
 end, spawnInVehicle)
@@ -1932,8 +1932,8 @@ function control_all_vehicles(callback)
     end
 end
 
-menu.action(allPlayersMenu, i18n.format("VEH_SPAWN_VEHICLE_NAME"), {"spawnall"}, i18n.format("ALL_SPAWN_DESC"), function(_)
-    menu.show_command_box("spawnall ")
+menu.action(allPlayersMenu, i18n.format("VEH_SPAWN_VEHICLE_NAME"), {"jvspawnall"}, i18n.format("ALL_SPAWN_DESC"), function(_)
+    menu.show_command_box("jvspawnall ")
 end, function(args)
     local model = util.joaat(args)
     if STREAMING.IS_MODEL_VALID(model) and STREAMING.IS_MODEL_A_VEHICLE(model) then

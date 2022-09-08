@@ -34,6 +34,7 @@ v3.9.0
 * (3.9.7) Fix meta error typo
 * (3.9.8) jackzvehiclelib: Fix bug with license plates
 * (3.9.9) Update natives
+* (3.9.10) Renamed commands to reduce conflicts
 
 # actions (v1)
 
@@ -177,3 +178,10 @@ V1.21.0
 * (1.21.2) Add Settings > Debug Mode for support purposes
 * (1.21.2) jackzvehiclelib: Fix bug with license plates
 * (1.21.2) Fix cloud overlays erroring
+* (1.21.3) Fix overlay on builds erroring
+
+
+V1.22.0
+
+* Added "Create Manual Base" to spawn a manual model name
+* Update updaters, internal changes

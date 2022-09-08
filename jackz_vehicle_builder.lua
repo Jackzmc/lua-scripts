@@ -1,14 +1,16 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.21.2"
+VERSION = "1.22.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
 --#P:DEBUG_ONLY
+require('templates/log')
 require('templates/common')
 --#P:END
 
+--#P:TEMPLATE("log")
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
 
@@ -18,18 +20,8 @@ if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixees")
 end
 
-local status, json = pcall(require, "json")
-if not status then
-    if SCRIPT_SOURCE == "REPO" then
-        util.toast(SCRIPT_NAME .. " Missing dependency 'json'. Please install this from the repo > dependencies list")
-        util.stop_script()
-    else
-        util.toast(SCRIPT_NAME .. ": Installing missing dependency: json")
-        download_lib_update("json")
-        json = require("json")
-    end
-end
-local vehiclelib = require("jackzvehiclelib")
+local json = try_require("json")
+local vehiclelib = try_require("jackzvehiclelib")
 if vehiclelib == true then
     if SCRIPT_SOURCE == "REPO" then
         util.toast("Fatal error: Lib 'jackzvehiclelib' file is corrupted. Please report this issue.\n(REPO - V" .. VERSION .. ")")
@@ -41,7 +33,7 @@ end
 
 if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
-        log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
+        Log.log("jackzvehiclelib current: " .. vehiclelib.LIB_VERSION, ", target version: " .. VEHICLELIB_TARGET_VERSION)
         util.toast("Outdated vehiclelib library, downloading update...")
         download_lib_update("jackzvehiclelib.lua")
         vehiclelib = require("jackzvehiclelib")
@@ -66,13 +58,12 @@ local editorActive = false
 local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread
-local hud_coords = {x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
+local hud_coords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
 function new_builder()
     autosaveNextTime = os.seconds() + AUTOSAVE_INTERVAL_SEC
     
-
     return { -- All data needed for builder
         _index = 1, -- Starting entity index
         name = nil,
@@ -121,7 +112,8 @@ function new_builder()
         },
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
-        spawnLocation = nil
+        spawnLocation = nil,
+        spawnInBase = false
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -136,9 +128,8 @@ function create_blip_for_entity(entity, type, name)
     end
     return blip
 end
--- legacy setting i guess
-local spawnInVehicle = true
 local scriptSettings = {
+    spawnInVehicle = true,
     autosaveEnabled = true,
     showOverlay = true,
     showAddOverlay = true
@@ -497,32 +488,37 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body)
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
-        if body[1] == "{" then
-            local results = json.decode(body).results
-            if #results == 0 then
-                util.toast("No builds found")
-                return
-            end
-            for _, vehicle in ipairs(results) do
-                
-                local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
-                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
-                    list = nil,
-                    data = nil
-                }
-                local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
-                    _setup_cloud_build_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
-                end)
-                cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
-                menu.on_focus(vehicleList, function()
-                    _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
-                end)
+        if status_code == 200 then
+            if body[1] == "{" then
+                local results = json.decode(body).results
+                if #results == 0 then
+                    util.toast("No builds found")
+                    return
+                end
+                for _, vehicle in ipairs(results) do
+                    
+                    local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
+                    cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
+                        list = nil,
+                        data = nil
+                    }
+                    local vehicleList = menu.list(cloudSearchList, string.format("%s/%s", vehicle.uploader, vehicle.name), {}, description or "<invalid metadata>", function()
+                        _setup_cloud_build_menu(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list, vehicle.uploader, vehicle.name, cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name])
+                    end)
+                    cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name].list = vehicleList
+                    menu.on_focus(vehicleList, function()
+                        _fetch_vehicle_data(cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name], vehicle.uploader, vehicle.name)
+                    end)
+                end
+            else
+                Log.log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned invalid response")
             end
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned invalid response")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
@@ -530,28 +526,33 @@ end)
 menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body)
+    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
-        HUD.BUSYSPINNER_OFF()
-        if body[1] == "{" then
-            cloudData = json.decode(body).users
-            for user, vehicles in pairsByKeys(cloudData) do
-                local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
-                    _load_cloud_vehicles(user)
-                end, function()
-                    cloudData[user].vehicleData = {}
-                end)
-                menu.on_focus(userList, clear_build_preview)
-                cloudData[user] = {
-                    vehicles = vehicles,
-                    vehicleData = {},
-                    parentList = userList,
-                    vehicleMenuIds = {}
-                }
+        if status_code == 200 then
+            HUD.BUSYSPINNER_OFF()
+            if body[1] == "{" then
+                cloudData = json.decode(body).users
+                for user, vehicles in pairsByKeys(cloudData) do
+                    local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
+                        _load_cloud_vehicles(user)
+                    end, function()
+                        cloudData[user].vehicleData = {}
+                    end)
+                    menu.on_focus(userList, clear_build_preview)
+                    cloudData[user] = {
+                        vehicles = vehicles,
+                        vehicleData = {},
+                        parentList = userList,
+                        vehicleMenuIds = {}
+                    }
+                end
+            else
+                Log.log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned invalid response")
             end
         else
-            log("invalid server response : " .. body, "_fetch_cloud_users")
-            util.toast("Server returned invalid response")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
@@ -579,30 +580,35 @@ function _load_cloud_vehicles(user)
 end
 function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
-    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body)
+    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         clear_build_preview()
-        if body[1] == "{" then
-            local data = json.decode(body)
-            if not data.vehicle then
-                log(body, "_fetch_vehicle_data")
-                util.toast("Invalid build data was fetched")
-                return
-            end
-            tableref['vehicle'] = data.vehicle
-            if not data.vehicle.name then
-                data.vehicle.name = vehicleName
-            end
-            data.uploader = user
-            spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
-        else
-            local isRatelimited = body:find("503 Service Temporarily Unavailable")
-            if isRatelimited then
-                util.toast("Rate limited, please wait")
+        if status_code == 200 then
+            if body[1] == "{" then
+                local data = json.decode(body)
+                if not data.vehicle then
+                    Log.log(body, "_fetch_vehicle_data")
+                    util.toast("Invalid build data was fetched")
+                    return
+                end
+                tableref['vehicle'] = data.vehicle
+                if not data.vehicle.name then
+                    data.vehicle.name = vehicleName
+                end
+                data.uploader = user
+                spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
             else
-                log("invalid server response : " .. body, "_fetch_cloud_users")
-                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+                local isRatelimited = body:find("503 Service Temporarily Unavailable")
+                if isRatelimited then
+                    util.toast("Rate limited, please wait")
+                else
+                    Log.log("invalid server response : " .. body, "_fetch_cloud_users")
+                    util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+                end
             end
+        else
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
@@ -625,7 +631,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     menu.action(rootList, "Spawn", {}, "", function()
         clear_build_preview()
         local baseHandle = spawn_build(vehicleData['vehicle'], false)
-        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and spawnInVehicle then
+        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
             util.yield()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -661,24 +667,29 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
 end
 function rate_build(user, vehicleName, rating)
     if not user or not vehicleName or rating < 0 or rating > 5 then
-        log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_build")
+        Log.log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating, "rate_build")
         return false
     end
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
-    function(body)
-        if body:sub(1, 1) == "{" then
-            local data = json.decode(body)
-            if data.success then
-                util.toast("Rating submitted")
+    function(body, res_header, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local data = json.decode(body)
+                if data.success then
+                    util.toast("Rating submitted")
+                else
+                    Log.log(body)
+                    util.toast("Failed to submit rating, see logs for info")
+                end
             else
-                log(body)
-                util.toast("Failed to submit rating, see logs for info")
+                util.toast("Failed to submit rating, server sent invalid response")
             end
         else
-            util.toast("Failed to submit rating, server sent invalid response")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
 
     end, function()
@@ -696,8 +707,8 @@ local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "",
 local folderLists = {}
 local xmlMenusHandles = {}
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
-    spawnInVehicle = on
-end, spawnInVehicle)
+    scriptSettings.spawnInVehicle = on
+end, scriptSettings.spawnInVehicle)
 local xmlList = menu.list(savedVehicleList, "Convert XML Builds", {}, "Convert XML Builds/Vehicles (including menyoo)")
 local savedVehicleListInner = menu.divider(savedVehicleList, "Folders")
 local optionsMenuHandles = {}
@@ -768,7 +779,7 @@ function _setup_spawn_list_entry(parentList, filepath)
     local status, data = pcall(get_build_data_from_file, filepath)
     if status and data ~= nil then
         if not data.base or not data.version then
-            log("Skipping invalid build: " .. filepath)
+            Log.log("Skipping invalid build: " .. filepath)
             return
         end
         
@@ -782,7 +793,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
                     local baseHandle = spawn_build(data, false)
-                    if (data.type or "VEHICLE") == "VEHICLE" and spawnInVehicle then
+                    if (data.type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
                         util.yield()
                         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -800,7 +811,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     upload_build(filename:sub(1, -6), json.encode(data))
                 end))
 
-                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your build. You will be unable to edit its entities.", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Add to Build", {}, "Adds the build as it's own entity, attached to your current build. You will be unable to edit its entities.", function()
                     local subbaseHandle = spawn_build(data, false)
                     add_build_to_list(builder.entitiesMenuList, subbaseHandle, data, data.name or data.filename)
                     util.toast("Added build to your current build")
@@ -817,7 +828,7 @@ function _setup_spawn_list_entry(parentList, filepath)
             end
         end)
     else
-        log(string.format("Skipping build \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
+        Log.log(string.format("Skipping build \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
     end
 end
 function _render_saved_build_overlay(pos, data)
@@ -909,6 +920,37 @@ function setup_pre_menu()
         ENTITY.FREEZE_ENTITY_POSITION(base, true)
         set_builder_base(base)
         setup_builder_menus()
+    end))
+
+    table.insert(setupMenus, menu.action(menu.my_root(), "Create manual base", {"jvbmanual"}, "Spawns a ped, vehicle, or object by its exact name", function()
+        menu.show_command_box("jvbmanual ")
+    end, function(query)
+        local hash = util.joaat(query)
+        if STREAMING.IS_MODEL_VALID(hash) then
+            local type = "OBJECT"
+            -- TODO: Verify STREAMING is working
+            if STREAMING.IS_MODEL_A_VEHICLE(hash) then
+                type = "VEHICLE"
+            elseif STREAMING.IS_MODEL_A_PED(hash) then
+                type = "PED"
+            end
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, 7.5, 0.2)
+                local base = spawn_entity({
+                    model = hash
+                }, type, false, pos)
+                if base then
+                    builder = new_builder()
+                    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(base, true, false)
+                    ENTITY.FREEZE_ENTITY_POSITION(base, true)
+                    set_builder_base(base)
+                    setup_builder_menus()
+                else
+                    util.toast("Entity failed to spawn")
+                end
+        else
+            util.toast("Model is invalid")
+        end
     end))
 end
 
@@ -1051,7 +1093,6 @@ function setup_builder_menus(name)
             FREE_EDIT = value
         end, FREE_EDIT)
         menu.divider(builder.entitiesMenuList, "Entities")
-    dlog("id: " .. builder.entitiesMenuList)
     local baseList = menu.list(mainMenu, "Base Entity", {}, "")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1165,8 +1206,7 @@ function set_builder_base(handle, preserveExisting)
     if highlightedHandle == builder.base.handle then
         highlightedHandle = nil
     end
-
-    log("Reassigned base " .. builder.base.handle .. " -> " .. handle)
+    Log.log("Reassigned base " .. (oldHandle or "-none-") .. " -> " .. handle)
     for subhandle, data in pairs(builder.entities) do
         -- Ignore entity if parent is not builder, as it's parent should be re-attached
         if not data.parent then
@@ -1602,13 +1642,13 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
                 if preview.id ~= propName then return end
                 local entity = OBJECT.CREATE_OBJECT(hash, pos.x, pos.y, pos.z, false, false, 0);
                 if entity == 0 then
-                    log("Could not create preview for " .. propName .. "(" .. hash .. ")")
+                    Log.log("Could not create preview for " .. propName .. "(" .. hash .. ")")
                     return
                 end
                 set_preview(entity, propName)
                 STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
             else
-                log("invalid model for preview. " .. propName, "add_prop_menu")
+                Log.log("invalid model for preview. " .. propName, "add_prop_menu")
                 util.toast("Cannot spawn preview: Invalid model")
             end
         end
@@ -1677,13 +1717,13 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
                 PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
                 TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
                 if entity == 0 then
-                    log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
+                    Log.log("Could not create preview for " .. pedName .. "(" .. hash .. ")")
                     return
                 end
                 set_preview(entity, pedName)
                 STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
             else
-                log("invalid model for preview. " .. pedName, "add_ped_menu")
+                Log.log("invalid model for preview. " .. pedName, "add_ped_menu")
                 util.toast("Cannot spawn preview: Invalid model")
             end
         end
@@ -1741,12 +1781,12 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
                 if preview.id ~= vehicleID then return end
                 local entity = VEHICLE.CREATE_VEHICLE(hash, pos.x, pos.y, pos.z, 0, false, false)
                 if entity == 0 then
-                    return log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
+                    return Log.log("Could not create preview for " .. vehicleID .. "(" .. hash .. ")")
                 end
                 set_preview(entity, vehicleID)
                 STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
             else
-                log("invalid model for preview. " .. vehicleID, "add_vehicle_menu")
+                Log.log("invalid model for preview. " .. vehicleID, "add_vehicle_menu")
                 util.toast("Cannot spawn preview: Invalid model")
             end
         end
@@ -1793,6 +1833,7 @@ function _recurse_remove_attachments(handle, table)
     end
 end
 function remove_all_attachments(handle)
+    Log.debug("removing attachments from " .. handle)
     _recurse_remove_attachments(handle, entities.get_all_objects_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
@@ -1802,6 +1843,7 @@ function clear_build_preview()
     preview.entity = 0
     preview.id = nil
     if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
+        Log.debug("removed build preview")
         remove_all_attachments(old_entity)
         entities.delete_by_handle(old_entity)
     end
@@ -1811,6 +1853,7 @@ function _destroy_prop_previewer()
     show_busyspinner("Unloading prop previewer...")
     clear_menu_table(builder.propSpawner.menus)
     if preview.entity > 0 and ENTITY.DOES_ENTITY_EXIST(preview.entity) then
+        Log.debug("removing prop previewer")
         entities.delete_by_handle(preview.entity)
         preview.entity = 0
         preview.id = nil
@@ -1949,8 +1992,8 @@ function clone_entity(handle, name, mirror_axis)
     local pos
     if mirror_axis then
         if not builder.entities[handle] then
-            log("clone_entity with mirror_axis set on non-builder entity", "clone_entity")
-            return false
+            Log.log("clone_entity with mirror_axis set on non-builder entity")
+            return nil
         end
         pos = {
             x = builder.entities[handle].pos.x,
@@ -1987,7 +2030,7 @@ function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
     local entityroot = tableref.list
     if not ENTITY.DOES_ENTITY_EXIST(handle) then
-        log("Entity (" .. handle .. ") vanished, deleting", "create_entity_section")
+        Log.log(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
         end
@@ -2127,6 +2170,7 @@ function create_entity_section(tableref, handle, options)
                 if builder.entities[handle] then
                     builder.entities[handle] = nil
                 end
+                Log.debug("Deleting entity " .. handle)
                 entities.delete_by_handle(handle)
             end)
             
@@ -2172,43 +2216,49 @@ function save_vehicle(saveName, folder, is_autosave)
         folder = SAVE_DIRECTORY
     end
     filesystem.mkdirs(folder)
-    local file = io.open(folder .. "/" .. saveName .. ".json", "w")
-    if file then
-        local data = builder_to_json(is_autosave)
-        if data then
+    local data = builder_to_json(is_autosave)
+    if data then
+        local file = io.open(folder .. "/" .. saveName .. ".json", "w")
+        if file then
             file:write(data)
             file:close()
             return true
         else
-            file:close()
-            return false
+            return error("Could not create file ' " .. saveName .. ".json'")
         end
     else
-        error("Could not create file ' " .. saveName .. ".json'")
+        Log.log("Ignoring call to save, no data")
+        return nil
     end
+
 end
 function upload_build(name, data)
     show_busyspinner("Uploading build...")
     async_http.init("jackz.me", 
         string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
-    ), function(body)
-        if body:sub(1, 1) == "{" then
-            local response = json.decode(body)
-            if response.error then
-                log(string.format("name:%s, name: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
-                util.toast("Upload error: " .. response.message)
-            elseif response.status then
-                if response.status == "updated" then
-                    util.toast("Successfully updated build")
+    ), function(body, res_headers, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local response = json.decode(body)
+                if response.error then
+                    Log.log(string.format("name:%s, name: %s failed to upload: %s", SOCIALCLUB._SC_GET_NICKNAME(), name, response.message))
+                    util.toast("Upload error: " .. response.message)
+                elseif response.status then
+                    if response.status == "updated" then
+                        util.toast("Successfully updated build")
+                    else
+                        util.toast("Successfully uploaded build")
+                    end
                 else
-                    util.toast("Successfully uploaded build")
+                    util.toast("Server sent invalid response")
                 end
             else
                 util.toast("Server sent invalid response")
             end
         else
-            util.toast("Server sent invalid response")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
         end
         HUD.BUSYSPINNER_OFF()
     end, function()
@@ -2222,10 +2272,10 @@ function get_build_data_from_file(filepath)
     if file then
         local data = json.decode(file:read("*a"))
         if data.Format then
-            log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
+            Log.log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
             return nil
         elseif not data.version then
-            log("Ignoring invalid build (no version meta) \"" .. filepath .. "\"", "load_build_from_file")
+            Log.log("Ignoring invalid build (no version meta) \"" .. filepath .. "\"", "load_build_from_file")
             return nil
         else
             if data.base.visible == nil then
@@ -2258,9 +2308,10 @@ function autosave(onDemand, name)
     end
     local success = save_vehicle(name, AUTOSAVE_DIRECTORY)
     if success then
+        Log.debug("Autosaved " .. name)
         util.draw_debug_text("Auto saved " .. name)
     else
-        util.toast("Auto save has failed")
+        util.toast("Auto save (\"" .. name .. "\") has failed")
     end
     
     save_favorites_list()
@@ -2356,12 +2407,12 @@ function builder_to_json(is_autosave)
     
     local status, result = pcall(json.encode, serialized)
     if not status then
-        log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
+        Log.log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
         if scriptSettings.autosaveEnabled then
             local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_build")
             copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
             util.toast("WARNING: Could not save your build. Last autosave has automatically been saved as " .. recoveryFilename)
-            log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
+            Log.log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
         end
         return nil
     else
@@ -2397,13 +2448,13 @@ function spawn_entity(data, type, isPreview, pos, heading)
     else
         error("Invalid entity type \"" .. type .. "\"", 2)
     end
-    dlog(string.format("spawned %s handle %d model %s", type, handle, data.model))
+    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model))
     return handle
 end
 
 function spawn_vehicle(vehicleData, isPreview, pos, heading)
     if not STREAMING.IS_MODEL_VALID(vehicleData.model) then
-        log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
+        Log.log(string.format("invalid vehicle model (name:%s) (model:%s)", vehicleData.name, vehicleData.model))
         util.toast(string.format("Failing to spawn vehicle (%s) due to invalid model.", vehicleData.name or "<no name>"))
         return
     end
@@ -2441,7 +2492,7 @@ end
 
 function spawn_ped(data, isPreview, pos)
     if not STREAMING.IS_MODEL_VALID(data.model) then
-        log(string.format("invalid ped model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        Log.log(string.format("invalid ped model (name:%s) (model:%s)", data.name or "<none>", data.model))
         util.toast(string.format("Failing to spawn ped (%s) due to invalid model.", data.name or "<no name>"))
         return
     end
@@ -2489,7 +2540,7 @@ end
 
 function spawn_object(data, isPreview, pos)
     if not STREAMING.IS_MODEL_VALID(data.model) then
-        log(string.format("invalid object model (name:%s) (model:%s)", data.name or "<none>", data.model))
+        Log.log(string.format("invalid object model (name:%s) (model:%s)", data.name or "<none>", data.model))
         util.toast(string.format("Failing to spawn object (%s) due to invalid model.", data.name or "<no name>"))
         return
     end
@@ -2544,7 +2595,7 @@ function import_build_to_builder(build, name)
         add_attachments(baseHandle, build, true, false)
         return true
     else
-        log("Base entity failed to spawn. Name: " .. name .. " Model: " .. build.base.model, "import_build_to_builder")
+        Log.log("Base entity failed to spawn. Name: " .. name .. " Model: " .. build.base.model, "import_build_to_builder")
         return false
     end
 end
@@ -2625,7 +2676,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
-        log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
+        Log.log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
@@ -2675,7 +2726,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                             table.insert(parentQueue, { handle = object, data = entityData })
                         else
                             util.toast("Object parented to itself: #" .. entityData.id .. ". See logs for details")
-                            log(string.format("Object %d ID#%d parented to self. Name: %s, Model: %s", object, entityData.id, entityData.name or "-none-", entityData.model))
+                            Log.log(string.format("Object %d ID#%d parented to self. Name: %s, Model: %s", object, entityData.id, entityData.name or "-none-", entityData.model))
                         end
                     else
                         attach_entity(baseHandle, object, entityData.offset, entityData.rotation, entityData.boneIndex, entityData.collision)
@@ -2707,7 +2758,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                             table.insert(parentQueue, { handle = ped, data = pedData })
                         else
                             util.toast("Ped parented to itself: #" .. pedData.id .. ". See logs for details")
-                            log(string.format("Ped %d ID#%d parented to self. Name: %s, Model: %s", ped, pedData.id, pedData.name or "-none-", pedData.model))
+                            Log.log(string.format("Ped %d ID#%d parented to self. Name: %s, Model: %s", ped, pedData.id, pedData.name or "-none-", pedData.model))
                         end
                     else
                         attach_entity(baseHandle, ped, pedData.offset, pedData.rotation, pedData.boneIndex, pedData.collision)
@@ -2759,7 +2810,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     table.insert(parentQueue, { handle = handle, data = vehData })
                 else
                     util.toast("Vehicle parented to itself: #" .. vehData.id .. ". See logs for details")
-                    log(string.format("Vehicle %d ID#%d parented to self. Name: %s, Model: %s", handle, vehData.id, vehData.name or "-none-", vehData.model))
+                    Log.log(string.format("Vehicle %d ID#%d parented to self. Name: %s, Model: %s", handle, vehData.id, vehData.name or "-none-", vehData.model))
                 end
                 table.insert(parentQueue, { handle = handle, data = vehData })
             else
@@ -2790,7 +2841,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
     for _, entry in ipairs(parentQueue) do
         local targetHandle = idMap[tostring(entry.data.parent)]
         if not targetHandle then
-            log("Invalid parent handle: " .. entry.data.parent .. " for id " .. entry.id, "add_attachments")
+            Log.log("Invalid parent handle: " .. entry.data.parent .. " for id " .. entry.id, "add_attachments")
         else
             ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(entry.handle, targetHandle)
             attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
@@ -2827,7 +2878,7 @@ end
 
 function attach_entity(parent, handle, pos, rot, index, collision)
     if pos == nil or rot == nil then
-        log("null pos or rot" .. debug.traceback(), "attach_entity")
+        Log.log("null pos or rot" .. debug.traceback(), "attach_entity")
         return
     end
     if not collision then collision = true end
@@ -2984,16 +3035,21 @@ while true do
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-                local is_base = builder.base.handle == highlightedHandle
+                local isBase = builder.base.handle == highlightedHandle
+                local isBuild = entData.build
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
-                if is_base then
+                if isBase then
                     local vehicleCount, objectCount, pedCount = compute_builder_stats()
                     local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                elseif isBuild then
+                    local authorText = entData.build.author and ("Created by " .. entData.build.author) or "Unknown creator"
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, entData.build.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                 else
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
