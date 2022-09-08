@@ -179,8 +179,9 @@ V1.21.0
 * (1.21.2) jackzvehiclelib: Fix bug with license plates
 * (1.21.2) Fix cloud overlays erroring
 * (1.21.3) Fix overlay on builds erroring
-* (1.21.4) Update updaters, internal changes
+
 
 V1.22.0
 
 * Added "Create Manual Base" to spawn a manual model name
+* Update updaters, internal changes
