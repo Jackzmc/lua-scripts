@@ -35,6 +35,7 @@ v3.9.0
 * (3.9.8) jackzvehiclelib: Fix bug with license plates
 * (3.9.9) Update natives
 * (3.9.10) Renamed commands to reduce conflicts
+* (3.9.12) Fix version issues
 
 # actions (v1)
 
