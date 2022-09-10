@@ -35,6 +35,7 @@ v3.9.0
 * (3.9.8) jackzvehiclelib: Fix bug with license plates
 * (3.9.9) Update natives
 * (3.9.10) Renamed commands to reduce conflicts
+* (3.9.12) Fix version issues
 
 # actions (v1)
 
@@ -185,3 +186,5 @@ V1.22.0
 
 * Added "Create Manual Base" to spawn a manual model name
 * Update updaters, internal changes
+* (1.22.1) Fixed visibility not being networked (Ty hexarobi)
+* (1.22.1) Fixed collision not turning off (Ty hexarobi)
