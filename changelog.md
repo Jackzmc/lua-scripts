@@ -186,3 +186,5 @@ V1.22.0
 
 * Added "Create Manual Base" to spawn a manual model name
 * Update updaters, internal changes
+* (1.22.1) Fixed visibility not being networked (Ty hexarobi)
+* (1.22.1) Fixed collision not turning off (Ty hexarobi)
