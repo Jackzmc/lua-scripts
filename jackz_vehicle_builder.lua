@@ -1936,7 +1936,23 @@ end
 
 -- [ ENTITY EDITING HANDLING ]
 function add_particle_to_list(list, particleHandle, particleData)
-
+    builder.entities[particleHandle] = {
+        name = particleData.name or particleData.particle[2],
+        particle = particleData,
+        list = nil,
+        listMenus = {},
+        pos = particleData.offset or { x = 0.0, y = 0.0, z = 0.0 },
+        rot = particleData.rotation or { x = 0.0, y = 0.0, z = 0.0 },
+        boneIndex = particleData.boneIndex or 0,
+        parent = particleData.parent
+    }
+    builder.entities[particleHandle].list = menu.list(
+        list, builder.entities[particleHandle].name, {}, string.format("Edit particle"),
+        function() create_entity_section(builder.entities[particleHandle], particleHandle, { type = "PARTICLE" }) end,
+        function()
+            isInEntityMenu = false
+        end
+    )
 end
 function add_build_to_list(list, subbaseHandle, buildData, name)
     autosave(true)
@@ -1958,7 +1974,7 @@ function add_build_to_list(list, subbaseHandle, buildData, name)
     attach_entity(builder.base.handle, subbaseHandle, builder.entities[subbaseHandle].pos, builder.entities[subbaseHandle].rot, builder.entities[subbaseHandle].boneIndex)
     builder.entities[subbaseHandle].list = menu.list(
         list, builder.entities[subbaseHandle].name, {}, string.format("Edit nested build"),
-        function() create_entity_section(builder.entities[subbaseHandle], subbaseHandle, { isBuild = true }) end,
+        function() create_entity_section(builder.entities[subbaseHandle], subbaseHandle, { type = "BUILD" }) end,
         function()
             isInEntityMenu = false
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -2065,9 +2081,10 @@ end
 
 function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
+    if not options.type then options.type = "ENTITY" end
     local entityroot = tableref.list
     if not ENTITY.DOES_ENTITY_EXIST(handle) then
-        Log.log(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
+        Log.warn(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
         end
@@ -2125,7 +2142,7 @@ function create_entity_section(tableref, handle, options)
             tableref.boneIndex = index
             attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
-        if not options.isBuild then
+        if options.type == "ENTITY" then
             local attachEntList
             local attachName = tableref.parent and ("#" .. tableref.parent) or "Base"
             attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another entity attached to the builder.",
@@ -2147,7 +2164,7 @@ function create_entity_section(tableref, handle, options)
             attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end, tableref.collision))
     end
-    if not options.isBuild then
+    if options.type == "ENTITY" then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
             ENTITY.SET_ENTITY_VISIBLE(handle, value, 0)
@@ -2190,16 +2207,18 @@ function create_entity_section(tableref, handle, options)
         local deleteMenu
         deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
-                if highlightedHandle == handle then
-                    highlightedHandle = nil
-                end
-                if options.isBuild then
-                    remove_all_attachments(handle)
-                end
-                for _, data in pairs(builder.entities) do
-                    if data.parent == tableref.id then
-                        util.toast("Parent was removed for entity #" .. data.id)
-                        data.parent = nil
+                if options.type == "ENTITY" then
+                    if highlightedHandle == handle then
+                        highlightedHandle = nil
+                    end
+                    if options.type == "BUILD" then
+                        remove_all_attachments(handle)
+                    end
+                    for _, data in pairs(builder.entities) do
+                        if data.parent == tableref.id then
+                            util.toast("Parent was removed for entity #" .. data.id)
+                            data.parent = nil
+                        end
                     end
                 end
                 menu.delete(entityroot)
@@ -2208,7 +2227,11 @@ function create_entity_section(tableref, handle, options)
                     builder.entities[handle] = nil
                 end
                 Log.debug("Deleting entity " .. handle)
-                entities.delete_by_handle(handle)
+                if tableref.particle then
+                    GRAPHICS.REMOVE_PARTICLE_FX(handle, true)
+                else
+                 entities.delete_by_handle(handle)
+                end
             end)
             
         end)
