@@ -2131,7 +2131,7 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
             tableref.collision = value
             attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
-        end, tableref.visible))
+        end, tableref.collision))
     end
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
@@ -2893,7 +2893,6 @@ function attach_entity(parent, handle, pos, rot, index, collision)
         Log.log("null pos or rot" .. debug.traceback(), "attach_entity")
         return
     end
-    if not collision then collision = true end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     else
