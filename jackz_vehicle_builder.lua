@@ -2330,8 +2330,11 @@ end
 function get_build_data_from_file(filepath)
     local file = io.open(filepath, "r")
     if file then
-        local data = json.decode(file:read("*a"))
-        if data.Format then
+        local status, data = pcall(json.decode, file:read("*a"))
+        if not status then
+            Log.log("Skipping file \"" .. filepath .. "\" due to json errors: " .. data)
+            return nil
+        elseif data.Format then
             Log.log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
             return nil
         elseif not data.version then
@@ -2486,7 +2489,7 @@ function builder_to_json(is_autosave)
     if not status then
         Log.log("Could not encode: (" .. result ..") " .. dump_table(serialized), "builder_to_json")
         if scriptSettings.autosaveEnabled then
-            local recoveryFilename = string.format("recovered_%s.json",builder.name or "unknown_build")
+            local recoveryFilename = string.format("recovered_%s.json",builder.name or "unnamed_build")
             copy_file(string.format("%s/_autosave%d.json", AUTOSAVE_DIRECTORY, autosaveIndex), string.format("%s/%s", AUTOSAVE_DIRECTORY, recoveryFilename))
             util.toast("WARNING: Could not save your build. Last autosave has automatically been saved as " .. recoveryFilename)
             Log.log("Recovery autosave: " .. recoveryFilename, "builder_to_json")
