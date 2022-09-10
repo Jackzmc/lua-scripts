@@ -2,7 +2,11 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
+<<<<<<< HEAD
 VERSION = "3.9.12"
+=======
+VERSION = "3.9.11"
+>>>>>>> master
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
