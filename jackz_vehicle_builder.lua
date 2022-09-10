@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.22.1"
+VERSION = "1.22.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -302,7 +302,13 @@ end
 function load_favorites_list()
     local file = io.open(FAVORITES_PATH, "r")
     if file then
-        FAVORITES = json.decode(file:read("*a"))
+        local status, data = pcall(json.decode, file:read("*a"))
+        if status then
+            FAVORITES = data
+        else
+            Log.error("Corrupted favorites list: " .. data)
+            util.toast(SCRIPT_NAME .. ": Favorites list is corrupted or invalid, see logs for details")
+        end
         file:close()
     end
 end
