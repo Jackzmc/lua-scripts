@@ -242,7 +242,7 @@ local CURATED_PEDS = {
 
 -- https://vespura.com/fivem/particle-list/
 local CURATED_PARTICLE_FX = {
-
+    { "scr_indep_fireworks", "scr_indep_firework_shotburst"}
 }
 
 local BLIP_ICONS = {
@@ -1935,6 +1935,9 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
+function add_particle_to_list(list, particleHandle, particleData)
+
+end
 function add_build_to_list(list, subbaseHandle, buildData, name)
     autosave(true)
     builder.entities[subbaseHandle] = {
@@ -2389,11 +2392,12 @@ end
 function _serialize_particle(data)
     return {
         id = data.id,
+        parent = data.parent,
         name = data.name,
         offset = data.pos,
         rotation = data.rot,
         boneIndex = data.boneIndex,
-        particleName = data.particleName,
+        particle = data.particle,
         size = data.size,
         color = data.color or {r = 0, g = 0, b = 0, a = 0}
     }
@@ -2409,7 +2413,7 @@ function builder_to_json(is_autosave)
     for handle, data in pairs(builder.entities) do
         if data.build then
             table.insert(builds, _serialize_build(data))
-        elseif data.particleName then
+        elseif data.particle then
             table.insert(particles, _serialize_particle(data))
         else
             local entityData = _serialize_entity(handle, data)
@@ -2504,23 +2508,23 @@ end
 
 function spawn_particle(data, entity, isPreview)
     local particle
-    while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particleName) do
-        STREAMING.REQUEST_NAMED_PTFX_ASSET(data.particleName)
+    while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particle[1]) do
+        STREAMING.REQUEST_NAMED_PTFX_ASSET(data.particle[1])
         util.yield()
     end
-    GRAPHICS.USE_PARTICLE_FX_ASSET(data.particleName)
+    GRAPHICS.USE_PARTICLE_FX_ASSET(data.particle[1])
     if isPreview then
         if data.boneIndex then
-            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
         else
-            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
         end
     elseif data.boneIndex then
-        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
     else
-        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
     end
-    Log.debug(string.format("spawned particle fx (%s), handle %d", data.particleName, particle))
+    Log.debug(string.format("spawned particle fx (%s/%s), handle %d", particle[1], data.particle[2], particle))
     return particle
 end
 
@@ -2906,6 +2910,18 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
         else
             ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(entry.handle, targetHandle)
             attach_entity(targetHandle, entry.handle, entry.data.offset, entry.data.rotation, entry.data.boneIndex)
+        end
+    end
+
+    for _, particle in ipairs(build.particles) do
+        local entity = builder.base.handle
+        if particle.parent then
+            entity = idMap[particle.parent]
+        end
+
+        local handle = spawn_particle(particle, entity, isPreview)
+        if addToBuilder then
+           add_particle_to_list(builder.entitiesMenuList, handle, particle) 
         end
     end
 
