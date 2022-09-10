@@ -2136,7 +2136,7 @@ function create_entity_section(tableref, handle, options)
     if not options.isBuild then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
-            ENTITY.SET_ENTITY_ALPHA(handle, value and 255 or 0)
+            ENTITY.SET_ENTITY_VISIBLE(handle, value, 0)
         end, tableref.visible))
         if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
             table.insert(tableref.listMenus, menu.toggle(entityroot, "Godmode", {"buildergod" .. handle}, "Make the vehicle invincible", function(value)
@@ -2499,9 +2499,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
         setup_entity_preview(handle)
     else
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
-        if vehicleData.visible == false then
-            ENTITY.SET_ENTITY_ALPHA(handle, 0)
-        end
+        ENTITY.SET_ENTITY_VISIBLE(handle, vehicleData.visible, 0)
         if vehicleData.godmode or vehicleData.godmode == nil then
             ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
         end
@@ -2537,10 +2535,7 @@ function spawn_ped(data, isPreview, pos)
     else
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
-
-        if data.visible == false then
-            ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
-        end
+        ENTITY.SET_ENTITY_VISIBLE(handle, data.visible, 0)
         if not data.godmode then
             data.godmode = true
         end
@@ -2583,10 +2578,7 @@ function spawn_object(data, isPreview, pos)
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
     else
-        if data.visible == false then
-            ENTITY.SET_ENTITY_ALPHA(object, 0, false)
-        end
-
+        ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
         return object
     end
 end
@@ -2706,7 +2698,9 @@ function spawn_build(build, isPreview, previewFunc, previewData)
             create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Unnamed Build")
         end
         if build.base.visible and build.base.visible == false or (build.base.data and build.base.data.visible == false) then
-            ENTITY.SET_ENTITY_ALPHA(baseHandle, 0, 0)
+            ENTITY.SET_ENTITY_VISIBLE(baseHandle, false, 0)
+        else
+            ENTITY.SET_ENTITY_VISIBLE(baseHandle, true, 0)
         end
         ENTITY.SET_ENTITY_INVINCIBLE(baseHandle, true)
         local attachments = add_attachments(baseHandle, build, false, isPreview)
@@ -2732,9 +2726,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             else
                 local object = spawn_object(entityData, isPreview)
                 if object then
-                    if entityData.visible == false then
-                        ENTITY.SET_ENTITY_ALPHA(object, 0, false)
-                    end
+                    ENTITY.SET_ENTITY_VISIBLE(object, entityData.visible, 0)
                     for _, handle2 in ipairs(handles) do
                         ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(object, handle2)
                     end
@@ -2810,10 +2802,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
     if build.vehicles then
         for _, vehData in ipairs(build.vehicles) do
             local handle = spawn_vehicle(vehData, isPreview)
-    
-            if vehData.visible == false then
-                ENTITY.SET_ENTITY_ALPHA(handle, 0, false)
-            end
+            ENTITY.SET_ENTITY_VISIBLE(handle, vehData.visible, 0)
             if not vehData.godmode then
                 vehData.godmode = true
             end
