@@ -51,7 +51,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.5.0" -- For version diff warnings
+local BUILDER_VERSION = "1.6.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -238,6 +238,10 @@ local CURATED_PEDS = {
     { "s_m_y_prisoner_01", "Prisoner" },
     { "s_m_y_sheriff_01", "Sherrif" },
     { "s_m_y_fireman_01", "Fireman" }
+}
+
+local CURATED_PARTICLE_FX = {
+
 }
 
 local BLIP_ICONS = {
@@ -2381,16 +2385,31 @@ function _serialize_build(build)
         build = build.build
     }
 end
+function _serialize_particle(data)
+    return {
+        id = data.id,
+        name = data.name,
+        offset = data.pos,
+        rotation = data.rot,
+        boneIndex = data.boneIndex,
+        particleName = data.particleName,
+        size = data.size,
+        color = data.color or {r = 0, g = 0, b = 0, a = 0}
+    }
+end
 
 function builder_to_json(is_autosave)
     local objects = {}
     local vehicles = {}
     local peds = {}
     local builds = {}
+    local particles = {}
     local buildData
     for handle, data in pairs(builder.entities) do
         if data.build then
             table.insert(builds, _serialize_build(data))
+        elseif data.particleName then
+            table.insert(particles, _serialize_particle(data))
         else
             local entityData = _serialize_entity(handle, data)
             if handle == builder.base.handle then
@@ -2425,6 +2444,7 @@ function builder_to_json(is_autosave)
         vehicles = vehicles,
         builds = builds,
         peds = peds,
+        particles = particles,
         spawnLocation = builder.spawnLocation
     }
 
@@ -2479,6 +2499,28 @@ function spawn_entity(data, type, isPreview, pos, heading)
     end
     Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model))
     return handle
+end
+
+function spawn_particle(data, entity, isPreview)
+    local particle
+    while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particleName) do
+        STREAMING.REQUEST_NAMED_PTFX_ASSET(data.particleName)
+        util.yield()
+    end
+    GRAPHICS.USE_PARTICLE_FX_ASSET(data.particleName)
+    if isPreview then
+        if data.boneIndex then
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+        else
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+        end
+    elseif data.boneIndex then
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+    else
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particleName, entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+    end
+    Log.debug(string.format("spawned particle fx (%s), handle %d", data.particleName, particle))
+    return particle
 end
 
 function spawn_vehicle(vehicleData, isPreview, pos, heading)
