@@ -240,6 +240,7 @@ local CURATED_PEDS = {
     { "s_m_y_fireman_01", "Fireman" }
 }
 
+-- https://vespura.com/fivem/particle-list/
 local CURATED_PARTICLE_FX = {
 
 }
