@@ -2518,6 +2518,10 @@ end
 
 
 function spawn_entity(data, type, isPreview, pos, heading)
+    if not data.model then
+        return error("No entity model provided")
+    end
+
     local handle
     if type == "VEHICLE" then
         handle = spawn_vehicle(data, isPreview, pos, heading)
@@ -2533,6 +2537,10 @@ function spawn_entity(data, type, isPreview, pos, heading)
 end
 
 function spawn_particle(data, entity, isPreview)
+    if not data.particle or type(data.particle) ~= "table" or #data.particle < 2 then
+        error("Particle key is missing or invalid")
+    end
+
     local particle
     while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particle[1]) do
         STREAMING.REQUEST_NAMED_PTFX_ASSET(data.particle[1])
