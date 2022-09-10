@@ -2299,8 +2299,11 @@ end
 function get_build_data_from_file(filepath)
     local file = io.open(filepath, "r")
     if file then
-        local data = json.decode(file:read("*a"))
-        if data.Format then
+        local status, data = pcall(json.decode, file:read("*a"))
+        if not status then
+            Log.log("Skipping file \"" .. filepath .. "\" due to json errors: " .. data)
+            return nil
+        elseif data.Format then
             Log.log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
             return nil
         elseif not data.version then
