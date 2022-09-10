@@ -188,3 +188,4 @@ V1.22.0
 * Update updaters, internal changes
 * (1.22.1) Fixed visibility not being networked (Ty hexarobi)
 * (1.22.1) Fixed collision not turning off (Ty hexarobi)
+* (1.22.2) Add check for corrupted favorites.json file
