@@ -2908,10 +2908,13 @@ function attach_entity(parent, handle, pos, rot, index, collision)
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     else
+        if collision == nil then
+            collision = true
+        end
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
             pos.x or 0, pos.y or 0, pos.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
-            false, false, collision or true, false, 2, true
+            false, false, collision, false, 2, true
         )
     end
 
