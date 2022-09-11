@@ -2229,13 +2229,15 @@ function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
     if not options.type then options.type = "ENTITY" end
     local entityroot = tableref.list
-    if tableref.particle and not GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
-        Log.warn(string.format("Particle %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
-        if entityroot then
-            menu.delete(tableref.list)
+    if tableref.particle then
+        if not GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+            Log.warn(string.format("Particle %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
+            if entityroot then
+                menu.delete(tableref.list)
+            end
+            builder.entities[handle] = nil
+            return
         end
-        builder.entities[handle] = nil
-        return
     elseif not ENTITY.DOES_ENTITY_EXIST(handle) then
         Log.warn(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
@@ -2311,7 +2313,7 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
-    if handle ~= builder.base.handle then
+    if handle ~= builder.base.handle and options.type ~= "PARTICLE" then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
             tableref.collision = value
             attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
@@ -3302,21 +3304,24 @@ while true do
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-                local isBase = builder.base.handle == highlightedHandle
-                local isBuild = entData.build
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
-                if isBase then
+                if builder.base.handle == highlightedHandle then
                     local vehicleCount, objectCount, pedCount = compute_builder_stats()
                     local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-                elseif isBuild then
+                elseif entData.build then
                     local authorText = entData.build.author and ("Created by " .. entData.build.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, entData.build.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                elseif entData.particle then
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed particle"), ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.particle.particle[1] .. " " .. entData.particle.particle[2], ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                 else
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
