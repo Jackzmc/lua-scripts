@@ -3197,10 +3197,10 @@ function attach_entity(parent, handle, offset, rot, index, collision)
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
-        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
-            offset.x or 0, offset.y or 0, offset.z or 0,
-            rot.x or 0, rot.y or 0, rot.z or 0
-        )
+        -- GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
+        --     offset.x or 0, offset.y or 0, offset.z or 0,
+        --     rot.x or 0, rot.y or 0, rot.z or 0
+        -- )
     else
         if collision == nil then
             collision = true
@@ -3214,10 +3214,9 @@ function attach_entity(parent, handle, offset, rot, index, collision)
 
 end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
-function highlight_object(handle, size, color)
+function highlight_object_at_pos(pos, size, color)
     if not size then size = 0.01 end
     if not color then color = { r = 255, g = 0, b = 0, a = 200 } end
-    local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
     GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, -size, 0.006, 0.006, 0.0, color.r, color.g, color.b, color.a)
@@ -3226,8 +3225,7 @@ function highlight_object(handle, size, color)
     GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, size, 0.006, 0.006, 180.0, color.r, color.g, color.b, color.a)
     GRAPHICS.CLEAR_DRAW_ORIGIN()
 end
-function show_marker(handle, markerType, ang)
-    local pos = ENTITY.GET_ENTITY_COORDS(handle)
+function show_marker_at_pos(pos, ang, markerType)
     if ang == nil then ang = {} end
     GRAPHICS.DRAW_MARKER(markerType or 0, pos.x, pos.y, pos.z + 4.0, 0.0, 0.0, 0.0, ang.x or 0, ang.y or 0, ang.z or 0, 1, 1, 1, 255, 255, 255, 100, false, true, 2, false, 0, 0, false)
 end
@@ -3351,13 +3349,22 @@ while true do
             end
         end
         if editorActive and highlightedHandle ~= nil and builder.entities[highlightedHandle] then
+            local pos
+            if builder.entities[highlightedHandle] and builder.entities[highlightedHandle].particle then
+                local parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
+                pos = ENTITY.GET_ENTITY_COORDS(parent)
+                pos.x = pos.x + builder.entities[highlightedHandle].pos.x
+                pos.y = pos.y + builder.entities[highlightedHandle].pos.y
+                pos.z = pos.z + builder.entities[highlightedHandle].pos.z
+            else
+                pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
+            end
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local entData = builder.entities[highlightedHandle]
-                local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
                 local isParticle = entData.particle ~= nil
                 local height = 0.1
-                if isParticle then height = height + 0.01 end
+                if isParticle then height = height + 0.025 end
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
@@ -3377,7 +3384,7 @@ while true do
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     if entData.color then
-                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.1f  %6.1f  %6.1f", entData.color.r, entData.color.g, entData.color.b), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.0f  %6.0f  %6.0f", entData.color.r, entData.color.g, entData.color.b), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     end
                     if entData.scale then
                         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.105, string.format("Scale  %6.1f", entData.scale), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
@@ -3390,8 +3397,8 @@ while true do
                 end
             end
 
-            highlight_object(highlightedHandle)
-            show_marker(highlightedHandle, 0)
+            highlight_object_at_pos(pos)
+            show_marker_at_pos(pos, nil, 0)
             local pos = builder.entities[highlightedHandle].pos
             local rot = builder.entities[highlightedHandle].rot
             if FREE_EDIT and (not isInEntityMenu or not menu.is_open()) then
