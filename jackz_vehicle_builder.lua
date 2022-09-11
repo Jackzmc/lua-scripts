@@ -110,7 +110,7 @@ function new_builder()
                 list = nil
             }
         },
-        particlesFx = {
+        particlesSpawner = {
             root = nil,
             menus = {},
             loadState = 0,
@@ -254,7 +254,8 @@ local CURATED_PEDS = {
 
 -- https://vespura.com/fivem/particle-list/
 local CURATED_PARTICLE_FX = {
-    { "scr_indep_fireworks", "scr_indep_firework_shotburst"}
+    { "scr_indep_fireworks", "scr_indep_firework_shotburst"},
+    { "core", "fire_wrecked_plane_cockpit" }
 }
 
 local BLIP_ICONS = {
@@ -1210,8 +1211,8 @@ function setup_builder_menus(name)
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
     builder.pedSpawner.root = menu.list(mainMenu, "Add Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
     menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
-    builder.particlesSpawner.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build")
-    menu.on_focus(builder.particlesSpawner.root, function() _destroy_browse_menu("particlesFx") end)
+    builder.particlesSpawner.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build\nNote: Particles will be spawned as looped but some particles do not support being looped.")
+    menu.on_focus(builder.particlesSpawner.root, function() _destroy_browse_menu("particlesSpawner") end)
     menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\". Click to jump to the saved builds menu", function()
         _load_saved_list()
         menu.focus(savedVehicleListInner)
@@ -1625,8 +1626,8 @@ function _load_particles_browse_menus(parent)
                 end
             end
         end
-        
         builder.particlesSpawner.loadState = 2
+        HUD.BUSYSPINNER_OFF()
     end
 end
 function _destroy_browse_menu(key)
@@ -1972,7 +1973,7 @@ function add_particles_menu(parent, dict, name, isFavoritesEntry)
         if preview.id == nil or preview.id ~= key then -- Focus seems to be re-called everytime an menu item is added
             clear_build_preview()
             local handle = spawn_particle(data, builder.base.handle, true)
-            set_preview(handle, key)
+            set_particle_preview(handle, key)
         end
     end)
     return menuHandle
@@ -2101,21 +2102,25 @@ end
 function add_particle_to_list(list, particleHandle, particleData)
     builder.entities[particleHandle] = {
         name = particleData.name or particleData.particle[2],
-        particle = particleData,
+        particle = particleData.particle,
         list = nil,
         listMenus = {},
         pos = particleData.offset or { x = 0.0, y = 0.0, z = 0.0 },
         rot = particleData.rotation or { x = 0.0, y = 0.0, z = 0.0 },
         boneIndex = particleData.boneIndex or 0,
+        scale = particleData.scale or 1.0,
+        color = particleData.color or nil,
         parent = particleData.parent
     }
     builder.entities[particleHandle].list = menu.list(
-        list, builder.entities[particleHandle].name, {}, string.format("Edit particle"),
+        list, builder.entities[particleHandle].name, {}, string.format("Edit this particle\nDictionary: %s\nName: %s", particleData.particle[1], particleData.particle[2]),
         function() create_entity_section(builder.entities[particleHandle], particleHandle, { type = "PARTICLE" }) end,
         function()
             isInEntityMenu = false
         end
     )
+    menu.focus(builder.entities[particleHandle].list)
+    return builder.entities[particleHandle]
 end
 function add_build_to_list(list, subbaseHandle, buildData, name)
     autosave(true)
@@ -2310,10 +2315,14 @@ function create_entity_section(tableref, handle, options)
     --[ MISC ]--
     table.insert(tableref.listMenus, menu.divider(entityroot, "Misc"))
     if handle ~= builder.base.handle then
-        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
-            tableref.boneIndex = index
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
-        end))
+        -- Changing bone index requires recreating the particle entirely, so for now, don't support it.
+        -- TODO: Support it
+        if options.type ~= "PARTICLE" then
+            table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
+                tableref.boneIndex = index
+                attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            end))
+        end
         if options.type == "ENTITY" then
             local attachEntList
             local attachName = tableref.parent and ("#" .. tableref.parent) or "Base"
@@ -2356,8 +2365,9 @@ function create_entity_section(tableref, handle, options)
                 ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
             end, tableref.godmode))
         end
-    local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
-    table.insert(tableref.listMenus, cloneList)
+
+        local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
+        table.insert(tableref.listMenus, cloneList)
         menu.action(cloneList, "Clone In-place", {}, "Clones the entity where it is", function()
             clone_entity(handle, tableref.name, 0)
         end)
@@ -2370,6 +2380,16 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Mirror (Z, Up/Down)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
+    elseif options.type == "PARTICLE" then
+        table.insert(tableref.listMenus, menu.colour(entityroot, "Color", {"jv" .. handle .. "color"}, "Changes the color and transparency of a particle effect.\nNot all particles are supported", 1, 1, 1, 1, true, function(color)
+            tableref.color = color
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(handle, color.a * 255)
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(handle, color.r * 255, color.g * 255, color.b * 255, 0)
+        end))
+        table.insert(tableref.listMenus, menu.slider_float(entityroot, "Scale", {"jv" .. handle .. "scale"}, "Changes the scale of the particle fx.\nNot all particles are supported", 1, 10000, 100, 10, function(scale)
+            tableref.scale = scale
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(handle, scale)
+        end))
     end
     if handle ~= builder.base.handle then
         -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
@@ -2414,6 +2434,7 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
+    -- Only show attach to base if it's NOT attached to the base
     if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
@@ -2596,7 +2617,7 @@ function _serialize_particle(data)
         rotation = data.rot,
         boneIndex = data.boneIndex,
         particle = data.particle,
-        size = data.size,
+        scale = data.scale,
         color = data.color or {r = 0, g = 0, b = 0, a = 0}
     }
 end
@@ -2730,6 +2751,13 @@ function spawn_particle(data, entity, isPreview)
         particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
     else
         particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+    end
+    if data.scale then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(particle, data.scale)
+    end
+    if data.color then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(particle, data.color.r * 255, data.color.g * 255, data.color.b * 255, 0)
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(particle, data.color.a * 255)
     end
     Log.debug(string.format("spawned particle fx (%s/%s), handle %d", data.particle[1], data.particle[2], particle))
     return particle
@@ -3167,6 +3195,11 @@ function attach_entity(parent, handle, pos, rot, index, collision)
     end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
+    elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle, 
+            pos.x or 0, pos.y or 0, pos.z or 0,
+            rot.x or 0, rot.y or 0, rot.z or 0
+        )
     else
         if collision == nil then
             collision = true
