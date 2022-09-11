@@ -2101,6 +2101,7 @@ end
 -- [ ENTITY EDITING HANDLING ]
 function add_particle_to_list(list, particleHandle, particleData)
     builder.entities[particleHandle] = {
+        id = particleData.id or builder._index,
         name = particleData.name or particleData.particle[2],
         particle = particleData.particle,
         list = nil,
@@ -2323,10 +2324,10 @@ function create_entity_section(tableref, handle, options)
                 attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
             end))
         end
-        if options.type == "ENTITY" then
+        if options.type == "ENTITY" or options.type == "PARTICLE" then
             local attachEntList
             local attachName = tableref.parent and ("#" .. tableref.parent) or "Base"
-            attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another entity attached to the builder.",
+            attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another build entity.",
                 function() _load_attach_list(attachEntList, handle) end,
                 _unload_attach_list
             )
@@ -2382,13 +2383,13 @@ function create_entity_section(tableref, handle, options)
         end)
     elseif options.type == "PARTICLE" then
         table.insert(tableref.listMenus, menu.colour(entityroot, "Color", {"jv" .. handle .. "color"}, "Changes the color and transparency of a particle effect.\nNot all particles are supported", 1, 1, 1, 1, true, function(color)
-            tableref.color = color
-            GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(handle, color.a * 255)
-            GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(handle, color.r * 255, color.g * 255, color.b * 255, 0)
+            tableref.color = { r = color.r * 255, g = color.g * 255, b = color.b * 255, a = color.a * 255}
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(handle, tableref.color.a)
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(handle, tableref.color.r, tableref.color.g, tableref.color.b, 0)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Scale", {"jv" .. handle .. "scale"}, "Changes the scale of the particle fx.\nNot all particles are supported", 1, 10000, 100, 10, function(scale)
-            tableref.scale = scale
-            GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(handle, scale)
+            tableref.scale = scale / 100
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(handle, tableref.scale)
         end))
     end
     if handle ~= builder.base.handle then
@@ -2618,7 +2619,7 @@ function _serialize_particle(data)
         boneIndex = data.boneIndex,
         particle = data.particle,
         scale = data.scale,
-        color = data.color or {r = 0, g = 0, b = 0, a = 0}
+        color = data.color or {r = 0, g = 0, b = 0, a = 255 }
     }
 end
 
@@ -2756,10 +2757,10 @@ function spawn_particle(data, entity, isPreview)
         GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(particle, data.scale)
     end
     if data.color then
-        GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(particle, data.color.r * 255, data.color.g * 255, data.color.b * 255, 0)
-        GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(particle, data.color.a * 255)
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(particle, data.color.r, data.color.g, data.color.b, 0)
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(particle, data.color.a)
     end
-    Log.debug(string.format("spawned particle fx (%s/%s), handle %d", data.particle[1], data.particle[2], particle))
+    Log.debug(string.format("spawned particle fx (%s/%s) %d attached to %d", data.particle[1], data.particle[2], particle, entity))
     return particle
 end
 
@@ -3188,16 +3189,16 @@ function get_entity_by_id(id)
     return nil
 end
 
-function attach_entity(parent, handle, pos, rot, index, collision)
-    if pos == nil or rot == nil then
-        Log.log("null pos or rot" .. debug.traceback(), "attach_entity")
+function attach_entity(parent, handle, offset, rot, index, collision)
+    if offset == nil or rot == nil then
+        Log.log("null offset or rot" .. debug.traceback(), "attach_entity")
         return
     end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
-        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle, 
-            pos.x or 0, pos.y or 0, pos.z or 0,
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
+            offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0
         )
     else
@@ -3205,7 +3206,7 @@ function attach_entity(parent, handle, pos, rot, index, collision)
             collision = true
         end
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
-            pos.x or 0, pos.y or 0, pos.z or 0,
+            offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
             false, false, collision, false, 2, true
         )
@@ -3354,7 +3355,10 @@ while true do
                 local entData = builder.entities[highlightedHandle]
                 local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-                directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+                local isParticle = entData.particle ~= nil
+                local height = 0.1
+                if isParticle then height = height + 0.01 end
+                directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
                 if builder.base.handle == highlightedHandle then
@@ -3367,11 +3371,17 @@ while true do
                     local authorText = entData.build.author and ("Created by " .. entData.build.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, entData.build.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
-                elseif entData.particle then
+                elseif isParticle then
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed particle"), ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
-                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.particle.particle[1] .. " " .. entData.particle.particle[2], ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.particle[1] .. " " .. entData.particle[2], ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    if entData.color then
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.1f  %6.1f  %6.1f", entData.color.r, entData.color.g, entData.color.b), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    end
+                    if entData.scale then
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.105, string.format("Scale  %6.1f", entData.scale), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    end
                 else
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
