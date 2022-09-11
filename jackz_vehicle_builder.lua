@@ -303,7 +303,8 @@ local BLIP_ICONS = {
 local FAVORITES = {
     objects = {},
     vehicles = {},
-    peds = {}
+    peds = {},
+    particles = {}
 }
 local FAVORITES_PATH = filesystem.store_dir() .. "jackz_vehicle_builder\\favorites.json"
 
@@ -343,6 +344,7 @@ end
 local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
 local PEDS_PATH = join_path(filesystem.resources_dir(), "peds.txt")
 local VEHICLES_PATH = join_path(filesystem.resources_dir(), "vehicles.txt")
+local PARTICLES_PATH = join_path(filesystem.resources_dir(), "particles.txt")
 
 local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Builds")
 local LEGACY_SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
@@ -1208,8 +1210,8 @@ function setup_builder_menus(name)
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
     builder.pedSpawner.root = menu.list(mainMenu, "Add Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
     menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
-    builder.particlesFx.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build")
-    menu.on_focus(builder.particlesFx.root, function() _destroy_browse_menu("particlesFx") end)
+    builder.particlesSpawner.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build")
+    menu.on_focus(builder.particlesSpawner.root, function() _destroy_browse_menu("particlesFx") end)
     menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\". Click to jump to the saved builds menu", function()
         _load_saved_list()
         menu.focus(savedVehicleListInner)
@@ -1217,7 +1219,7 @@ function setup_builder_menus(name)
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
     create_ped_spawner_list(builder.pedSpawner.root)
-    create_particles_fx_spawner_list(builder.particlesFx.root)
+    create_particles_fx_spawner_list(builder.particlesSpawner.root)
     builder.ent_spawner_active = true
 end
 
@@ -1398,8 +1400,8 @@ function create_particles_fx_spawner_list(root)
     menu.text_input(searchList, "Search", {"searchparticles"}, "Enter a particle name to search for", function(query)
         create_vehicle_search_results(searchList, query, 30)
     end)
-    builder.particlesFx.recents.list = menu.list(root, "Recent Particles", {}, "Browse your most recently used particles", _load_particles_recent_menu)
-    builder.particlesFx.favorites.list = menu.list(root, "Favorite Particles", {}, "Your favorited spawned particles\nPress SHIFT + ENTER to remove items from favorites", _load_particles_favorites_menu, _destroy_favorites_menus)
+    builder.particlesSpawner.recents.list = menu.list(root, "Recent Particles", {}, "Browse your most recently used particles", _load_particles_recent_menu)
+    builder.particlesSpawner.favorites.list = menu.list(root, "Favorite Particles", {}, "Your favorited spawned particles\nPress SHIFT + ENTER to remove items from favorites", _load_particles_favorites_menu, _destroy_favorites_menus)
 
     local browseList
     browseList = menu.list(root, "Browse", {}, "Browse all particles", function()
@@ -1450,7 +1452,7 @@ end
 function _load_particles_recent_menu() 
     _destroy_recent_menus()
     local sorted = {}
-    for dict, data in pairs(builder.particlesFx.recents.items) do
+    for dict, data in pairs(builder.particlesSpawner.recents.items) do
         table.insert(sorted, { 
             dict = dict,
             name = data.name,
@@ -1459,7 +1461,7 @@ function _load_particles_recent_menu()
     end
     table.sort(sorted, function(a, b) return a.count < b.count end)
     for _, data in ipairs(sorted) do
-        table.insert(recentMenus, add_particles_menu(builder.particlesFx.recents.list, data.id, data.name))
+        table.insert(recentMenus, add_particles_menu(builder.particlesSpawner.recents.list, data.id, data.name))
     end
 end
 function _destroy_recent_menus()
@@ -1490,7 +1492,7 @@ end
 function _load_particles_favorites_menu()
     _destroy_favorites_menus()
     for _, data in ipairs(FAVORITES.particlesFx) do
-        table.insert(recentMenus, add_particles_menu(builder.particlesFx.favorites.list, data.vehicle, data.name))
+        table.insert(recentMenus, add_particles_menu(builder.particlesSpawner.favorites.list, data.vehicle, data.name))
     end
 end
 function _destroy_favorites_menus()
@@ -1604,12 +1606,27 @@ function _load_vehicle_browse_menus(parent)
     end
 end
 function _load_particles_browse_menus(parent)
-    if builder.particlesFx.loadState == 0 then
+    if builder.particlesSpawner.loadState == 0 then
         show_busyspinner("Loading browse menu...")
         builder.vehSpawner.loadState = 1
-        local currentClass = nil
+        local currentDict = nil
+        local currentDictMenu = nil
+        for line in io.lines(PARTICLES_PATH) do
+            local dict = line:match("%[(%g+)%]")
+            if dict then
+                currentDict = dict
+                currentDictMenu = menu.list(parent, dict, {}, "")
+                table.insert(builder.particlesSpawner.menus, currentDictMenu)
+            else
+                line = line:gsub("%s+", "")
+                -- Ignore '#' comments and empty erlines
+                if line ~= "" and line:sub(1, 1) ~= "#" then
+                    add_particles_menu(currentDictMenu, currentDict, line)
+                end
+            end
+        end
         
-        builder.particlesFx.loadState = 2
+        builder.particlesSpawner.loadState = 2
     end
 end
 function _destroy_browse_menu(key)
@@ -1648,7 +1665,7 @@ function save_recents()
     end
 
     file = io.open(RECENTS_DIR .. "particles.txt", "w+")
-    for id, data in pairs(builder.particlesFx.recents.items) do
+    for id, data in pairs(builder.particlesSpawner.recents.items) do
         file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
     end
     file:close()
@@ -1703,7 +1720,7 @@ function load_recents()
         for line in file:lines("l") do
             local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
             if id then
-                builder.particlesFx.recents.items[id] = {
+                builder.particlesSpawner.recents.items[id] = {
                     count = count,
                     name = name
                 }
@@ -1937,10 +1954,10 @@ function add_particles_menu(parent, dict, name, isFavoritesEntry)
         end
         -- Increment recent usage
         local key = dict .. "/" .. name
-        if builder.particlesFx.recents.items[key] ~= nil then
-            builder.particlesFx.recents.items[key].count = builder.particlesFx.recents.items[key].count + 1
+        if builder.particlesSpawner.recents.items[key] ~= nil then
+            builder.particlesSpawner.recents.items[key].count = builder.particlesSpawner.recents.items[key].count + 1
         else
-            builder.particlesFx.recents.items[key] = {
+            builder.particlesSpawner.recents.items[key] = {
                 name = name,
                 dict = dict,
                 count = 0
