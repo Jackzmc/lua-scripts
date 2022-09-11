@@ -899,10 +899,10 @@ function convert_file(path, name, newPath)
     show_busyspinner("Converting " .. name)
     local res = vehiclelib.ConvertXML(file:read("*a"))
     HUD.BUSYSPINNER_OFF()
-    file:close()
     if res.error then
         util.toast("Could not convert: " .. res.error, TOAST_ALL)
         util.toast("Try the online converter: jackz.me/stand/vehicle-converter")
+        file:close()
     else
         util.toast("Successfully converted " .. res.data.type .. " build\nView it in your saved vehicle list")
         file = io.open(newPath, "w")
