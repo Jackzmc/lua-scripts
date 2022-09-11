@@ -21,39 +21,41 @@ function compare_version(a, b)
     elseif av.patch < bv.patch then return -1
     else return 0 end
 end
-local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
-if not filesystem.exists(VERSION_FILE_PATH) then
-    local versionFile = io.open(VERSION_FILE_PATH, "w")
+if SCRIPT_BRANCH and SCRIPT_BRANCH == "release" then
+    local VERSION_FILE_PATH = filesystem.store_dir() .. "jackz_versions.txt"
+    if not filesystem.exists(VERSION_FILE_PATH) then
+        local versionFile = io.open(VERSION_FILE_PATH, "w")
+        if versionFile then
+            versionFile:close()
+        end
+    end
+    local versionFile = io.open(VERSION_FILE_PATH, "r+")
     if versionFile then
+        local versions = {}
+        for line in versionFile:lines("l") do
+            local script, version = line:match("(%g+): (%g+)")
+            if script then
+                versions[script] = version
+            end
+        end
+        if versions[SCRIPT_NAME] == nil or compare_version(VERSION, versions[SCRIPT_NAME]) == 1 then
+            if versions[SCRIPT_NAME] ~= nil then
+                async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. versions[SCRIPT_NAME] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
+                    util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
+                end, function() util.log(SCRIPT_NAME ..": Could not get changelog") end)
+                async_http.dispatch()
+            end
+            versions[SCRIPT_NAME] = VERSION
+            versionFile:seek("set", 0)
+            versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
+            for script, version in pairs(versions) do
+                versionFile:write(script .. ": " .. version .. "\n")
+            end
+        end
         versionFile:close()
+    else
+        util.log(SCRIPT_NAME .. ": Failed to access to version file")
     end
-end
-local versionFile = io.open(VERSION_FILE_PATH, "r+")
-if versionFile then
-    local versions = {}
-    for line in versionFile:lines("l") do
-        local script, version = line:match("(%g+): (%g+)")
-        if script then
-            versions[script] = version
-        end
-    end
-    if versions[SCRIPT_NAME] == nil or compare_version(VERSION, versions[SCRIPT_NAME]) == 1 then
-        if versions[SCRIPT_NAME] ~= nil then
-            async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. versions[SCRIPT_NAME] .. "&branch=" .. (SCRIPT_BRANCH or "master"), function(result)
-                util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
-            end, function() util.log(SCRIPT_NAME ..": Could not get changelog") end)
-            async_http.dispatch()
-        end
-        versions[SCRIPT_NAME] = VERSION
-        versionFile:seek("set", 0)
-        versionFile:write("# DO NOT EDIT ! File is used for changelogs\n")
-        for script, version in pairs(versions) do
-            versionFile:write(script .. ": " .. version .. "\n")
-        end
-    end
-    versionFile:close()
-else
-    util.log(SCRIPT_NAME .. ": Failed to access to version file")
 end
 -- END Version Check
 ------------------------------------------------------------------
