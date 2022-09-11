@@ -738,7 +738,7 @@ local xmlMenusHandles = {}
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
     scriptSettings.spawnInVehicle = on
 end, scriptSettings.spawnInVehicle)
-local xmlList = menu.list(savedVehicleList, "Convert XML Builds", {}, "Convert XML Builds/Vehicles (including menyoo)")
+local xmlList = menu.list(savedVehicleList, "Convert Builds", {}, "Convert builds and vehicles from certain supported sources.\nVery buggy and unsupported right now. Limited support for:\nNullify\nMenyoo\nSome ini vehicles")
 local savedVehicleListInner = menu.divider(savedVehicleList, "Folders")
 local optionsMenuHandles = {}
 local optionParentMenus = {}
