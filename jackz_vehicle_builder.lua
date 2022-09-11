@@ -110,6 +110,18 @@ function new_builder()
                 list = nil
             }
         },
+        particlesFx = {
+            root = nil,
+            menus = {},
+            loadState = 0,
+            recents = {
+                list = nil,
+                items = {}
+            },
+            favorites = {
+                list = nil
+            }
+        },
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
         spawnLocation = nil,
@@ -387,7 +399,7 @@ function create_preview_handler_if_not_exists()
     if preview.thread == nil then
         preview.thread = util.create_thread(function()
             local heading = 0
-            while preview.entity ~= 0 do
+            while preview.entity ~= 0 and not preview.isParticle do
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 heading = heading + 2
                 if heading == 360 then
@@ -1195,6 +1207,9 @@ function setup_builder_menus(name)
     builder.vehSpawner.root = menu.list(mainMenu, "Add Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
     builder.pedSpawner.root = menu.list(mainMenu, "Add Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
+    menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
+    builder.particlesFx.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build")
+    menu.on_focus(builder.particlesFx.root, function() _destroy_browse_menu("particlesFx") end)
     menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\". Click to jump to the saved builds menu", function()
         _load_saved_list()
         menu.focus(savedVehicleListInner)
@@ -1202,6 +1217,7 @@ function setup_builder_menus(name)
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
     create_ped_spawner_list(builder.pedSpawner.root)
+    create_particles_fx_spawner_list(builder.particlesFx.root)
     builder.ent_spawner_active = true
 end
 
@@ -1373,6 +1389,24 @@ function create_vehicle_spawner_list(root)
     end)
 end
 
+function create_particles_fx_spawner_list(root)
+    local curatedList = menu.list(root, "Curated", {}, "")
+    for _, particle in ipairs(CURATED_PARTICLE_FX) do
+        add_particles_menu(curatedList, particle[1], particle[2])
+    end
+    local searchList = menu.list(root, "Search Particles")
+    menu.text_input(searchList, "Search", {"searchparticles"}, "Enter a particle name to search for", function(query)
+        create_vehicle_search_results(searchList, query, 30)
+    end)
+    builder.particlesFx.recents.list = menu.list(root, "Recent Particles", {}, "Browse your most recently used particles", _load_particles_recent_menu)
+    builder.particlesFx.favorites.list = menu.list(root, "Favorite Particles", {}, "Your favorited spawned particles\nPress SHIFT + ENTER to remove items from favorites", _load_particles_favorites_menu, _destroy_favorites_menus)
+
+    local browseList
+    browseList = menu.list(root, "Browse", {}, "Browse all particles", function()
+        _load_particles_browse_menus(browseList)
+    end)
+end
+
 -- [ RECENTS MENU LOAD LOGIC ]--
 local recentMenus = {}
 function _load_prop_recent_menu()
@@ -1413,6 +1447,21 @@ function _load_vehicle_recent_menu()
         table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.recents.list, data.id, data.name, data.dlc))
     end
 end
+function _load_particles_recent_menu() 
+    _destroy_recent_menus()
+    local sorted = {}
+    for dict, data in pairs(builder.particlesFx.recents.items) do
+        table.insert(sorted, { 
+            dict = dict,
+            name = data.name,
+            count = data.count
+        })
+    end
+    table.sort(sorted, function(a, b) return a.count < b.count end)
+    for _, data in ipairs(sorted) do
+        table.insert(recentMenus, add_particles_menu(builder.particlesFx.recents.list, data.id, data.name))
+    end
+end
 function _destroy_recent_menus()
     clear_menu_table(recentMenus)
 end
@@ -1436,6 +1485,12 @@ function _load_vehicle_favorites_menu()
     _destroy_favorites_menus()
     for _, data in ipairs(FAVORITES.vehicles) do
         table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.favorites.list, data.vehicle, data.name, data.dlc, true))
+    end
+end
+function _load_particles_favorites_menu()
+    _destroy_favorites_menus()
+    for _, data in ipairs(FAVORITES.particlesFx) do
+        table.insert(recentMenus, add_particles_menu(builder.particlesFx.favorites.list, data.vehicle, data.name))
     end
 end
 function _destroy_favorites_menus()
@@ -1548,6 +1603,15 @@ function _load_vehicle_browse_menus(parent)
         builder.vehSpawner.loadState = 2
     end
 end
+function _load_particles_browse_menus(parent)
+    if builder.particlesFx.loadState == 0 then
+        show_busyspinner("Loading browse menu...")
+        builder.vehSpawner.loadState = 1
+        local currentClass = nil
+        
+        builder.particlesFx.loadState = 2
+    end
+end
 function _destroy_browse_menu(key)
     _destroy_recent_menus()
     show_busyspinner("Clearing browse menu... Lag may occur")
@@ -1580,6 +1644,11 @@ function save_recents()
 
     file = io.open(RECENTS_DIR .. "peds.txt", "w+")
     for id, data in pairs(builder.pedSpawner.recents.items) do
+        file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
+    end
+
+    file = io.open(RECENTS_DIR .. "particles.txt", "w+")
+    for id, data in pairs(builder.particlesFx.recents.items) do
         file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
     end
     file:close()
@@ -1621,6 +1690,20 @@ function load_recents()
             local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
             if id then
                 builder.vehSpawner.recents.items[id] = {
+                    count = count,
+                    name = name
+                }
+            end
+        end
+        file:close()
+    end
+
+    file = io.open(RECENTS_DIR .. "particles.txt", "r+")
+    if file then
+        for line in file:lines("l") do
+            local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
+            if id then
+                builder.particlesFx.recents.items[id] = {
                     count = count,
                     name = name
                 }
@@ -1827,6 +1910,56 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     end)
     return menuHandle
 end
+function add_particles_menu(parent, dict, name, isFavoritesEntry)
+    local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
+    local menuHandle
+    local data = {
+        particle = { dict, name },
+        pos = { x = 0, y = 0, z = 0},
+        rot = { x = 0, y = 0, z = 0}
+    }
+    menuHandle = menu.action(parent, name, {}, "Dictionary: " .. dict .. "\n" .. helper, function()
+        clear_build_preview()
+        if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if isFavoritesEntry then
+                for i, entry in ipairs(FAVORITES.particlesFx) do
+                    if entry.dict == dict and entry.name == name then
+                        table.remove(FAVORITES.particlesFx, i)
+                    end
+                end
+                menu.delete(menuHandle)
+                util.toast("Removed particle from your favorites")
+            else
+                table.insert(FAVORITES.particlesFx, { dict = dict, display = name })
+                util.toast("Added particle to your favorites")
+            end
+            return
+        end
+        -- Increment recent usage
+        local key = dict .. "/" .. name
+        if builder.particlesFx.recents.items[key] ~= nil then
+            builder.particlesFx.recents.items[key].count = builder.particlesFx.recents.items[key].count + 1
+        else
+            builder.particlesFx.recents.items[key] = {
+                name = name,
+                dict = dict,
+                count = 0
+            }
+        end
+
+        local handle = spawn_particle(data, builder.base.handle)
+        add_particle_to_list(builder.entitiesMenuList, handle, data)
+    end)
+    menu.on_focus(menuHandle, function()
+        local key = dict .. "/" .. name
+        if preview.id == nil or preview.id ~= key then -- Focus seems to be re-called everytime an menu item is added
+            clear_build_preview()
+            local handle = spawn_particle(data, builder.base.handle, true)
+            set_preview(handle, key)
+        end
+    end)
+    return menuHandle
+end
 --[ Previewer Stuff ]--
 function setup_entity_preview(entity)
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
@@ -1839,9 +1972,17 @@ function setup_entity_preview(entity)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
 end
+function set_particle_preview(particleHandle, id)
+    clear_build_preview()
+    preview.entity = particleHandle
+    preview.id = id
+    preview.isParticle = true
+    -- Don't create handler
+end
 function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
     clear_build_preview()
     preview.entity = entity
+    preview.isParticle = false
     preview.id = id
     preview.range = range or nil
     preview.rangeZ = rangeZ or 0.3
@@ -1873,13 +2014,18 @@ function remove_all_attachments(handle)
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
 end
 function clear_build_preview()
-    local old_entity = preview.entity
+    local oldEntity = preview.entity
     preview.entity = 0
     preview.id = nil
-    if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
+    if preview.isParticle then
+        Log.debug("removed particles fx")
+        if GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(oldEntity) then
+            GRAPHICS.REMOVE_PARTICLE_FX(oldEntity, true)
+        end
+    elseif oldEntity ~= 0 and ENTITY.DOES_ENTITY_EXIST(oldEntity) then
         Log.debug("removed build preview")
-        remove_all_attachments(old_entity)
-        entities.delete_by_handle(old_entity)
+        remove_all_attachments(oldEntity)
+        entities.delete_by_handle(oldEntity)
     end
 end
 
@@ -2083,7 +2229,14 @@ function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
     if not options.type then options.type = "ENTITY" end
     local entityroot = tableref.list
-    if not ENTITY.DOES_ENTITY_EXIST(handle) then
+    if tableref.particle and GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+        Log.warn(string.format("Particle %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
+        if entityroot then
+            menu.delete(tableref.list)
+        end
+        builder.entities[handle] = nil
+        return
+    elseif not ENTITY.DOES_ENTITY_EXIST(handle) then
         Log.warn(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
@@ -2540,6 +2693,7 @@ function spawn_particle(data, entity, isPreview)
     if not data.particle or type(data.particle) ~= "table" or #data.particle < 2 then
         error("Particle key is missing or invalid")
     end
+    if not data.scale then data.scale = 1 end
 
     local particle
     while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particle[1]) do
@@ -2558,7 +2712,7 @@ function spawn_particle(data, entity, isPreview)
     else
         particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
     end
-    Log.debug(string.format("spawned particle fx (%s/%s), handle %d", particle[1], data.particle[2], particle))
+    Log.debug(string.format("spawned particle fx (%s/%s), handle %d", data.particle[1], data.particle[2], particle))
     return particle
 end
 
