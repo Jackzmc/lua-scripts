@@ -2229,7 +2229,7 @@ function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
     if not options.type then options.type = "ENTITY" end
     local entityroot = tableref.list
-    if tableref.particle and GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+    if tableref.particle and not GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
         Log.warn(string.format("Particle %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
