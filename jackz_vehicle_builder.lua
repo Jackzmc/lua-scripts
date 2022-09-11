@@ -1613,12 +1613,12 @@ function _load_particles_browse_menus(parent)
         local currentDict = nil
         local currentDictMenu = nil
         for line in io.lines(PARTICLES_PATH) do
-            local dict = line:match("%[(%g+)%]")
+            local dict = line:match("^%[(%g+)%]")
             if dict then
                 currentDict = dict
                 currentDictMenu = menu.list(parent, dict, {}, "")
                 table.insert(builder.particlesSpawner.menus, currentDictMenu)
-            else
+            elseif currentDict then
                 line = line:gsub("%s+", "")
                 -- Ignore '#' comments and empty erlines
                 if line ~= "" and line:sub(1, 1) ~= "#" then
@@ -3197,10 +3197,10 @@ function attach_entity(parent, handle, offset, rot, index, collision)
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
-        -- GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
-        --     offset.x or 0, offset.y or 0, offset.z or 0,
-        --     rot.x or 0, rot.y or 0, rot.z or 0
-        -- )
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
+            offset.x or 0, offset.y or 0, offset.z or 0,
+            rot.x or 0, rot.y or 0, rot.z or 0
+        )
     else
         if collision == nil then
             collision = true
@@ -3364,7 +3364,7 @@ while true do
                 local hudPos = get_screen_coords(pos)
                 local isParticle = entData.particle ~= nil
                 local height = 0.1
-                if isParticle then height = height + 0.025 end
+                if isParticle then height = height + 0.03 end
                 directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
@@ -3384,7 +3384,7 @@ while true do
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     if entData.color then
-                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.0f  %6.0f  %6.0f", entData.color.r, entData.color.g, entData.color.b), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.0f  %6.0f  %6.0f  %6.0f", entData.color.r, entData.color.g, entData.color.b, entData.color.a), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
                     end
                     if entData.scale then
                         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.105, string.format("Scale  %6.1f", entData.scale), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
