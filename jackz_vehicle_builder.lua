@@ -2206,6 +2206,7 @@ function add_entity_to_list(list, handle, name, data)
     elseif ENTITY.IS_ENTITY_A_PED(handle) then
         type = "PED"
     end
+    if data.visible == nil then data.visible = true end
     builder.entities[handle] = {
         id = data.id or builder._index,
         name = name or "(no name)",
@@ -2216,7 +2217,7 @@ function add_entity_to_list(list, handle, name, data)
         pos = data.offset or { x = 0.0, y = 0.0, z = 0.0 },
         rot = data.rotation or { x = 0.0, y = 0.0, z = 0.0 },
         boneIndex = data.boneIndex or 0,
-        visible = data.visible or true,
+        visible = data.visible,
         parent = data.parent,
         godmode = data.godmode or (type ~= "OBJECT") and true or nil
     }
