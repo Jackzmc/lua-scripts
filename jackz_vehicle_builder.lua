@@ -51,7 +51,7 @@ local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
-local BUILDER_VERSION = "1.5.0" -- For version diff warnings
+local BUILDER_VERSION = "1.6.0" -- For version diff warnings
 local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
@@ -99,6 +99,18 @@ function new_builder()
             }
         },
         pedSpawner = {
+            root = nil,
+            menus = {},
+            loadState = 0,
+            recents = {
+                list = nil,
+                items = {}
+            },
+            favorites = {
+                list = nil
+            }
+        },
+        particlesSpawner = {
             root = nil,
             menus = {},
             loadState = 0,
@@ -240,6 +252,43 @@ local CURATED_PEDS = {
     { "s_m_y_fireman_01", "Fireman" }
 }
 
+-- https://vespura.com/fivem/particle-list/
+local CURATED_PARTICLE_FX = {
+    { "scr_indep_fireworks", "scr_indep_firework_shotburst"},
+    { "core", "fire_wrecked_plane_cockpit" },
+    { "wpn_flare", "proj_heist_flare_trail" },
+    { "weap_xs_vehicle_weapons", "muz_xs_turret_flamethrower_looping"},
+    { "weap_xs_vehicle_weapons", "muz_xs_turret_flamethrower_looping_sf"},
+    { "weap_sm_tula", "veh_tula_turbulance_water" },
+    { "veh_khanjali", "muz_xm_khanjali_railgun_charge" },
+    { "scr_xs_props", "scr_xs_oil_jack_fire" },
+    { "scr_xs_pits", "scr_xs_sf_pit" },
+    { "scr_xs_pits", "scr_xs_fire_pit" },
+    { "scr_xs_pits", "scr_xs_sf_pit_long" },
+    { "scr_xs_pits", "scr_xs_fire_pit_long" },
+    { "xcr_xs_celebration", "scr_xs_money_rain" },
+    { "xcr_xs_celebration", "scr_xs_money_rain_celeb" },
+    { "xcr_xs_celebration", "scr_xs_champagne_spray" },
+    { "xcr_xm_submarine", "scr_xm_stromberg_scanner" },
+    { "xcr_xm_spybomb", "scr_xm_spybomb_plane_smoke_trail" },
+    { "scr_xm_ht", "scr_xm_ht_package_flare" },
+    { "scr_xm_farm", "scr_xm_dst_elec_cracke" },
+    { "scr_xm_heat", "scr_xm_heat_camo" },
+    { "scr_xm_aq", "scr_xm_aq_final_kill_thruster" },
+    { "scr_sr_adversary", "scr_sr_lg_weapon_highlight" },
+    { "scr_recrash_rescue", "scr_recrash_rescue" },
+    { "scr_reconstructionaccident", "scr_sparking_generator" },
+    { "scr_rcnigel2", "scr_rcn2_debris_trail" },
+    { "scr_rcbarry1", "scr_alien_charging" },
+    { "scr_rcbarry1", "scr_alien_impact" },
+    { "scr_jewelheist", "scr_jewel_fog_volume" },
+    { "scr_carwash", "ent_amb_car_wash_jet" },
+    { "scr_as_trans", "scr_as_trans_smoke" },
+    { "cut_amb_tv", "cs_amb_tv_sauna_steam" },
+    { "scr_trevor2", "scr_trev2_heli_wreck" },
+    { "scr_stunts", "scr_stunts_fire_ring" }
+}
+
 local BLIP_ICONS = {
     { 64, "Helicopter (Black)" },
     { 56, "Police Car" },
@@ -286,7 +335,8 @@ local BLIP_ICONS = {
 local FAVORITES = {
     objects = {},
     vehicles = {},
-    peds = {}
+    peds = {},
+    particles = {}
 }
 local FAVORITES_PATH = filesystem.store_dir() .. "jackz_vehicle_builder\\favorites.json"
 
@@ -326,6 +376,7 @@ end
 local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
 local PEDS_PATH = join_path(filesystem.resources_dir(), "peds.txt")
 local VEHICLES_PATH = join_path(filesystem.resources_dir(), "vehicles.txt")
+local PARTICLES_PATH = join_path(filesystem.resources_dir(), "particles.txt")
 
 local SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Builds")
 local LEGACY_SAVE_DIRECTORY = join_path(filesystem.stand_dir(), "Vehicles/Custom")
@@ -382,7 +433,7 @@ function create_preview_handler_if_not_exists()
     if preview.thread == nil then
         preview.thread = util.create_thread(function()
             local heading = 0
-            while preview.entity ~= 0 do
+            while preview.entity ~= 0 and not preview.isParticle do
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 heading = heading + 2
                 if heading == 360 then
@@ -1191,6 +1242,9 @@ function setup_builder_menus(name)
     builder.vehSpawner.root = menu.list(mainMenu, "Add Vehicles", {"buildervehicles"}, "Browse vehicles to spawn to add to your build")
     menu.on_focus(builder.vehSpawner.root, function() _destroy_browse_menu("vehSpawner") end)
     builder.pedSpawner.root = menu.list(mainMenu, "Add Peds", {"builderpeds"}, "Browse peds to spawn to add to your build")
+    menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
+    builder.particlesSpawner.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build\nNote: Particles will be spawned as looped but some particles do not support being looped.")
+    menu.on_focus(builder.particlesSpawner.root, function() _destroy_browse_menu("particlesSpawner") end)
     menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\". Click to jump to the saved builds menu", function()
         _load_saved_list()
         menu.focus(savedVehicleListInner)
@@ -1198,6 +1252,7 @@ function setup_builder_menus(name)
     create_object_spawner_list(builder.propSpawner.root)
     create_vehicle_spawner_list(builder.vehSpawner.root)
     create_ped_spawner_list(builder.pedSpawner.root)
+    create_particles_fx_spawner_list(builder.particlesSpawner.root)
     builder.ent_spawner_active = true
 end
 
@@ -1369,6 +1424,24 @@ function create_vehicle_spawner_list(root)
     end)
 end
 
+function create_particles_fx_spawner_list(root)
+    local curatedList = menu.list(root, "Curated", {}, "")
+    for _, particle in ipairs(CURATED_PARTICLE_FX) do
+        add_particles_menu(curatedList, particle[1], particle[2])
+    end
+    local searchList = menu.list(root, "Search Particles")
+    menu.text_input(searchList, "Search", {"searchparticles"}, "Enter a particle name to search for", function(query)
+        create_vehicle_search_results(searchList, query, 30)
+    end)
+    builder.particlesSpawner.recents.list = menu.list(root, "Recent Particles", {}, "Browse your most recently used particles", _load_particles_recent_menu)
+    builder.particlesSpawner.favorites.list = menu.list(root, "Favorite Particles", {}, "Your favorited spawned particles\nPress SHIFT + ENTER to remove items from favorites", _load_particles_favorites_menu, _destroy_favorites_menus)
+
+    local browseList
+    browseList = menu.list(root, "Browse", {}, "Browse all particles", function()
+        _load_particles_browse_menus(browseList)
+    end)
+end
+
 -- [ RECENTS MENU LOAD LOGIC ]--
 local recentMenus = {}
 function _load_prop_recent_menu()
@@ -1409,6 +1482,21 @@ function _load_vehicle_recent_menu()
         table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.recents.list, data.id, data.name, data.dlc))
     end
 end
+function _load_particles_recent_menu() 
+    _destroy_recent_menus()
+    local sorted = {}
+    for dict, data in pairs(builder.particlesSpawner.recents.items) do
+        table.insert(sorted, { 
+            dict = dict,
+            name = data.name,
+            count = data.count
+        })
+    end
+    table.sort(sorted, function(a, b) return a.count < b.count end)
+    for _, data in ipairs(sorted) do
+        table.insert(recentMenus, add_particles_menu(builder.particlesSpawner.recents.list, data.id, data.name))
+    end
+end
 function _destroy_recent_menus()
     clear_menu_table(recentMenus)
 end
@@ -1432,6 +1520,12 @@ function _load_vehicle_favorites_menu()
     _destroy_favorites_menus()
     for _, data in ipairs(FAVORITES.vehicles) do
         table.insert(recentMenus, add_vehicle_menu(builder.vehSpawner.favorites.list, data.vehicle, data.name, data.dlc, true))
+    end
+end
+function _load_particles_favorites_menu()
+    _destroy_favorites_menus()
+    for _, data in ipairs(FAVORITES.particlesFx) do
+        table.insert(recentMenus, add_particles_menu(builder.particlesSpawner.favorites.list, data.vehicle, data.name))
     end
 end
 function _destroy_favorites_menus()
@@ -1544,6 +1638,30 @@ function _load_vehicle_browse_menus(parent)
         builder.vehSpawner.loadState = 2
     end
 end
+function _load_particles_browse_menus(parent)
+    if builder.particlesSpawner.loadState == 0 then
+        show_busyspinner("Loading browse menu...")
+        builder.vehSpawner.loadState = 1
+        local currentDict = nil
+        local currentDictMenu = nil
+        for line in io.lines(PARTICLES_PATH) do
+            local dict = line:match("^%[(%g+)%]")
+            if dict then
+                currentDict = dict
+                currentDictMenu = menu.list(parent, dict, {}, "")
+                table.insert(builder.particlesSpawner.menus, currentDictMenu)
+            elseif currentDict then
+                line = line:gsub("%s+", "")
+                -- Ignore '#' comments and empty erlines
+                if line ~= "" and line:sub(1, 1) ~= "#" then
+                    add_particles_menu(currentDictMenu, currentDict, line)
+                end
+            end
+        end
+        builder.particlesSpawner.loadState = 2
+        HUD.BUSYSPINNER_OFF()
+    end
+end
 function _destroy_browse_menu(key)
     _destroy_recent_menus()
     show_busyspinner("Clearing browse menu... Lag may occur")
@@ -1576,6 +1694,11 @@ function save_recents()
 
     file = io.open(RECENTS_DIR .. "peds.txt", "w+")
     for id, data in pairs(builder.pedSpawner.recents.items) do
+        file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
+    end
+
+    file = io.open(RECENTS_DIR .. "particles.txt", "w+")
+    for id, data in pairs(builder.particlesSpawner.recents.items) do
         file:write(id .. "," .. data.name .. "," .. data.count .. "\n")
     end
     file:close()
@@ -1617,6 +1740,20 @@ function load_recents()
             local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
             if id then
                 builder.vehSpawner.recents.items[id] = {
+                    count = count,
+                    name = name
+                }
+            end
+        end
+        file:close()
+    end
+
+    file = io.open(RECENTS_DIR .. "particles.txt", "r+")
+    if file then
+        for line in file:lines("l") do
+            local id, name, count = line:match("(%g+),([%g%s]*),(%g*),")
+            if id then
+                builder.particlesSpawner.recents.items[id] = {
                     count = count,
                     name = name
                 }
@@ -1823,6 +1960,56 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     end)
     return menuHandle
 end
+function add_particles_menu(parent, dict, name, isFavoritesEntry)
+    local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
+    local menuHandle
+    local data = {
+        particle = { dict, name },
+        pos = { x = 0, y = 0, z = 0},
+        rot = { x = 0, y = 0, z = 0}
+    }
+    menuHandle = menu.action(parent, name, {}, "Dictionary: " .. dict .. "\n" .. helper, function()
+        clear_build_preview()
+        if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if isFavoritesEntry then
+                for i, entry in ipairs(FAVORITES.particlesFx) do
+                    if entry.dict == dict and entry.name == name then
+                        table.remove(FAVORITES.particlesFx, i)
+                    end
+                end
+                menu.delete(menuHandle)
+                util.toast("Removed particle from your favorites")
+            else
+                table.insert(FAVORITES.particlesFx, { dict = dict, display = name })
+                util.toast("Added particle to your favorites")
+            end
+            return
+        end
+        -- Increment recent usage
+        local key = dict .. "/" .. name
+        if builder.particlesSpawner.recents.items[key] ~= nil then
+            builder.particlesSpawner.recents.items[key].count = builder.particlesSpawner.recents.items[key].count + 1
+        else
+            builder.particlesSpawner.recents.items[key] = {
+                name = name,
+                dict = dict,
+                count = 0
+            }
+        end
+
+        local handle = spawn_particle(data, builder.base.handle)
+        add_particle_to_list(builder.entitiesMenuList, handle, data)
+    end)
+    menu.on_focus(menuHandle, function()
+        local key = dict .. "/" .. name
+        if preview.id == nil or preview.id ~= key then -- Focus seems to be re-called everytime an menu item is added
+            clear_build_preview()
+            local handle = spawn_particle(data, builder.base.handle, true)
+            set_particle_preview(handle, key)
+        end
+    end)
+    return menuHandle
+end
 --[ Previewer Stuff ]--
 function setup_entity_preview(entity)
     ENTITY.SET_ENTITY_ALPHA(entity, 150)
@@ -1835,9 +2022,17 @@ function setup_entity_preview(entity)
         VEHICLE.SET_VEHICLE_GRAVITY(entity, false)
     end
 end
+function set_particle_preview(particleHandle, id)
+    clear_build_preview()
+    preview.entity = particleHandle
+    preview.id = id
+    preview.isParticle = true
+    -- Don't create handler
+end
 function set_preview(entity, id, range, renderfunc, renderdata, rangeZ)
     clear_build_preview()
     preview.entity = entity
+    preview.isParticle = false
     preview.id = id
     preview.range = range or nil
     preview.rangeZ = rangeZ or 0.3
@@ -1869,13 +2064,18 @@ function remove_all_attachments(handle)
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
 end
 function clear_build_preview()
-    local old_entity = preview.entity
+    local oldEntity = preview.entity
     preview.entity = 0
     preview.id = nil
-    if old_entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(old_entity) then
+    if preview.isParticle then
+        Log.debug("removed particles fx")
+        if GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(oldEntity) then
+            GRAPHICS.REMOVE_PARTICLE_FX(oldEntity, true)
+        end
+    elseif oldEntity ~= 0 and ENTITY.DOES_ENTITY_EXIST(oldEntity) then
         Log.debug("removed build preview")
-        remove_all_attachments(old_entity)
-        entities.delete_by_handle(old_entity)
+        remove_all_attachments(oldEntity)
+        entities.delete_by_handle(oldEntity)
     end
 end
 
@@ -1931,6 +2131,30 @@ function get_entity_lookat(distance, radius, flags, callback)
 end
 
 -- [ ENTITY EDITING HANDLING ]
+function add_particle_to_list(list, particleHandle, particleData)
+    builder.entities[particleHandle] = {
+        id = particleData.id or builder._index,
+        name = particleData.name or particleData.particle[2],
+        particle = particleData.particle,
+        list = nil,
+        listMenus = {},
+        pos = particleData.offset or { x = 0.0, y = 0.0, z = 0.0 },
+        rot = particleData.rotation or { x = 0.0, y = 0.0, z = 0.0 },
+        boneIndex = particleData.boneIndex or 0,
+        scale = particleData.scale or 1.0,
+        color = particleData.color or nil,
+        parent = particleData.parent
+    }
+    builder.entities[particleHandle].list = menu.list(
+        list, builder.entities[particleHandle].name, {}, string.format("Edit this particle\nDictionary: %s\nName: %s", particleData.particle[1], particleData.particle[2]),
+        function() create_entity_section(builder.entities[particleHandle], particleHandle, { type = "PARTICLE" }) end,
+        function()
+            isInEntityMenu = false
+        end
+    )
+    menu.focus(builder.entities[particleHandle].list)
+    return builder.entities[particleHandle]
+end
 function add_build_to_list(list, subbaseHandle, buildData, name)
     autosave(true)
     builder.entities[subbaseHandle] = {
@@ -1951,7 +2175,7 @@ function add_build_to_list(list, subbaseHandle, buildData, name)
     attach_entity(builder.base.handle, subbaseHandle, builder.entities[subbaseHandle].pos, builder.entities[subbaseHandle].rot, builder.entities[subbaseHandle].boneIndex)
     builder.entities[subbaseHandle].list = menu.list(
         list, builder.entities[subbaseHandle].name, {}, string.format("Edit nested build"),
-        function() create_entity_section(builder.entities[subbaseHandle], subbaseHandle, { isBuild = true }) end,
+        function() create_entity_section(builder.entities[subbaseHandle], subbaseHandle, { type = "BUILD" }) end,
         function()
             isInEntityMenu = false
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
@@ -2058,9 +2282,19 @@ end
 
 function create_entity_section(tableref, handle, options)
     if options == nil then options = {} end
+    if not options.type then options.type = "ENTITY" end
     local entityroot = tableref.list
-    if not ENTITY.DOES_ENTITY_EXIST(handle) then
-        Log.log(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
+    if tableref.particle then
+        if not GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+            Log.warn(string.format("Particle %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
+            if entityroot then
+                menu.delete(tableref.list)
+            end
+            builder.entities[handle] = nil
+            return
+        end
+    elseif not ENTITY.DOES_ENTITY_EXIST(handle) then
+        Log.warn(string.format("Entity %d (%s) vanished, deleting entity section", handle, tableref.name or "-unnamed-"), "create_entity_section")
         if entityroot then
             menu.delete(tableref.list)
         end
@@ -2114,14 +2348,18 @@ function create_entity_section(tableref, handle, options)
     --[ MISC ]--
     table.insert(tableref.listMenus, menu.divider(entityroot, "Misc"))
     if handle ~= builder.base.handle then
-        table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
-            tableref.boneIndex = index
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
-        end))
-        if not options.isBuild then
+        -- Changing bone index requires recreating the particle entirely, so for now, don't support it.
+        -- TODO: Support it
+        if options.type ~= "PARTICLE" then
+            table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
+                tableref.boneIndex = index
+                attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            end))
+        end
+        if options.type == "ENTITY" or options.type == "PARTICLE" then
             local attachEntList
             local attachName = tableref.parent and ("#" .. tableref.parent) or "Base"
-            attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another entity attached to the builder.",
+            attachEntList = menu.list(entityroot, "Attach to: " .. attachName, {"jvbattachto"..tableref.id}, "Attach to another build entity.",
                 function() _load_attach_list(attachEntList, handle) end,
                 _unload_attach_list
             )
@@ -2134,13 +2372,13 @@ function create_entity_section(tableref, handle, options)
             tableref.name = name
         end, tableref.name))
     end
-    if handle ~= builder.base.handle then
+    if handle ~= builder.base.handle and options.type ~= "PARTICLE" then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
             tableref.collision = value
             attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end, tableref.collision))
     end
-    if not options.isBuild then
+    if options.type == "ENTITY" then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Visible", {"visibility" .. handle}, "Toggles the visibility of this entity", function(value)
             tableref.visible = value
             ENTITY.SET_ENTITY_VISIBLE(handle, value, 0)
@@ -2160,8 +2398,9 @@ function create_entity_section(tableref, handle, options)
                 ENTITY.SET_ENTITY_INVINCIBLE(handle, value and 255 or 0)
             end, tableref.godmode))
         end
-    local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
-    table.insert(tableref.listMenus, cloneList)
+
+        local cloneList = menu.list(entityroot, "Clone", {}, "Clone the entity")
+        table.insert(tableref.listMenus, cloneList)
         menu.action(cloneList, "Clone In-place", {}, "Clones the entity where it is", function()
             clone_entity(handle, tableref.name, 0)
         end)
@@ -2174,6 +2413,16 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Mirror (Z, Up/Down)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
+    elseif options.type == "PARTICLE" then
+        table.insert(tableref.listMenus, menu.colour(entityroot, "Color", {"jv" .. handle .. "color"}, "Changes the color and transparency of a particle effect.\nNot all particles are supported", 1, 1, 1, 1, true, function(color)
+            tableref.color = { r = color.r * 255, g = color.g * 255, b = color.b * 255, a = color.a * 255}
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(handle, tableref.color.a)
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(handle, tableref.color.r, tableref.color.g, tableref.color.b, 0)
+        end))
+        table.insert(tableref.listMenus, menu.slider_float(entityroot, "Scale", {"jv" .. handle .. "scale"}, "Changes the scale of the particle fx.\nNot all particles are supported", 1, 10000, 100, 10, function(scale)
+            tableref.scale = scale / 100
+            GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(handle, tableref.scale)
+        end))
     end
     if handle ~= builder.base.handle then
         -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
@@ -2183,16 +2432,18 @@ function create_entity_section(tableref, handle, options)
         local deleteMenu
         deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
-                if highlightedHandle == handle then
-                    highlightedHandle = nil
-                end
-                if options.isBuild then
-                    remove_all_attachments(handle)
-                end
-                for _, data in pairs(builder.entities) do
-                    if data.parent == tableref.id then
-                        util.toast("Parent was removed for entity #" .. data.id)
-                        data.parent = nil
+                if options.type == "ENTITY" then
+                    if highlightedHandle == handle then
+                        highlightedHandle = nil
+                    end
+                    if options.type == "BUILD" then
+                        remove_all_attachments(handle)
+                    end
+                    for _, data in pairs(builder.entities) do
+                        if data.parent == tableref.id then
+                            util.toast("Parent was removed for entity #" .. data.id)
+                            data.parent = nil
+                        end
                     end
                 end
                 menu.delete(entityroot)
@@ -2201,7 +2452,11 @@ function create_entity_section(tableref, handle, options)
                     builder.entities[handle] = nil
                 end
                 Log.debug("Deleting entity " .. handle)
-                entities.delete_by_handle(handle)
+                if tableref.particle then
+                    GRAPHICS.REMOVE_PARTICLE_FX(handle, true)
+                else
+                 entities.delete_by_handle(handle)
+                end
             end)
             
         end)
@@ -2212,6 +2467,7 @@ end
 local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
+    -- Only show attach to base if it's NOT attached to the base
     if builder.entities[child].parent ~= nil then
         local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
@@ -2385,16 +2641,32 @@ function _serialize_build(build)
         build = build.build
     }
 end
+function _serialize_particle(data)
+    return {
+        id = data.id,
+        parent = data.parent,
+        name = data.name,
+        offset = data.pos,
+        rotation = data.rot,
+        boneIndex = data.boneIndex,
+        particle = data.particle,
+        scale = data.scale,
+        color = data.color or {r = 0, g = 0, b = 0, a = 255 }
+    }
+end
 
 function builder_to_json(is_autosave)
     local objects = {}
     local vehicles = {}
     local peds = {}
     local builds = {}
+    local particles = {}
     local buildData
     for handle, data in pairs(builder.entities) do
         if data.build then
             table.insert(builds, _serialize_build(data))
+        elseif data.particle then
+            table.insert(particles, _serialize_particle(data))
         else
             local entityData = _serialize_entity(handle, data)
             if handle == builder.base.handle then
@@ -2429,6 +2701,7 @@ function builder_to_json(is_autosave)
         vehicles = vehicles,
         builds = builds,
         peds = peds,
+        particles = particles,
         spawnLocation = builder.spawnLocation
     }
 
@@ -2471,6 +2744,10 @@ end
 
 
 function spawn_entity(data, type, isPreview, pos, heading)
+    if not data.model then
+        return error("No entity model provided")
+    end
+
     local handle
     if type == "VEHICLE" then
         handle = spawn_vehicle(data, isPreview, pos, heading)
@@ -2483,6 +2760,42 @@ function spawn_entity(data, type, isPreview, pos, heading)
     end
     Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model))
     return handle
+end
+
+function spawn_particle(data, entity, isPreview)
+    if not data.particle or type(data.particle) ~= "table" or #data.particle < 2 then
+        error("Particle key is missing or invalid")
+    end
+    if not data.scale then data.scale = 1 end
+
+    local particle
+    while not STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(data.particle[1]) do
+        STREAMING.REQUEST_NAMED_PTFX_ASSET(data.particle[1])
+        util.yield()
+    end
+    GRAPHICS.USE_PARTICLE_FX_ASSET(data.particle[1])
+    if isPreview then
+        -- Push off the ground
+        data.pos.z = data.pos.z + 0.5
+        if data.boneIndex then
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+        else
+            particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+        end
+    elseif data.boneIndex then
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
+    else
+        particle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.scale, false, false, false)
+    end
+    if data.scale then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(particle, data.scale)
+    end
+    if data.color then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(particle, data.color.r, data.color.g, data.color.b, 0)
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(particle, data.color.a)
+    end
+    Log.debug(string.format("spawned particle fx (%s/%s) %d attached to %d", data.particle[1], data.particle[2], particle, entity))
+    return particle
 end
 
 function spawn_vehicle(vehicleData, isPreview, pos, heading)
@@ -2870,6 +3183,18 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
         end
     end
 
+    for _, particle in ipairs(build.particles) do
+        local entity = builder.base.handle
+        if particle.parent then
+            entity = idMap[particle.parent]
+        end
+
+        local handle = spawn_particle(particle, entity, isPreview)
+        if addToBuilder then
+           add_particle_to_list(builder.entitiesMenuList, handle, particle) 
+        end
+    end
+
     return handles
 end
 
@@ -2898,19 +3223,24 @@ function get_entity_by_id(id)
     return nil
 end
 
-function attach_entity(parent, handle, pos, rot, index, collision)
-    if pos == nil or rot == nil then
-        Log.log("null pos or rot" .. debug.traceback(), "attach_entity")
+function attach_entity(parent, handle, offset, rot, index, collision)
+    if offset == nil or rot == nil then
+        Log.log("null offset or rot" .. debug.traceback(), "attach_entity")
         return
     end
     if parent == handle then
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
+    elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
+            offset.x or 0, offset.y or 0, offset.z or 0,
+            rot.x or 0, rot.y or 0, rot.z or 0
+        )
     else
         if collision == nil then
             collision = true
         end
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
-            pos.x or 0, pos.y or 0, pos.z or 0,
+            offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
             false, false, collision, false, 2, true
         )
@@ -2918,10 +3248,9 @@ function attach_entity(parent, handle, pos, rot, index, collision)
 
 end
 -- Modified from https://forum.cfx.re/t/how-to-supas-helper-scripts/41100
-function highlight_object(handle, size, color)
+function highlight_object_at_pos(pos, size, color)
     if not size then size = 0.01 end
     if not color then color = { r = 255, g = 0, b = 0, a = 200 } end
-    local pos = ENTITY.GET_ENTITY_COORDS(handle)
     GRAPHICS.SET_DRAW_ORIGIN(pos.x, pos.y, pos.z, 0)
     GRAPHICS.REQUEST_STREAMED_TEXTURE_DICT("helicopterhud", false)
     GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", -size, -size, 0.006, 0.006, 0.0, color.r, color.g, color.b, color.a)
@@ -2930,8 +3259,7 @@ function highlight_object(handle, size, color)
     GRAPHICS.DRAW_SPRITE("helicopterhud", "hud_corner", size, size, 0.006, 0.006, 180.0, color.r, color.g, color.b, color.a)
     GRAPHICS.CLEAR_DRAW_ORIGIN()
 end
-function show_marker(handle, markerType, ang)
-    local pos = ENTITY.GET_ENTITY_COORDS(handle)
+function show_marker_at_pos(pos, ang, markerType)
     if ang == nil then ang = {} end
     GRAPHICS.DRAW_MARKER(markerType or 0, pos.x, pos.y, pos.z + 4.0, 0.0, 0.0, 0.0, ang.x or 0, ang.y or 0, ang.z or 0, 1, 1, 1, 255, 255, 255, 100, false, true, 2, false, 0, 0, false)
 end
@@ -3055,25 +3383,46 @@ while true do
             end
         end
         if editorActive and highlightedHandle ~= nil and builder.entities[highlightedHandle] then
+            local pos
+            if builder.entities[highlightedHandle] and builder.entities[highlightedHandle].particle then
+                local parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
+                pos = ENTITY.GET_ENTITY_COORDS(parent)
+                pos.x = pos.x + builder.entities[highlightedHandle].pos.x
+                pos.y = pos.y + builder.entities[highlightedHandle].pos.y
+                pos.z = pos.z + builder.entities[highlightedHandle].pos.z
+            else
+                pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
+            end
             if scriptSettings.showOverlay and menu.is_open() or FREE_EDIT then
                 local entData = builder.entities[highlightedHandle]
-                local pos = ENTITY.GET_ENTITY_COORDS(highlightedHandle)
                 local hudPos = get_screen_coords(pos)
-                local isBase = builder.base.handle == highlightedHandle
-                local isBuild = entData.build
-                directx.draw_rect(hudPos.x, hudPos.y, 0.2, 0.1, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
+                local isParticle = entData.particle ~= nil
+                local height = 0.1
+                if isParticle then height = height + 0.03 end
+                directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
 
 
-                if isBase then
+                if builder.base.handle == highlightedHandle then
                     local vehicleCount, objectCount, pedCount = compute_builder_stats()
                     local authorText = builder.author and ("Created by " .. builder.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, builder.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("%d vehicles, %d objects, %d peds attached", vehicleCount, objectCount, pedCount), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-                elseif isBuild then
+                elseif entData.build then
                     local authorText = entData.build.author and ("Created by " .. entData.build.author) or "Unknown creator"
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, entData.build.name or "Unnamed Build", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                elseif isParticle then
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed particle"), ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.particle[1] .. " " .. entData.particle[2], ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, string.format("Offset   %6.1f  %6.1f  %6.1f", entData.pos.x, entData.pos.y, entData.pos.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("Angles  %6.1f  %6.1f  %6.1f", entData.rot.x, entData.rot.y, entData.rot.z), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    if entData.color then
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.09, string.format("Color   %6.0f  %6.0f  %6.0f  %6.0f", entData.color.r, entData.color.g, entData.color.b, entData.color.a), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    end
+                    if entData.scale then
+                        directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.105, string.format("Scale  %6.1f", entData.scale), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+                    end
                 else
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, (entData.name or "Unnamed entity") .. " (" .. entData.model .. ")", ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
                     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, entData.type, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
@@ -3082,8 +3431,8 @@ while true do
                 end
             end
 
-            highlight_object(highlightedHandle)
-            show_marker(highlightedHandle, 0)
+            highlight_object_at_pos(pos)
+            show_marker_at_pos(pos, nil, 0)
             local pos = builder.entities[highlightedHandle].pos
             local rot = builder.entities[highlightedHandle].rot
             if FREE_EDIT and (not isInEntityMenu or not menu.is_open()) then
