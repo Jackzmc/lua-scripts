@@ -1062,12 +1062,21 @@ function setup_builder_menus(name)
         baseType = "VEHICLE"
     end
 
-    mainMenu = menu.list(menu.my_root(), "Builder", {}, "", function() 
+    local newBuildMenu
+    newBuildMenu = menu.action(menu.my_root(), "Start a new build", {}, "Delete the current build and start a new", function() 
+        menu.show_warning(newBuildMenu, CLICK_COMMAND, "Starting a new build will delete your current build. All data and entities will be wiped. Are you sure you want to continue?", function()
+            menu.trigger_command(builder.deleteMenu)
+        end)
+    end)
+
+    mainMenu = menu.list(menu.my_root(), "Current Build", {}, "", function() 
         editorActive = true
     end, function()
         editorActive = false
         _destroy_prop_previewer()
     end)
+
+    table.insert(setupMenus, newBuildMenu)
     local buildList = menu.list(mainMenu, "Build", {}, "Save, upload, change the build's author, and clear the active build.")
         menu.text_input(buildList, "Save", {"savebuild"}, "Enter a name to save the build as\nSupports relative paths such as foldername\\buildname\n\nSaved to %appdata%\\Stand\\Builds", function(name)
             if name == "" or scriptEnding then return end
@@ -1142,9 +1151,9 @@ function setup_builder_menus(name)
             end)
             menu.set_visible(spawnZ, false)
 
-        local deleteMenu
-        deleteMenu = menu.action(buildList, "Clear Build", {}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
-            menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
+        builder.deleteMenu = menu.action(buildList, "Clear Build", {"clearbuild"}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
+            menu.show_warning(builder.deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
+                builder.deleteMenu = nil
                 remove_all_attachments(builder.base.handle)
                 if HUD.DOES_BLIP_EXIST(builder.blip) then
                     util.remove_blip(builder.blip)
@@ -1161,7 +1170,7 @@ function setup_builder_menus(name)
     menu.focus(buildList)
     editorActive = true
     
-    builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "", function() highlightedHandle = nil end)
+    builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "Manage all attached entities", function() highlightedHandle = nil end)
         menu.slider(builder.entitiesMenuList, "Coordinate Sensitivity", {"offsetsensitivity"}, "Sets the sensitivity of changing the offset coordinates of an entity", 1, 20, POS_SENSITIVITY, 1, function(value)
             POS_SENSITIVITY = value
             if not value then
@@ -1245,7 +1254,7 @@ function setup_builder_menus(name)
     menu.on_focus(builder.pedSpawner.root, function() _destroy_browse_menu("pedSpawner") end)
     builder.particlesSpawner.root = menu.list(mainMenu, "Add Particles", {"builderparticles"}, "Browse particles to spawn to add to your build\nNote: Particles will be spawned as looped but some particles do not support being looped.")
     menu.on_focus(builder.particlesSpawner.root, function() _destroy_browse_menu("particlesSpawner") end)
-    menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\". Click to jump to the saved builds menu", function()
+    menu.action(mainMenu, "Add Builds", {}, "You can add builds directly from the \"Saved Builds\" menu -> \"Add to build\".\nClick to jump to the saved builds menu", function()
         _load_saved_list()
         menu.focus(savedVehicleListInner)
     end)
@@ -2822,6 +2831,9 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
         handle = VEHICLE.CREATE_VEHICLE(vehicleData.model, pos.x, pos.y, pos.z, heading, false, false)
         setup_entity_preview(handle)
     else
+        if vehicleData.visible == nil then
+            vehicleData.visible = true
+        end
         handle = entities.create_vehicle(vehicleData.model, pos, heading)
         ENTITY.SET_ENTITY_VISIBLE(handle, vehicleData.visible, 0)
         if vehicleData.godmode or vehicleData.godmode == nil then
@@ -2859,6 +2871,9 @@ function spawn_ped(data, isPreview, pos)
     else
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(handle, true)
+        if data.visible == nil then
+            data.visible = true
+        end
         ENTITY.SET_ENTITY_VISIBLE(handle, data.visible, 0)
         if not data.godmode then
             data.godmode = true
@@ -2902,6 +2917,9 @@ function spawn_object(data, isPreview, pos)
         util.toast("Object failed to spawn: " .. (data.name or "<nil>") .. " model " .. data.model, TOAST_DEFAULT | TOAST_LOGGER)
         return nil
     else
+        if data.visible == nil then
+            data.visible = true
+        end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
         return object
     end
@@ -3021,7 +3039,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
         else
             create_blip_for_entity(baseHandle, build.blip_icon, build.name or "Unnamed Build")
         end
-        if build.base.visible and build.base.visible == false or (build.base.data and build.base.data.visible == false) then
+        if build.base.visible == false or (build.base.data and build.base.data.visible == false) then
             ENTITY.SET_ENTITY_VISIBLE(baseHandle, false, 0)
         else
             ENTITY.SET_ENTITY_VISIBLE(baseHandle, true, 0)

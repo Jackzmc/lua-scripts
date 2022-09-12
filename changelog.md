@@ -195,3 +195,4 @@ V1.23.0
 * Added spawning particle effects to a build
 * Add an 'Open Folder' option in saved builds
 * Fix some bugs
+* Add shortcut to clear build on main menu
