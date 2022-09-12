@@ -17,7 +17,7 @@ require('templates/common')
 util.require_natives(1660775568)
 if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "-- Credits --")
-    menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixees")
+    menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixes")
 end
 
 local json = try_require("json")
