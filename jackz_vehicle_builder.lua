@@ -735,6 +735,7 @@ local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "",
 )
 local folderLists = {}
 local xmlMenusHandles = {}
+menu.hyperlink(savedVehicleList, "Open Folder", "file://" .. SAVE_DIRECTORY, "Open the save directory in your file explorer")
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
     scriptSettings.spawnInVehicle = on
 end, scriptSettings.spawnInVehicle)
