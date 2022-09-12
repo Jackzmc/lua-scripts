@@ -145,7 +145,8 @@ local scriptSettings = {
     spawnInVehicle = true,
     autosaveEnabled = true,
     showOverlay = true,
-    showAddOverlay = true
+    showAddOverlay = true,
+    allowOthersToSpawn = false
 }
 local preview = { -- Handles preview tracking and clearing
     entity = 0,
@@ -547,6 +548,9 @@ end, scriptSettings.showOverlay)
 menu.toggle(settingsList, "Show Add Entity Overlay", {"jvboverlayadd"}, "Shows an overlay when the menu is open on nearby entities, allowign you to add them to your custom build", function(value)
     scriptSettings.showAddOverlay = value
 end, scriptSettings.showAddOverlay)
+menu.toggle(settingsList, "Allow Other Players to Spawn", {"jvbothersspawn"}, "Allows other players to spawn your saved builds using the 'spawnbuild' command. \nRequires the build to also have this setting checked for itself as well.", function(value)
+    scriptSettings.allowOthersToSpawn = value
+end, scriptSettings.allowOthersToSpawn)
 
 menu.divider(menu.my_root(), "")
 
@@ -785,7 +789,7 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
     -- TODO: Safety check?
     local status, data = pcall(get_build_data_from_file, args)
     if status then
-        if issuer ~= players.user() and not data.allowPlayerSpawning then
+        if issuer ~= players.user() and (not scriptSettings.scriptSettings.allowOthersToSpawn or not data.allowPlayerSpawning) then
             Util.debug("Ignoring pid from spawning non authorized build: %d", issuer)
             return
         end
