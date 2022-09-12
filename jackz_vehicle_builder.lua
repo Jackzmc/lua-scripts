@@ -781,7 +781,7 @@ function rate_build(user, vehicleName, rating)
     return true
 end
 --[ SAVED VEHICLES LIST ]
-local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild", {"spawnbuild"}, function() end, function(args, clickType, issuer)
+local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild", {"spawnbuild"}, "", function(args, clickType, issuer)
     -- TODO: Safety check?
     local status, data = pcall(get_build_data_from_file, args)
     if status then
