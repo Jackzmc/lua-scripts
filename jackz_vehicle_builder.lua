@@ -255,7 +255,38 @@ local CURATED_PEDS = {
 -- https://vespura.com/fivem/particle-list/
 local CURATED_PARTICLE_FX = {
     { "scr_indep_fireworks", "scr_indep_firework_shotburst"},
-    { "core", "fire_wrecked_plane_cockpit" }
+    { "core", "fire_wrecked_plane_cockpit" },
+    { "wpn_flare", "proj_heist_flare_trail" },
+    { "weap_xs_vehicle_weapons", "muz_xs_turret_flamethrower_looping"},
+    { "weap_xs_vehicle_weapons", "muz_xs_turret_flamethrower_looping_sf"},
+    { "weap_sm_tula", "veh_tula_turbulance_water" },
+    { "veh_khanjali", "muz_xm_khanjali_railgun_charge" },
+    { "scr_xs_oil_jack_fire" },
+    { "scr_xs_pits", "scr_xs_sf_pit" },
+    { "scr_xs_pits", "scr_xs_fire_pit" },
+    { "scr_xs_pits", "scr_xs_sf_pit_long" },
+    { "scr_xs_pits", "scr_xs_fire_pit_long" },
+    { "xcr_xs_celebration", "scr_xs_money_rain" },
+    { "xcr_xs_celebration", "scr_xs_money_rain_celeb" },
+    { "xcr_xs_celebration", "scr_xs_champagne_spray" },
+    { "xcr_xm_submarine", "scr_xm_stromberg_scanner" },
+    { "xcr_xm_spybomb", "scr_xm_spybomb_plane_smoke_trail" },
+    { "scr_xm_ht", "scr_xm_ht_package_flare" },
+    { "scr_xm_farm", "scr_xm_dst_elec_cracke" },
+    { "scr_xm_heat", "scr_xm_heat_camo" },
+    { "scr_xm_aq", "scr_xm_aq_final_kill_thruster" },
+    { "scr_sr_adversary", "scr_sr_lg_weapon_highlight" },
+    { "scr_recrash_rescue", "scr_recrash_rescue" },
+    { "scr_reconstructionaccident", "scr_sparking_generator" },
+    { "scr_rcnigel2", "scr_rcn2_debris_trail" },
+    { "scr_rcbarry1", "scr_alien_charging" },
+    { "scr_rcbarry1", "scr_alien_impact" },
+    { "scr_jewelheist", "scr_jewel_fog_volume" },
+    { "scr_carwash", "ent_amb_car_wash_jet" },
+    { "scr_as_trans", "scr_as_trans_smoke" },
+    { "cut_amb_tv", "cs_amb_tv_sauna_steam" },
+    { "scr_trevor2", "scr_trev2_heli_wreck" },
+    { "scr_stunts", "scr_stunts_fire_ring" }
 }
 
 local BLIP_ICONS = {
@@ -2743,6 +2774,8 @@ function spawn_particle(data, entity, isPreview)
     end
     GRAPHICS.USE_PARTICLE_FX_ASSET(data.particle[1])
     if isPreview then
+        -- Push off the ground
+        pos.z = pos.z + 2.0
         if data.boneIndex then
             particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
         else
