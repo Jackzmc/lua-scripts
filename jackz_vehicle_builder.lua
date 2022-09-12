@@ -125,7 +125,8 @@ function new_builder()
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
         spawnLocation = nil,
-        spawnInBase = false
+        spawnInBase = false,
+        allowPlayerSpawning = false
     }
 end
 function create_blip_for_entity(entity, type, name)
@@ -784,6 +785,10 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
     -- TODO: Safety check?
     local status, data = pcall(get_build_data_from_file, args)
     if status then
+        if issuer ~= players.user() and not data.allowPlayerSpawning then
+            Util.debug("Ignoring pid from spawning non authorized build: %d", issuer)
+            return
+        end
         local issuerPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(issuer)
         data.spawnLocation = ENTITY.GET_ENTITY_COORDS(issuerPed)
         spawn_build(data, false)
@@ -1162,6 +1167,10 @@ function setup_builder_menus(name)
                 end
             end)
             menu.set_visible(spawnZ, false)
+        
+        menu.toggle(buildList, "Allow other players to spawn", {"buildspawnable"}, "Enable other players with the NEUTRAL permission to spawn this build", builder.allowPlayerSpawning, function(value)
+            builder.allowPlayerSpawning = value
+        end)
 
         builder.deleteMenu = menu.action(buildList, "Clear Build", {"clearbuild"}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
             menu.show_warning(builder.deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
@@ -2724,7 +2733,8 @@ function builder_to_json(is_autosave)
         builds = builds,
         peds = peds,
         particles = particles,
-        spawnLocation = builder.spawnLocation
+        spawnLocation = builder.spawnLocation,
+        allowPlayerSpawning = builder.allowPlayerSpawning
     }
 
     -- Only calculate save data for vehicle-based custom builds
