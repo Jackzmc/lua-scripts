@@ -553,7 +553,7 @@ menu.divider(menu.my_root(), "")
     CLOUD DATA
 ]]--
 local cloudData = {}
-local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & upload custom builds", function() _fetch_cloud_users() end, function() 
+local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players", function() _fetch_cloud_users() end, function() 
     for _, data in pairs(cloudData) do
         menu.delete(data.parentList)
     end
@@ -718,14 +718,14 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
         end
     end)
 
-    menu.action(rootList, "Edit", {}, "", function()
+    menu.action(rootList, "Edit", {}, "Allows you to edit this build in the builder", function()
         if import_build_to_builder(vehicleData['vehicle'], vehicleName) then
             menu.focus(builder.entitiesMenuList)
         else
             util.toast("Could not spawn build's base entity; cannot spawn build.")
         end
     end)
-    menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "", function(filename)
+    menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "Downloads to " .. DOWNLOADS_DIRECTORY, function(filename)
         if filename == "" or scriptEnding then return end
         if not filesystem.exists(DOWNLOADS_DIRECTORY) then
             filesystem.mkdir(DOWNLOADS_DIRECTORY)
@@ -780,7 +780,7 @@ function rate_build(user, vehicleName, rating)
     return true
 end
 --[ SAVED VEHICLES LIST ]
-local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "",
+local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "Browse & upload your builds",
     function() _load_saved_list() end,
     function() _destroy_saved_list() end
 )
@@ -881,14 +881,14 @@ function _setup_spawn_list_entry(parentList, filepath)
                     end
                 end))
     
-                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Edit", {}, "", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Edit", {}, "Allows you to edit this build in the builder", function()
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     import_build_to_builder(data, filename:sub(1, -6))
                     menu.focus(builder.entitiesMenuList)
                 end))
 
-                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Upload", {}, "", function()
+                table.insert(optionsMenuHandles, menu.action(optionParentMenus[filepath], "Upload", {}, "Upload this build to the cloud, allowing other players to spawn and modify a copy of the build.", function()
                     upload_build(filename:sub(1, -6), json.encode(data))
                 end))
 
@@ -1069,7 +1069,7 @@ function setup_builder_menus(name)
         end)
     end)
 
-    mainMenu = menu.list(menu.my_root(), "Current Build", {}, "", function() 
+    mainMenu = menu.list(menu.my_root(), "Current Build", {}, "Edit your in progress build", function() 
         editorActive = true
     end, function()
         editorActive = false
@@ -1183,7 +1183,7 @@ function setup_builder_menus(name)
             FREE_EDIT = value
         end, FREE_EDIT)
         menu.divider(builder.entitiesMenuList, "Entities")
-    local baseList = menu.list(mainMenu, "Base Entity", {}, "")
+    local baseList = menu.list(mainMenu, "Base Entity", {}, "Manage settings relating to the base entity of your build")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
             highlightedHandle = builder.base.handle
@@ -1319,7 +1319,7 @@ function set_builder_name(name)
 end
 
 function create_object_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "", function() end, clear_build_preview)
+    local curatedList = menu.list(root, "Curated", {}, "View a list of curated props to use for your build", function() end, clear_build_preview)
     for _, prop in ipairs(CURATED_PROPS) do
         add_prop_menu(curatedList, prop)
     end
@@ -1352,7 +1352,7 @@ function create_object_spawner_list(root)
 end
 
 function create_ped_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "", function() end, clear_build_preview)
+    local curatedList = menu.list(root, "Curated", {}, "View a list of curated peds to work with your build", function() end, clear_build_preview)
     for _, ped in ipairs(CURATED_PEDS) do
         add_ped_menu(curatedList, ped[1], ped[2])
     end
@@ -1386,7 +1386,7 @@ function create_ped_spawner_list(root)
 end
 
 function create_vehicle_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "")
+    local curatedList = menu.list(root, "Curated", {}, "View a curated list of vehicles to work with your build")
     for _, data in ipairs(CURATED_VEHICLES) do
         add_vehicle_menu(curatedList, data[1], data[2])
     end
@@ -1434,7 +1434,7 @@ function create_vehicle_spawner_list(root)
 end
 
 function create_particles_fx_spawner_list(root)
-    local curatedList = menu.list(root, "Curated", {}, "")
+    local curatedList = menu.list(root, "Curated", {}, "View a list of particles that are curated to work with your build")
     for _, particle in ipairs(CURATED_PARTICLE_FX) do
         add_particles_menu(curatedList, particle[1], particle[2])
     end

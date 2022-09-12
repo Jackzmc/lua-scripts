@@ -89,7 +89,7 @@ if _lang ~= nil then
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
 end
 menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
-menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()
+menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then
         show_busyspinner("Uploading logs....")
