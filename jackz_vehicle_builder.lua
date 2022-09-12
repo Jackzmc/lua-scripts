@@ -780,6 +780,18 @@ function rate_build(user, vehicleName, rating)
     return true
 end
 --[ SAVED VEHICLES LIST ]
+local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild", {"spawnbuild"}, function() end, function(args, clickType, issuer)
+    -- TODO: Safety check?
+    local status, data = pcall(get_build_data_from_file, args)
+    if status then
+        local issuerPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(issuer)
+        data.spawnLocation = ENTITY.GET_ENTITY_COORDS(issuerPed)
+        spawn_build(data, false)
+    elseif issuer == players.user() then
+        util.toast("Could not specified build")
+    end
+end, "spawnbuild buildname", COMMANDPERM_NEUTRAL)
+menu.set_visible(spawnSavedCommand, false)
 local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "Browse & upload your builds",
     function() _load_saved_list() end,
     function() _destroy_saved_list() end
