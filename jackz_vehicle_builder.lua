@@ -261,7 +261,7 @@ local CURATED_PARTICLE_FX = {
     { "weap_xs_vehicle_weapons", "muz_xs_turret_flamethrower_looping_sf"},
     { "weap_sm_tula", "veh_tula_turbulance_water" },
     { "veh_khanjali", "muz_xm_khanjali_railgun_charge" },
-    { "scr_xs_oil_jack_fire" },
+    { "scr_xs_props", "scr_xs_oil_jack_fire" },
     { "scr_xs_pits", "scr_xs_sf_pit" },
     { "scr_xs_pits", "scr_xs_fire_pit" },
     { "scr_xs_pits", "scr_xs_sf_pit_long" },
@@ -2775,7 +2775,7 @@ function spawn_particle(data, entity, isPreview)
     GRAPHICS.USE_PARTICLE_FX_ASSET(data.particle[1])
     if isPreview then
         -- Push off the ground
-        pos.z = pos.z + 2.0
+        data.pos.z = data.pos.z + 0.5
         if data.boneIndex then
             particle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(data.particle[2], entity, data.pos.x, data.pos.y, data.pos.z, data.rot.x, data.rot.y, data.rot.z, data.boneIndex, data.scale, false, false, false)
         else
