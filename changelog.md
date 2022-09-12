@@ -196,3 +196,4 @@ V1.23.0
 * Add an 'Open Folder' option in saved builds
 * Fix some bugs
 * Add shortcut to clear build on main menu
+* Minor cleanup on some descriptions
