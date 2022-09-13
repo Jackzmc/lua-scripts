@@ -1172,9 +1172,9 @@ function setup_builder_menus(name)
             end)
             menu.set_visible(spawnZ, false)
         
-        menu.toggle(buildList, "Allow other players to spawn", {"buildspawnable"}, "Enable other players with the NEUTRAL permission to spawn this build", builder.allowPlayerSpawning, function(value)
+        menu.toggle(buildList, "Allow other players to spawn", {"buildspawnable"}, "Enable other players with the NEUTRAL permission to spawn this build", function(value)
             builder.allowPlayerSpawning = value
-        end)
+        end, builder.allowPlayerSpawning)
 
         builder.deleteMenu = menu.action(buildList, "Clear Build", {"clearbuild"}, "Deletes the active builder with all settings and entities cleared. This will delete all attachments", function()
             menu.show_warning(builder.deleteMenu, CLICK_COMMAND, "Are you sure you want to delete your custom build? All data and entities will be wiped.", function()
