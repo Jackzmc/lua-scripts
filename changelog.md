@@ -35,6 +35,8 @@ v3.9.0
 * (3.9.8) jackzvehiclelib: Fix bug with license plates
 * (3.9.9) Update natives
 * (3.9.10) Renamed commands to reduce conflicts
+* (3.9.12) Fix version issues
+* (3.9.14) Fix detach cargobob
 
 # actions (v1)
 
@@ -185,3 +187,17 @@ V1.22.0
 
 * Added "Create Manual Base" to spawn a manual model name
 * Update updaters, internal changes
+* (1.22.1) Fixed visibility not being networked (Ty hexarobi)
+* (1.22.1) Fixed collision not turning off (Ty hexarobi)
+* (1.22.2) Add check for corrupted favorites.json file
+
+V1.23.0
+
+* Added spawning particle effects to a build
+* Add an 'Open Folder' option in saved builds
+* Fix some bugs
+* Add shortcut to clear build on main menu
+* Minor cleanup on some descriptions
+* Add command to spawn builds
+* (1.23.1) Fix error on older builds
+* (1.23.2) Possibly fix not spawning in builds

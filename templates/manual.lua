@@ -25,9 +25,10 @@ function download_script_update(branch, on_success, on_err)
             local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
             file:write(body:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
             file:close()
+            Log.log("Updated ", SCRIPT_NAME, "to branch", branch or "master")
             if on_success then on_success() end
         else
-            log("script update failed due to server error: " .. status_code .. "\n" .. body)
+            Log.error("script update failed due to server error: " .. status_code .. "\n" .. body)
             if on_err then on_err(status_code, body) end
         end
     end, on_err)
@@ -65,6 +66,7 @@ function download_lib_update(lib, on_success, on_error)
         end
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
+        Log.log("Updated lib ", lib, "for", SCRIPT_NAME, "to branch", SCRIPT_BRANCH or "master")
         util.toast(SCRIPT .. ": Automatically updated lib '" .. lib .. "'")
         if on_success then on_success() end
     end, function(e)
@@ -102,6 +104,7 @@ function download_resources_update(filepath, destOverwritePath)
         end
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
+        Log.log("Updated resource ", filepath, "for", SCRIPT_NAME, "to branch", SCRIPT_BRANCH or "master")
         util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
     end, function(e)
         os.remove(lockPath)

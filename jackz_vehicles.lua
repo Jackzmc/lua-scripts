@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-local VERSION = "3.9.11"
+VERSION = "3.9.14"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -501,7 +501,7 @@ function setup_player_menu(pid)
                         end
                     end
                     if not hasPlayer then
-                        local pointer = ENTITY.get_entity_address(vehicle)
+                        local pointer = entities.handle_to_pointer(vehicle)
                         ENTITY.SET_VEHICLE_AS_NO_LONGER_NEEDED(pointer)
                     end
                 end)

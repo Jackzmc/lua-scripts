@@ -22,6 +22,7 @@ function download_resources_update(filepath, destOverwritePath)
             util.log(string.format("%s: Resource \"%s\" file could not be created.", SCRIPT_NAME, filepath))
             return
         end
+        Log.log("Updated resource ", filepath, "for", SCRIPT_NAME, "to branch", SCRIPT_BRANCH or "master")
         file:write(result:gsub("\r", "") .. "\n")
         file:close()
         util.toast(SCRIPT .. ": Automatically updated resource '" .. filepath .. "'")
