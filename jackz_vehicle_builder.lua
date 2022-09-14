@@ -801,7 +801,7 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
     end
 end, "spawnbuild buildname", COMMANDPERM_NEUTRAL)
 menu.set_visible(spawnSavedCommand, false)
-local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "Browse & upload your builds",
+local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "Browse & upload your builds\nSpawn builds using the \"spawnbuild name\" command.",
     function() _load_saved_list() end,
     function() _destroy_saved_list() end
 )
