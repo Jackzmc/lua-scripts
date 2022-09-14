@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.23.0"
+VERSION = "1.23.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -3228,15 +3228,17 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
         end
     end
 
-    for _, particle in ipairs(build.particles) do
-        local entity = builder.base.handle
-        if particle.parent then
-            entity = idMap[particle.parent]
-        end
+    if build.particles then
+        for _, particle in ipairs(build.particles) do
+            local entity = builder.base.handle
+            if particle.parent then
+                entity = idMap[particle.parent]
+            end
 
-        local handle = spawn_particle(particle, entity, isPreview)
-        if addToBuilder then
-           add_particle_to_list(builder.entitiesMenuList, handle, particle) 
+            local handle = spawn_particle(particle, entity, isPreview)
+            if addToBuilder then
+            add_particle_to_list(builder.entitiesMenuList, handle, particle) 
+            end
         end
     end
 

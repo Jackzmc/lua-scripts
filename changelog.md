@@ -199,3 +199,4 @@ V1.23.0
 * Add shortcut to clear build on main menu
 * Minor cleanup on some descriptions
 * Add command to spawn builds
+* (1.23.1) Fix error on older builds
