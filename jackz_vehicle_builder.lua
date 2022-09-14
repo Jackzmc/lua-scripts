@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.23.1"
+VERSION = "1.23.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -716,7 +716,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     menu.action(rootList, "Spawn", {}, "", function()
         clear_build_preview()
         local baseHandle = spawn_build(vehicleData['vehicle'], false)
-        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
+        if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
             util.yield()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -897,7 +897,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
                     local baseHandle = spawn_build(data, false)
-                    if (data.type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
+                    if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
                         util.yield()
                         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)

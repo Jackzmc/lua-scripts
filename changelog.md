@@ -200,3 +200,4 @@ V1.23.0
 * Minor cleanup on some descriptions
 * Add command to spawn builds
 * (1.23.1) Fix error on older builds
+* (1.23.2) Possibly fix not spawning in builds
