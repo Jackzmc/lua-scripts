@@ -615,8 +615,9 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
     async_http.dispatch()
 end)
 local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
-menu.list(sortList, "Sort by: ", {}, "Change the sorting criteria", { { "Rating", "Build Name", "Author Name", "Upload Date" } }, 1, function(sortType)
-    cloudSettings.sort.type = sortType
+local sortId = { "rating", "name", "author", "author", "uploaded"}
+menu.list_select(sortList, "Sort by: ", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+    cloudSettings.sort.type = sortId[index]
 end)
 menu.toggle(sortList, "Sort ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value

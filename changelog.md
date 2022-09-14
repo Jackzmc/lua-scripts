@@ -201,3 +201,8 @@ V1.23.0
 * Add command to spawn builds
 * (1.23.1) Fix error on older builds
 * (1.23.2) Possibly fix not spawning in builds
+
+V1.24.0
+
+* Internal change for vehicle search
+* Add sorting option (type and direction) for cloud lists
