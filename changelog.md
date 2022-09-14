@@ -189,3 +189,12 @@ V1.22.0
 * (1.22.1) Fixed visibility not being networked (Ty hexarobi)
 * (1.22.1) Fixed collision not turning off (Ty hexarobi)
 * (1.22.2) Add check for corrupted favorites.json file
+
+V1.23.0
+
+* Added spawning particle effects to a build
+* Add an 'Open Folder' option in saved builds
+* Fix some bugs
+* Add shortcut to clear build on main menu
+* Minor cleanup on some descriptions
+* Add command to spawn builds
