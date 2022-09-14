@@ -517,7 +517,7 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/builds.php?q=" .. query, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending .. "&q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
@@ -563,7 +563,7 @@ end, cloudSettings.sort.ascending)
 menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/builds.php&sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending, function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
         if status_code == 200 then
             HUD.BUSYSPINNER_OFF()
