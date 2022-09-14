@@ -1626,23 +1626,29 @@ function create_ped_search_results(parent, query, max)
         end
     end
 end
--- Search: via URL
-local requestActive = false
-
 function create_vehicle_search_results(searchList, query, max)
     clear_menu_table(searchResults)
-    if requestActive then return end
-    show_busyspinner("Searching builds...")
-    requestActive = true
-    async_http.init("jackz.me", "/stand/search-vehicle-db.php?q=" .. query .. "&max=" .. max, function(body)
-        for line in string.gmatch(body, "[^\r\n]+") do
-            local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
-            table.insert(searchResults, add_vehicle_menu(searchList, id, name, dlc))
+    show_busyspinner("Searching vehicles...")
+
+    local results = {}
+    for line in io.lines(VEHICLES_PATH) do
+        local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
+        local i, j = name:find(query)
+        if i then
+            table.insert(results, {
+                id = id,
+                vehicle = name,
+                dlc = dlc,
+                distance = j - i
+            })
         end
-        requestActive = false
-        HUD.BUSYSPINNER_OFF()
-    end)
-    async_http.dispatch()
+    end
+    table.sort(results, function(a, b) return a.distance > b.distance end)
+    for i = 1, max do
+        if results[i] then
+            table.insert(searchResults, add_vehicle_menu(searchList, results[i].id, results[i].name, results[i].dlc))
+        end
+    end
 end
 
 function _load_prop_browse_menus(parent)
