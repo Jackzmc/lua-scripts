@@ -496,6 +496,12 @@ menu.divider(menu.my_root(), "")
     CLOUD DATA
 ]]--
 local cloudData = {}
+local cloudSettings = {
+    sort = {
+        type = "rating",
+        ascending = true
+    }
+}
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & upload custom builds", function() _fetch_cloud_users() end, function() 
     for _, data in pairs(cloudData) do
         menu.delete(data.parentList)
@@ -546,10 +552,18 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
     end)
     async_http.dispatch()
 end)
+local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
+menu.list(sortList, "Sort by: ", {}, "Change the sorting criteria", { { "Rating", "Build Name", "Author Name", "Upload Date" } }, 1, function(sortType)
+    cloudSettings.sort.type = sortType
+end)
+menu.toggle(sortList, "Sort ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+    cloudSettings.sort.ascending = value
+end, cloudSettings.sort.ascending)
+
 menu.divider(cloudRootMenuList, "Users")
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php&sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending, function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
         if status_code == 200 then
             HUD.BUSYSPINNER_OFF()
