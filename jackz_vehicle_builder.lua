@@ -517,7 +517,7 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
@@ -617,7 +617,7 @@ function _load_cloud_vehicles(user)
 end
 function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
-    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
+    async_http.init("jackz.me", string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         clear_build_preview()
         if status_code == 200 then
@@ -634,14 +634,11 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                 end
                 data.uploader = user
                 spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
+            elseif status_code == 503 then
+                util.toast("Rate limited, please wait")
             else
-                local isRatelimited = body:find("503 Service Temporarily Unavailable")
-                if isRatelimited then
-                    util.toast("Rate limited, please wait")
-                else
-                    Log.log("invalid server response : " .. body, "_fetch_cloud_users")
-                    util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
-                end
+                Log.log("invalid server response : " .. body, "_fetch_cloud_users")
+                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
             end
         else
             Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
@@ -708,7 +705,7 @@ function rate_build(user, vehicleName, rating)
         return false
     end
     async_http.init("jackz.me", 
-        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+        string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
     function(body, res_header, status_code)
@@ -2272,7 +2269,7 @@ end
 function upload_build(name, data)
     show_busyspinner("Uploading build...")
     async_http.init("jackz.me", 
-        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
+        string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
     ), function(body, res_headers, status_code)
         if status_code == 200 then
