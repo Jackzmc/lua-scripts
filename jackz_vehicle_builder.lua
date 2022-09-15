@@ -561,15 +561,12 @@ local cloudData = {}
 local cloudSettings = {
     sort = {
         type = "rating",
-        ascending = true
-    }
+        ascending = true,
+    },
+    limit = 100,
+    page = 1
 }
-local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players", function() _fetch_cloud_users() end, function() 
-    for _, data in pairs(cloudData) do
-        menu.delete(data.parentList)
-    end
-    cloudData = {}
-end)
+local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
 local cloudSearchResults = {}
 menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search query", function(query)
@@ -616,16 +613,58 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
 end)
 -- local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
 local sortId = { "rating", "name", "author", "author", "uploaded"}
-local cloudUsersList = menu.list(cloudRootMenuList, "Browse Users")
+local cloudUsersList = menu.list(cloudRootMenuList, "Browse Users", {}, "Browse all builds categorized by author name", function() _fetch_cloud_users() end, function() 
+    for _, data in pairs(cloudData) do
+        menu.delete(data.parentList)
+    end
+    cloudData = {}
+end)
 menu.divider(cloudRootMenuList, "")
 menu.list_select(cloudRootMenuList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
     cloudSettings.sort.type = sortId[index]
 end)
-menu.toggle(cloudRootMenuList, "Sort ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value
 end, cloudSettings.sort.ascending)
-local cloudBuildsList = menu.list(cloudRootMenuList, "Builds")
-menu.action(cloudBuildsList, "Heavenira / MyVehicle", {}, "", function() end)
+local cloudBuildListMenus = {}
+local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds", {}, "Browse all builds individually with above sorting criteriaw", function() _fetch_cloud_sorts() end, function()
+    clear_menu_array(cloudBuildListMenus)
+end)
+menu.on_focus(cloudBuildsList, function() clear_build_preview() end)
+-- TODO: implement sorting
+function _fetch_cloud_sorts()
+    show_busyspinner("Searching cloud builds...")
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/builds.php?list&page=%d&limit=%d&sort=%s&asc=%d",
+            cloudSettings.page, cloudSettings.limit, cloudSettings.sort.type, cloudSettings.sort.ascending and 1 or 0
+        ),
+        function(body, res_headers, status_code)
+            if status_code == 200 and body:sub(1, 1) == "{" then
+                HUD.BUSYSPINNER_OFF()
+                local builds = json.decode(body).builds
+                for _, build in ipairs(builds) do
+                    local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
+                    local buildEntryList
+                    buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
+                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, build)
+                    end)
+                    menu.on_focus(buildEntryList, function()
+                        _fetch_vehicle_data(nil, build.uploader, build.name)
+                    end)
+
+                    table.insert(cloudBuildListMenus, buildEntryList)
+                end
+            else
+                Log.log("bad server response : " .. status_code .. "\n" .. body)
+                util.toast("Server returned error " .. status_code)
+            end
+        end,
+        function()
+            util.toast("Failed to fetch cloud data: Network error")
+        end)
+    async_http.dispatch()
+
+end
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
     async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. (cloudSettings.sort.ascending and 1 or 0), function(body, res_headers, status_code)
@@ -693,12 +732,18 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                     util.toast("Invalid build data was fetched")
                     return
                 end
-                tableref['vehicle'] = data.vehicle
+                if tableref then
+                    tableref['vehicle'] = data.vehicle
+                end
                 if not data.vehicle.name then
                     data.vehicle.name = vehicleName
                 end
                 data.uploader = user
-                spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
+                if tableref then
+                    spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
+                else
+                    spawn_build(data.vehicle, true, _render_cloud_build_overlay, data)
+                end
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
             else
