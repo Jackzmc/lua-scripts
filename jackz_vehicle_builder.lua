@@ -569,7 +569,8 @@ local cloudSettings = {
     },
     limit = 100,
     page = 1,
-    maxPages = 1
+    maxPages = 2,
+    fetching = false
 }
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
@@ -631,15 +632,30 @@ end)
 menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value
 end, cloudSettings.sort.ascending)
-local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, 1, cloudSettings.page, cloudSettings.maxPages, function(value) cloudSettings.page = value end)
+local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
 local cloudBuildListMenus = {}
 local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds", {}, "Browse all builds individually with above sorting criteriaw", function() _fetch_cloud_sorts() end, function()
     clear_menu_array(cloudBuildListMenus)
 end)
 menu.on_focus(cloudBuildsList, function() clear_build_preview() end)
 -- TODO: implement sorting
+function _add_pagination()
+    if cloudSettings.page > 1 then
+        table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View previous page", {}, "", function()
+            cloudSettings.page = cloudSettings.page - 1
+            _fetch_cloud_sorts()
+        end))
+    end
+    if cloudSettings.page < cloudSettings.maxPages then
+        table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View next page", {}, "", function()
+            cloudSettings.page = cloudSettings.page + 1
+            _fetch_cloud_sorts()
+        end))
+    end
+end
 function _fetch_cloud_sorts()
     clear_menu_array(cloudBuildListMenus)
+    cloudSettings.fetching = true
     show_busyspinner("Searching cloud builds...")
     async_http.init("jackz.me",
         string.format("/stand/cloud/builds.php?list&page=%d&limit=%d&sort=%s&asc=%d",
@@ -651,6 +667,8 @@ function _fetch_cloud_sorts()
                 local data = json.decode(body)
                 cloudSettings.maxPages = data.pages or 1
                 menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
+                _add_pagination()
+                table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
                 for _, build in ipairs(data.builds) do
                     local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
                     local buildEntryList
@@ -658,29 +676,24 @@ function _fetch_cloud_sorts()
                         _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, build)
                     end)
                     menu.on_focus(buildEntryList, function()
-                        _fetch_vehicle_data(nil, build.uploader, build.name)
+                        if not cloudSettings.fetching then
+                            _fetch_vehicle_data(nil, build.uploader, build.name)
+                        end
                     end)
 
                     table.insert(cloudBuildListMenus, buildEntryList)
                 end
-                if cloudSettings.page > 1 then
-                    table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View previous page", {}, "", function()
-                        cloudSettings.page = cloudSettings.page - 1
-                        _fetch_cloud_sorts()
-                    end))
-                end
-                if cloudSettings.page < cloudSettings.maxPages then
-                    table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View next page", {}, "", function()
-                        cloudSettings.page = cloudSettings.page + 1
-                        _fetch_cloud_sorts()
-                    end))
-                end
+                table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
+                _add_pagination()
+                cloudSettings.fetching = false
             else
+                cloudSettings.fetching = false
                 Log.log("bad server response : " .. status_code .. "\n" .. body)
                 util.toast("Server returned error " .. status_code)
             end
         end,
         function()
+            cloudSettings.fetching = false
             util.toast("Failed to fetch cloud data: Network error")
         end)
     async_http.dispatch()
