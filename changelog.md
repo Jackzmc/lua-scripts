@@ -63,6 +63,7 @@ v1.10.0
 * (1.10.6) Fix cloud favorites > browse failing
 * (1.10.7) Allow moving during special animations
 * (1.10.8) Auto download animations.txt
+* (1.10.9) Fix cloud bug
 
 # jackz chat (v1)
 

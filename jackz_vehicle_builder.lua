@@ -579,7 +579,7 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending .. "&q=" .. query, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. (cloudSettings.sort.ascending and 1 or 0) .. "&q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
@@ -614,26 +614,28 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
     end)
     async_http.dispatch()
 end)
-local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
+-- local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
 local sortId = { "rating", "name", "author", "author", "uploaded"}
-menu.list_select(sortList, "Sort by: ", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+local cloudUsersList = menu.list(cloudRootMenuList, "Browse Users")
+menu.divider(cloudRootMenuList, "")
+menu.list_select(cloudRootMenuList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
     cloudSettings.sort.type = sortId[index]
 end)
-menu.toggle(sortList, "Sort ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+menu.toggle(cloudRootMenuList, "Sort ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value
 end, cloudSettings.sort.ascending)
-
-menu.divider(cloudRootMenuList, "Users")
+local cloudBuildsList = menu.list(cloudRootMenuList, "Builds")
+menu.action(cloudBuildsList, "Heavenira / MyVehicle", {}, "", function() end)
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. cloudSettings.sort.ascending, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. (cloudSettings.sort.ascending and 1 or 0), function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
         if status_code == 200 then
             HUD.BUSYSPINNER_OFF()
             if body[1] == "{" then
                 cloudData = json.decode(body).users
                 for user, vehicles in pairsByKeys(cloudData) do
-                    local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
+                    local userList = menu.list(cloudUsersList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
                         _load_cloud_vehicles(user)
                     end, function()
                         cloudData[user].vehicleData = {}
@@ -657,7 +659,7 @@ function _fetch_cloud_users()
     end)
     async_http.dispatch()
 end
-function _load_cloud_vehicles(user) 
+function _load_cloud_vehicles(user)
     if not cloudData[user] then
         util.toast("Error: Missing cloud data for user " .. user)
     else

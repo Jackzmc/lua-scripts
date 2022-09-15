@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.9"
+VERSION = "1.10.10"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -270,7 +270,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
                 end
                 udata.categories[dictionary] = nil
             end
-            cloudUsers.menu[user] = nil
+            cloudUsers[user].menu = nil
         end
         for user in string.gmatch(body, "[^\r\n]+") do
             local userMenu = menu.list(cloudFavoritesBrowseMenu, user, {}, "All action categories favorited by " .. user)
