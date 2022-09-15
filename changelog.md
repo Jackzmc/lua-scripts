@@ -152,3 +152,4 @@ V1.24.0
 
 * Internal change for vehicle search
 * Add sorting option (type and direction) for cloud lists
+* Organize builder entities by type
