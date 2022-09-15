@@ -3500,7 +3500,7 @@ while true do
             end
             if scriptSettings.showAddOverlay then
                 get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
-                    if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                    if did_hit and entity and builder.entities[entity] == nil then
                         local hudPos = get_screen_coords(pos)
                         local height = 0.055
                         local name = "Pre-existing object"
@@ -3519,7 +3519,11 @@ while true do
                         if util.is_key_down(0x4A) then
                             if seconds - lastAddKeyPress > 1 then
                                 lastAddKeyPress = seconds
-                                add_entity_to_list(builder.entitiesMenuList, entity, name)
+                                if not NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                                    clone_entity(entity, name)
+                                else
+                                    add_entity_to_list(builder.entitiesMenuList, entity, name)
+                                end
                             end
                         end
                     end
