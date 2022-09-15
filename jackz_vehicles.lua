@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.9.14"
+VERSION = "3.9.15"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -1060,7 +1060,7 @@ local nearbyMenu = menu.list(menu.my_root(), i18n.format("NEARBY_VEHICLES_NAME")
 local allPlayersMenu = menu.list(menu.my_root(), i18n.format("ALL_NAME"), {"vehicleall"}, i18n.format("ALL_DESC"))
 local autodriveMenu = menu.list(menu.my_root(), i18n.format("AUTODRIVE_NAME"), {"autodrive"}, i18n.format("AUTODRIVE_DESC"))
 menu.divider(menu.my_root(), "Vehicle Spawning")
-local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {})
+local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"})
 menu.on_focus(cloudVehiclesMenu, function() _load_cloud_user_vehs() end)
 
 local cloudSearchMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
@@ -1312,7 +1312,7 @@ end
 -- Spawn Saved Vehicles
 ----------------------------
 local savedVehicleMenus = {}
-local savedVehiclesList = menu.list(menu.my_root(), i18n.format("SAVED_NAME"), {}, i18n.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
+local savedVehiclesList = menu.list(menu.my_root(), i18n.format("SAVED_NAME"), {"jvsaved"}, i18n.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
 menu.on_focus(savedVehiclesList, function() clear_menu_table(savedVehicleMenus) end)
 local xmlMenusHandles = {}
 local xmlList = menu.list(savedVehiclesList, "Convert XML Vehicles", {}, "Vehicles (*.xml), typically from menyoo. Able to convert them through this menu.")
