@@ -580,12 +580,12 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
-                local results = json.decode(body).results
-                if #results == 0 then
+                local builds = json.decode(body).builds
+                if #builds == 0 then
                     util.toast("No builds found")
                     return
                 end
-                for _, vehicle in ipairs(results) do
+                for _, vehicle in ipairs(builds) do
                     
                     local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
                     cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
