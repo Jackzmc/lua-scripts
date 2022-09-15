@@ -1484,6 +1484,13 @@ function create_vehicle_spawner_list(root)
     for _, data in ipairs(CURATED_VEHICLES) do
         add_vehicle_menu(curatedList, data[1], data[2])
     end
+    local jackzVehiclesList = menu.list(root, "Jackz Vehicles", {}, "Shortcut to your jackz vehicles list")
+    menu.action(jackzVehiclesList, "Cloud Vehicles", {}, "Open up the jackz vehicle's cloud list", function()
+        menu.trigger_commands("jvcloud")
+    end)
+    menu.action(jackzVehiclesList, "Saved Vehicles", {}, "Opens up the jackz's vehicles saved list", function()
+        menu.trigger_commands("jvsaved")
+    end)
     local searchList = menu.list(root, "Search Vehicles")
     menu.text_input(searchList, "Search", {"searchvehicles"}, "Enter a vehicle name to search for", function(query)
         create_vehicle_search_results(searchList, query, 30)
