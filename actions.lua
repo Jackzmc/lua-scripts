@@ -581,8 +581,15 @@ function populate_favorites()
         if favorite[3] then
             name = favorite[3] .. " (" .. favorite[2] .. ")"
         end
-        local a = menu.action(favoritesMenu, name, {}, "Plays " .. favorite[2] .. " from group " .. favorite[1], function(v)
-            play_animation(favorite[1], favorite[2], false)
+        local a
+        a = menu.action(favoritesMenu, name, {}, "Plays " .. favorite[2] .. " from group " .. favorite[1], function(v)
+            if PAD.IS_CONTROL_PRESSED(2, 209) then
+                menu.show_warning(a, 2, "Are you sure you want to remove this animation from your favorites", function()
+                    play_animation(favorite[1], favorite[2], false, nil, true)
+                end)
+            else
+                play_animation(favorite[1], favorite[2], false)
+            end
         end)
         table.insert(favoritesActions, a)
     end
@@ -692,7 +699,7 @@ function setup_animation_list()
     animLoaded = true
 end
 
-function play_animation(group, anim, doNotAddRecent, data)
+function play_animation(group, anim, doNotAddRecent, data, remove)
     local flags = animFlags -- Keep legacy animation flags
     local duration = -1
     local props
@@ -713,7 +720,7 @@ function play_animation(group, anim, doNotAddRecent, data)
             props = data.AnimationOptions.Props
         end
     end
-    if PAD.IS_CONTROL_PRESSED(2, 209) then
+    if remove then
         for i, favorite in ipairs(favorites) do
             if favorite[1] == group and favorite[2] == anim then
                 table.remove(favorites, i)
@@ -728,8 +735,6 @@ function play_animation(group, anim, doNotAddRecent, data)
         save_favorites()
         util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
     else
-       
-
         clear_anim_props()
         STREAMING.REQUEST_ANIM_DICT(group)
         while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
