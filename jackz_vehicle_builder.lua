@@ -568,7 +568,8 @@ local cloudSettings = {
         ascending = true,
     },
     limit = 100,
-    page = 1
+    page = 1,
+    maxPages = 1
 }
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
@@ -630,6 +631,7 @@ end)
 menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value
 end, cloudSettings.sort.ascending)
+local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, 1, cloudSettings.page, cloudSettings.maxPages, function(value) cloudSettings.page = value end)
 local cloudBuildListMenus = {}
 local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds", {}, "Browse all builds individually with above sorting criteriaw", function() _fetch_cloud_sorts() end, function()
     clear_menu_array(cloudBuildListMenus)
@@ -637,6 +639,7 @@ end)
 menu.on_focus(cloudBuildsList, function() clear_build_preview() end)
 -- TODO: implement sorting
 function _fetch_cloud_sorts()
+    clear_menu_array(cloudBuildListMenus)
     show_busyspinner("Searching cloud builds...")
     async_http.init("jackz.me",
         string.format("/stand/cloud/builds.php?list&page=%d&limit=%d&sort=%s&asc=%d",
@@ -645,8 +648,10 @@ function _fetch_cloud_sorts()
         function(body, res_headers, status_code)
             if status_code == 200 and body:sub(1, 1) == "{" then
                 HUD.BUSYSPINNER_OFF()
-                local builds = json.decode(body).builds
-                for _, build in ipairs(builds) do
+                local data = json.decode(body)
+                cloudSettings.maxPages = data.pages or 1
+                menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
+                for _, build in ipairs(data.builds) do
                     local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
@@ -657,6 +662,18 @@ function _fetch_cloud_sorts()
                     end)
 
                     table.insert(cloudBuildListMenus, buildEntryList)
+                end
+                if cloudSettings.page > 1 then
+                    table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View previous page", {}, "", function()
+                        cloudSettings.page = cloudSettings.page - 1
+                        _fetch_cloud_sorts()
+                    end))
+                end
+                if cloudSettings.page < cloudSettings.maxPages then
+                    table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View next page", {}, "", function()
+                        cloudSettings.page = cloudSettings.page + 1
+                        _fetch_cloud_sorts()
+                    end))
                 end
             else
                 Log.log("bad server response : " .. status_code .. "\n" .. body)
