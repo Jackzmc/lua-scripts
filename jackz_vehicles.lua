@@ -1127,6 +1127,11 @@ function setup_cloud_vehicle_submenu(m, user, vehicleName)
                 file:close()
                 i18n.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. user .. "_" .. vehicleName)
             end)
+            if user ~= SOCIALCLUB._SC_GET_NICKNAME() then
+                menu.click_slider(m, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded vehicle with 1-5 stars", 1, 5, 5, 1, function(rating)
+                    rate_vehicle(user, vehicleName, rating)
+                end)
+            end
         end)
     end
 end
@@ -1185,7 +1190,6 @@ menu.on_focus(cloudSearchMenu, function(_)
 end)
 local cloudUploadMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
 local cloudUploadMenus = {}
-os.remove(VEHICLE_DIR .. "/cloud.id")
 menu.on_focus(cloudUploadMenu, function(_)
     for _, m in ipairs(cloudUploadMenus) do
         menu.delete(m)
@@ -1221,6 +1225,40 @@ menu.on_focus(cloudUploadMenu, function(_)
         end)
     end, false)
 end)
+function rate_vehicle(user, vehicleName, rating)
+    if not user or not vehicleName or rating < 0 or rating > 5 then
+        Log.log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating)
+        return false
+    end
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+            user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
+        ),
+    function(body, res_header, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local data = json.decode(body)
+                if data.success then
+                    util.toast("Rating submitted")
+                else
+                    Log.log(body)
+                    util.toast("Failed to submit rating, see logs for info")
+                end
+            else
+                util.toast("Failed to submit rating, server sent invalid response")
+            end
+        else
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
+        end
+
+    end, function()
+        util.toast("Failed to submit rating due to an unknown error")
+    end)
+    async_http.set_post("application/json", "")
+    async_http.dispatch()
+    return true
+end
 ----------------------------
 -- CLOUD VEHICLES BROWSE
 ----------------------------
