@@ -688,7 +688,7 @@ function _fetch_cloud_sorts()
                 cloudSettings.fetching = false
             else
                 cloudSettings.fetching = false
-                Log.log("bad server response : " .. status_code .. "\n" .. body)
+                Log.log("bad server response (_fetch_cloud_sorts): " .. status_code .. "\n" .. body)
                 util.toast("Server returned error " .. status_code)
             end
         end,
@@ -781,16 +781,17 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
             else
-                Log.log("invalid server response : " .. body, "_fetch_cloud_users")
+                Log.log("invalid server response : " .. body, "_fetch_vehicle_data")
                 util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
             end
         else
-            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_vehicle_data")
             util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
 end
+
 function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     local tries = 0
     while not vehicleData['vehicle'] and tries < 10 do
