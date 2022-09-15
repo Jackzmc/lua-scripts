@@ -74,6 +74,10 @@ function new_builder()
         },
         entities = {}, -- KV<Handle, Table>
         entitiesMenuList = nil,
+        vehiclesList = nil,
+        objectsList = nil,
+        pedsList = nil,
+        particlesList = nil,
         propSpawner = {
             root = nil,
             menus = {},
@@ -1268,7 +1272,11 @@ function setup_builder_menus(name)
         menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
             FREE_EDIT = value
         end, FREE_EDIT)
-        menu.divider(builder.entitiesMenuList, "Entities")
+    builder.vehiclesList = menu.list(builder.entitiesMenuList, "Vehicles", {}, "All vehicles added to the build")
+    builder.objectsList = menu.list(builder.entitiesMenuList, "Props", {}, "All objects added to the build")
+    builder.pedsList = menu.list(builder.entitiesMenuList, "Peds", {}, "All peds")
+    builder.particlesList = menu.list(builder.entitiesMenuList, "Particles", {}, "All particles added to the build")
+    menu.divider(builder.entitiesMenuList, "Builds")
     local baseList = menu.list(mainMenu, "Base Entity", {}, "Manage settings relating to the base entity of your build")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1893,7 +1901,7 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
         local hash = util.joaat(propName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_object(hash, pos)
-        add_entity_to_list(builder.entitiesMenuList, entity, propName)
+        add_entity_to_list(builder.objectsList, entity, propName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -1963,7 +1971,7 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         ENTITY.FREEZE_ENTITY_POSITION(entity)
-        add_entity_to_list(builder.entitiesMenuList, entity, pedName)
+        add_entity_to_list(builder.pedsList, entity, pedName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -2032,7 +2040,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
 
         local hash = util.joaat(vehicleID)
         local entity = spawn_vehicle({model = hash}, false)
-        add_entity_to_list(builder.entitiesMenuList, entity, displayName)
+        add_entity_to_list(builder.vehiclesList, entity, displayName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -2099,7 +2107,7 @@ function add_particles_menu(parent, dict, name, isFavoritesEntry)
         end
 
         local handle = spawn_particle(data, builder.base.handle)
-        add_particle_to_list(builder.entitiesMenuList, handle, data)
+        add_particle_to_list(builder.particlesList, handle, data)
     end)
     menu.on_focus(menuHandle, function()
         local key = dict .. "/" .. name
@@ -2234,6 +2242,7 @@ end
 -- [ ENTITY EDITING HANDLING ]
 function add_particle_to_list(list, particleHandle, particleData)
     builder.entities[particleHandle] = {
+        type = "PARTICLE",
         id = particleData.id or builder._index,
         name = particleData.name or particleData.particle[2],
         particle = particleData.particle,
@@ -2377,9 +2386,23 @@ function clone_entity(handle, name, mirror_axis)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(builder.entitiesMenuList, entity, name, { offset = pos })
+    add_entity_to_list(_find_entity_list(builder.entities[handle].type), entity, name, { offset = pos })
     highlightedHandle = entity
     return entity
+end
+
+function _find_entity_list(type)
+    if type == "VEHICLE" then
+        return builder.vehiclesList
+    elseif type == "OBJECT" then
+        return builder.objectsList
+    elseif type == "PED" then
+        return builder.pedsList
+    elseif type == "PARTICLE" then
+        return builder.particlesList
+    else
+        return builder.entitiesMenuList
+    end
 end
 
 function create_entity_section(tableref, handle, options)
@@ -3170,7 +3193,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, object, entityData.name or "unknown object", entityData)
+                        add_entity_to_list(builder.objectsList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
                         if entityData.parent ~= entityData.id then
                             table.insert(parentQueue, { handle = object, data = entityData })
@@ -3201,7 +3224,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
 
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name or "unknown ped", pedData)
+                        local datatable = add_entity_to_list(builder.pedsList, ped, pedData.name or "unknown ped", pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
                         if pedData.parent ~= pedData.id then
@@ -3251,7 +3274,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             if vehData.id then idMap[tostring(vehData.id)] = handle end
 
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name or "unknown vehicle", vehData)
+                add_entity_to_list(builder.vehiclesList, handle, vehData.name or "unknown vehicle", vehData)
             elseif vehData.parent then
                 if vehData.parent ~= vehData.id then
                     table.insert(parentQueue, { handle = handle, data = vehData })
@@ -3304,7 +3327,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
             local handle = spawn_particle(particle, entity, isPreview)
             if addToBuilder then
-            add_particle_to_list(builder.entitiesMenuList, handle, particle) 
+            add_particle_to_list(builder.particlesList, handle, particle) 
             end
         end
     end
