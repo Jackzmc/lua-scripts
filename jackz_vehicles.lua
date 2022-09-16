@@ -1060,8 +1060,7 @@ local nearbyMenu = menu.list(menu.my_root(), i18n.format("NEARBY_VEHICLES_NAME")
 local allPlayersMenu = menu.list(menu.my_root(), i18n.format("ALL_NAME"), {"vehicleall"}, i18n.format("ALL_DESC"))
 local autodriveMenu = menu.list(menu.my_root(), i18n.format("AUTODRIVE_NAME"), {"autodrive"}, i18n.format("AUTODRIVE_DESC"))
 menu.divider(menu.my_root(), "Vehicle Spawning")
-local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"})
-menu.on_focus(cloudVehiclesMenu, function() _load_cloud_user_vehs() end)
+local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"}, _load_cloud_user_vehs)
 
 local cloudSearchMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
 local cloudSearchMenus = {}
