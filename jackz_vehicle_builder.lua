@@ -565,9 +565,9 @@ local cloudData = {}
 local cloudSettings = {
     sort = {
         type = "rating",
-        ascending = true,
+        ascending = false,
     },
-    limit = 100,
+    limit = 30,
     page = 1,
     maxPages = 2,
     fetching = false
@@ -632,6 +632,7 @@ end)
 menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
     cloudSettings.sort.ascending = value
 end, cloudSettings.sort.ascending)
+menu.slider(cloudRootMenuList, "Builds Per Page", {"jvbclimit"}, "Set the amount of builds shown in the browse builds list", 10, 100, cloudSettings.limit, 1, function(value) cloudSettings.limit = value end)
 local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
 local cloudBuildListMenus = {}
 local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds", {}, "Browse all builds individually with above sorting criteriaw", function() _fetch_cloud_sorts() end, function()
@@ -667,7 +668,8 @@ function _fetch_cloud_sorts()
                 local data = json.decode(body)
                 cloudSettings.maxPages = data.pages or 1
                 menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
-                _add_pagination()
+                -- FIXME: Causes stand exceptions when viewing next page?
+                -- _add_pagination()
                 table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
                 for _, build in ipairs(data.builds) do
                     local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
