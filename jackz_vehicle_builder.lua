@@ -1305,11 +1305,14 @@ function setup_builder_menus(name)
         menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
             FREE_EDIT = value
         end, FREE_EDIT)
-    builder.vehiclesList = menu.list(builder.entitiesMenuList, "Vehicles", {}, "All vehicles added to the build")
+
+    menu.divider(builder.entitiesMenuList, "")
     builder.objectsList = menu.list(builder.entitiesMenuList, "Props", {}, "All objects added to the build")
+    builder.vehiclesList = menu.list(builder.entitiesMenuList, "Vehicles", {}, "All vehicles added to the build")
     builder.pedsList = menu.list(builder.entitiesMenuList, "Peds", {}, "All peds")
     builder.particlesList = menu.list(builder.entitiesMenuList, "Particles", {}, "All particles added to the build")
     menu.divider(builder.entitiesMenuList, "Builds")
+    
     local baseList = menu.list(mainMenu, "Base Entity", {}, "Manage settings relating to the base entity of your build")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
