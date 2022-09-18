@@ -3368,7 +3368,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
     if build.particles then
         for _, particle in ipairs(build.particles) do
-            local entity = builder.base.handle
+            local entity = baseHandle
             if particle.parent then
                 entity = idMap[particle.parent]
             end
