@@ -3374,6 +3374,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             end
 
             particle.pos = particle.offset
+            particle.rot = particle.rotation
             local handle = spawn_particle(particle, entity, isPreview)
             if addToBuilder then
             add_particle_to_list(builder.particlesList, handle, particle)
@@ -3543,7 +3544,7 @@ while true do
             if scriptSettings.showAddOverlay then
                 get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
                     if did_hit and entity and builder.entities[entity] == nil then
-                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.PED.IS_PED_A_PLAYER(entity) then
+                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.IS_PED_A_PLAYER(entity) then
                             return
                         end
                         local hudPos = get_screen_coords(pos)
