@@ -1,3 +1,8 @@
+-- People keep trying to run stuff on non-stand
+if not filesystem.stand_dir then
+    print("Unsupported. Only stand is supported")
+    return
+end
 ----------------------------------------------------------------
 -- Version Check
 function get_version_info(version)
