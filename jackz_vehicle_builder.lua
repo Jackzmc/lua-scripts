@@ -921,6 +921,7 @@ function _load_vehicles_from_dir(parentList, directory)
         local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if filesystem.is_dir(filepath) then
             local folderList = menu.list(parentList, filename, {}, "")
+            menu.on_focus(folderList, function() clear_build_preview() end)
             _load_vehicles_from_dir(folderList, filepath)
             table.insert(folderLists, folderList)
         else
@@ -3372,9 +3373,10 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                 entity = idMap[particle.parent]
             end
 
+            particle.pos = particle.offset
             local handle = spawn_particle(particle, entity, isPreview)
             if addToBuilder then
-            add_particle_to_list(builder.particlesList, handle, particle) 
+            add_particle_to_list(builder.particlesList, handle, particle)
             end
         end
     end
