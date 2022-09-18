@@ -573,6 +573,7 @@ local cloudSettings = {
     fetching = false
 }
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
+menu.on_focus(cloudRootMenuList, function() clear_build_preview() end)
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
 local cloudSearchResults = {}
 menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search query", function(query)
@@ -2920,7 +2921,7 @@ function spawn_entity(data, type, isPreview, pos, heading)
         return error("No entity model provided")
     end
 
-    local handle
+    local handle = 0
     if type == "VEHICLE" then
         handle = spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
@@ -2928,9 +2929,9 @@ function spawn_entity(data, type, isPreview, pos, heading)
     elseif type == "OBJECT" then
         handle = spawn_object(data, isPreview, pos)
     else
-        error("Invalid entity type \"" .. type .. "\"", 2)
+        return error("Invalid entity type \"" .. type .. "\"", 2)
     end
-    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model))
+    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model or "nil"))
     return handle
 end
 
@@ -3540,6 +3541,9 @@ while true do
             if scriptSettings.showAddOverlay then
                 get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
                     if did_hit and entity and builder.entities[entity] == nil then
+                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.PED.IS_PED_A_PLAYER(entity) then
+                            return
+                        end
                         local hudPos = get_screen_coords(pos)
                         local height = 0.055
                         local name = "Pre-existing object"
