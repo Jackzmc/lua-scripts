@@ -48,12 +48,19 @@ function loadRecordings(list)
 end
 
 function playRecording(entity, data, onFinish)
+    PlaybackController.Stop(Player.activeEntityId)
     Player.activeEntityId = entity
     menu.set_value(Player.pauseControl, false)
     menu.set_value(Player.speedControl, 100)
+
     menu.set_max_value(Player.frameControl, #data.points)
+    menu.set_max_value(Player.startFrameControl, #data.points)
+    menu.set_max_value(Player.endFrameControl, #data.points)
     menu.set_value(Player.frameControl, 1)
-    PlaybackController:StartPlayback(entity, data.points, data.interval, { 
+    menu.set_value(Player.startFrameControl, 1)
+    menu.set_value(Player.endFrameControl, 1)
+    
+    PlaybackController:StartPlayback(entity, data.points, data.interval, {
         speed = 1.0,
         debug = true,
         onFinish = onFinish,
@@ -63,6 +70,7 @@ function playRecording(entity, data, onFinish)
     })
 
     PlaybackController:ShowPlayerUI(entity)
+    menu.focus(Player.menuId)
 end
 
 function loadRecording(filepath)
@@ -134,14 +142,6 @@ menu.action(menu.my_root(), "Stop", {}, "Stops the current playback", function()
     end
 end)
 
-Player.frameControl = menu.slider(menu.my_root(), "Frame", {}, "", 1, 1, 1, 1, function(frame)
-    if PlaybackController:IsInPlayback(Player.activeEntityId) then
-        PlaybackController:SetFrame(Player.activeEntityId, frame)
-    else
-        menu.set_value(frame, 1)
-    end
-end)
-
 Player.speedControl = menu.slider(menu.my_root(), "Speed", {}, "", 1, 1, 1, 1, function(frame)
     if PlaybackController:IsInPlayback(Player.activeEntityId) then
         PlaybackController:SetFrame(Player.activeEntityId, frame)
@@ -155,6 +155,30 @@ Player.speedControl = menu.slider_float(menu.my_root(), "Speed", {}, "", 10, 500
         PlaybackController:SetSpeed(Player.activeEntityId, value / 100)
     else
         menu.set_value(Player.speedControl, 1)
+    end
+end)
+
+Player.frameControl = menu.slider(menu.my_root(), "Frame", {}, "", 1, 1, 1, 1, function(frame)
+    if PlaybackController:IsInPlayback(Player.activeEntityId) then
+        PlaybackController:SetFrame(Player.activeEntityId, frame)
+    else
+        menu.set_value(Player.frameControl, 1)
+    end
+end)
+
+Player.startFrameControl = menu.slider(menu.my_root(), "Start Frame", {}, "The frame the animation will start as (used for repeating)", 1, 1, 1, 1, function(frame)
+    if PlaybackController:IsInPlayback(Player.activeEntityId) then
+        PlaybackController:SetFrame(Player.activeEntityId, nil, frame, nil)
+    else
+        menu.set_value(Player.startFrameControl, 1)
+    end
+end)
+
+Player.endFrameControl = menu.slider(menu.my_root(), "End Frame", {}, "The frame the animation will start as (used for repeating)", 1, 1, 1, 1, function(frame)
+    if PlaybackController:IsInPlayback(Player.activeEntityId) then
+        PlaybackController:SetFrame(Player.activeEntityId, nil, nil, frame)
+    else
+        menu.set_value(Player.endFrameControl , 1)
     end
 end)
 

@@ -87,6 +87,7 @@ Value is the defaults,
 Options: {
     speed = 1.0, -- Starting speed
     startFrame = 1,
+    initialFrame = 1
     endFrame = #positions,
     debug = false,
     repeat = false,
@@ -112,7 +113,8 @@ function PlaybackController.StartPlayback(self, entity, positions, recordInterva
         time = recordInterval * (options.startFrame - 1),
         prevTime = os.clock() * 1000,
         speed = options.speed or 1.0,
-        frame = options.startFrame,
+        frame = options.initalFrame or options.startFrame,
+        startFrame = options.startFrame,
         endFrame = options.endFrame or #positions - 1,
         interval = recordInterval,
         animTick = 0.0,
@@ -140,24 +142,40 @@ function PlaybackController.SetSpeed(self, entity, speed)
         self.animations[entity].speed = speed
     end
 end
--- Returns the current frame and the ending frame
+-- Returns the current frame, starting frame, and ending frame
 function PlaybackController.GetFrame(self, entity)
     if not self.animations[entity] then
         error("No running playback for specified entity")
     else
-        return self.animations[entity].frame, self.animations[entity].endFrame
+        return self.animations[entity].frame, self.animations[entity].startFrame, self.animations[entity].endFrame
     end
 end
 
-function PlaybackController.SetFrame(self, entity, frame)
+function PlaybackController.SetFrame(self, entity, frame, startFrame, endFrame)
     if not self.animations[entity] then
         error("No running playback for specified entity")
     elseif frame <= 0 then
         error("Frame is out of range. Minimum of 1")
     elseif frame > self.animations[entity].endFrame then
         error("Frame is out of range. Range must be between 1 and " .. self.animations[entity].endFrame)
-        self.animations[entity].frame = frame
-        self.animations[entity].time = self.animations[entity].interval * (frame - 1)
+        if frame ~= nil then
+            self.animations[entity].frame = frame
+            self.animations[entity].time = self.animations[entity].interval * (frame - 1)
+        end
+        if startFrame then
+            self.animations[entity].startFrame = startFrame
+        end
+        if endFrame then
+            self.animations[entity].endFrame = endFrame
+        end
+    end
+end
+
+function PlaybackController.GetTime(self ,entity)
+    if not self.animations[entity] then
+        error("No running playback for specified entity")
+    else
+        return self.animations[entity].time
     end
 end
 
@@ -191,9 +209,7 @@ function PlaybackController.IsPaused(self, entity)
 end
 
 function PlaybackController.Stop(self, entity)
-    if not self.animations[entity] then
-        error("No running playback for specified entity")
-    else
+    if self.animations[entity] then
         self:_stop(entity)
     end
 end
@@ -224,7 +240,7 @@ function PlaybackController._DisplayPlayerInfo(self, entity, offset)
     directx.draw_texture_client(PLAY_ICON, ICON_SIZE, ICON_SIZE, 0, 0, 0.90, 0.0, 0, 1.0, 1.0, 1.0, 1.0)
     directx.draw_text_client(0.999, 0.0132, "Frame " .. animation.frame .. "/" .. #animation.positions, ALIGN_CENTRE_RIGHT, 0.65, { r = 1.0, g = 1.0, b = 1.0, a = 1.0}, true)
 end
-function PlaybackController._ProcessFrame(self)
+function PlaybackController._processFrame(self)
     local now = os.clock() * 1000
     if self.activePlayer then
         self:_DisplayPlayerInfo(self.activePlayer)
@@ -288,6 +304,6 @@ end
 
 
 while true do
-    PlaybackController:_ProcessFrame()
+    PlaybackController:_processFrame()
     util.yield()
 end
