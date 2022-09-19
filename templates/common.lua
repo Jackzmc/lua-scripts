@@ -126,6 +126,9 @@ function try_require(name, isOptional)
     if status then
         return data
     else
+        if data then
+            util.toast(name .. ": " .. data, TOAST_ALL)
+        end
         if SCRIPT_SOURCE == "REPO" then
             if isOptional then
                 Log.debug("Missing optional dependency: " .. name)
