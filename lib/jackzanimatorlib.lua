@@ -216,6 +216,7 @@ function PlaybackController.Resume(self, entity)
         error("No running playback for specified entity")
     else
         self.animations[entity].active = true
+        self.animations[entity].prevTime = os.clock() * 1000
     end
 end
 function PlaybackController.SetPaused(self, entity, value)
@@ -223,6 +224,9 @@ function PlaybackController.SetPaused(self, entity, value)
         error("No running playback for specified entity")
     else
         self.animations[entity].active = not value
+        if not value then
+            self.animations[entity].prevTime = os.clock() * 1000
+        end
     end
 end
 function PlaybackController.IsPaused(self, entity)
