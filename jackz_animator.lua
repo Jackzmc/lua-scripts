@@ -131,6 +131,12 @@ function loadRecordingList(list, filepath)
         end)
     end))
 
+    local parent, filename = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+    table.insert(recordingListSubmenus, menu.text_input(list, "Rename", {}, "Rename this recording", function(newName)
+        os.rename(filepath, parent .. "/" .. newName)
+        util.toast("Renamed recording")
+    end, filename))
+
     table.insert(recordingListSubmenus, menu.action(list, "Delete", {}, "Delete this recording", function()
         os.remove(filepath)
         util.toast("Deleted recording")
