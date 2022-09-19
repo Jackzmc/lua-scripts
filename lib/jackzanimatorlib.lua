@@ -13,6 +13,14 @@ local RECORD_ICON = directx.create_texture(RESOURCES_DIR .. "/record.png")
 -- https://www.flaticon.com/free-icons/rec Rec icons created by kliwir art - Flaticon
 local ICON_SIZE = 0.0070
 
+function shallowCopyArray(t)
+    local t2 = {}
+    for k, v in ipairs(t) do
+      t2[k] = v
+    end
+    return t2
+end
+
 RecordingController = {
     active = false,
     positions = {},
@@ -47,7 +55,9 @@ end
 -- Stops a recording and returns the positions and interval of the recording
 function RecordingController.StopRecording(self)
     self.active = false
-    return self.positions, self.interval
+    local positions  shallowCopyArray(self.positions)
+    self.positions = {}
+    return positions, self.interval
 end
 
 function RecordingController._renderUI(self)
