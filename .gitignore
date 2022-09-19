@@ -12,6 +12,7 @@
 !jackz_vehicles.lua
 !jackz_chat.lua
 !jackz_vehicle_builder.lua
+!jackz_animator.lua
 
 !lib/
 !lib/natives-1627063482.lua
@@ -23,6 +24,7 @@
 !lib/translations.lua
 !lib/scaleforms.lua
 !lib/jackzvehiclelib.lua
+!lib/jackzanimatorlib.lua
 
 !resources/
 !resources/objects.txt
