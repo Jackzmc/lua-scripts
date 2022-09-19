@@ -12,12 +12,13 @@ require('templates/common')
 --#P:TEMPLATE("log")
 --#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
+
 util.require_natives(1660775568)
 
 local json = require("json")
 try_require("jackzanimatorlib")
 
-if ANIMATOR_LIB_VERSION  ~= ANIMATOR_LIB_TARGET then
+if ANIMATOR_LIB_VERSION ~= ANIMATOR_LIB_TARGET then
     if SCRIPT_SOURCE == "MANUAL" then
         Log.log("animatorlib current: " .. ANIMATOR_LIB_VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
         util.toast("Outdated animator library, downloading update...")
@@ -185,14 +186,6 @@ menu.action(menu.my_root(), "Stop", {}, "Stops the current playback", function()
         PlaybackController:Stop(Player.activeEntityId)
     else
         util.toast("No playback is active")
-    end
-end)
-
-Player.speedControl = menu.slider(menu.my_root(), "Speed", {}, "", 1, 1, 1, 1, function(frame)
-    if PlaybackController:IsInPlayback(Player.activeEntityId) then
-        PlaybackController:SetFrame(Player.activeEntityId, frame)
-    else
-        menu.set_value(frame, 1)
     end
 end)
 
