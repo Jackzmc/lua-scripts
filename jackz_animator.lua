@@ -1,12 +1,33 @@
--- --#P:DEBUG_ONLY
--- require('templates/log')
--- require('templates/common')
--- --#P:END
+-- Jackz Vehicle Builder
+-- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
+local SCRIPT = "jackz_animator"
+VERSION = "0.1.0"
+local ANIMATOR_LIB_TARGET = "1.3.1"
 
+--#P:DEBUG_ONLY
+require('templates/log')
+require('templates/common')
+--#P:END
+
+--#P:TEMPLATE("log")
+--#P:TEMPLATE("_SOURCE")
+--#P:TEMPLATE("common")
 util.require_natives(1660775568)
 
 local json = require("json")
-require("lib/jackzanimatorlib")
+try_require("jackzanimatorlib")
+
+if ANIMATOR_LIB_VERSION  ~= ANIMATOR_LIB_TARGET then
+    if SCRIPT_SOURCE == "MANUAL" then
+        Log.log("animatorlib current: " .. ANIMATOR_LIB_VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
+        util.toast("Outdated animator library, downloading update...")
+        download_lib_update("jackzanimatorlib.lua")
+        require("jackzanimatorlib")
+        
+    else
+        util.toast("Outdated lib: 'jackzanimatorlib'")
+    end
+end
 
 local STORE_DIRECTORY = filesystem.store_dir() .. "jackz_animator"
 local RECORDINGS_DIR = STORE_DIRECTORY .. "/recordings"

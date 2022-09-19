@@ -1,3 +1,7 @@
+ANIMATOR_LIB_VERSION = "0.1.0"
+RECORDING_FORMAT_VERSION = 1
+
+
 local RESOURCES_DIR = filesystem.resources_dir() .. "/jackz_animator"
 if not filesystem.exists(RESOURCES_DIR) then
     error("Missing jackz_animator resources folder")
@@ -8,8 +12,6 @@ local PLAY_ICON =  directx.create_texture(RESOURCES_DIR .. "/play.png")
 local RECORD_ICON = directx.create_texture(RESOURCES_DIR .. "/record.png")
 -- https://www.flaticon.com/free-icons/rec Rec icons created by kliwir art - Flaticon
 local ICON_SIZE = 0.0070
-
-RECORDING_FORMAT_VERSION = 1
 
 RecordingController = {
     active = false,
