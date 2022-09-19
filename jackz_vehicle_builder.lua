@@ -2916,6 +2916,15 @@ function copy_file(source, dest)
     destFile:close()
 end
 
+-- also see https://docs.fivem.net/natives/?_0x658500AE6D723A7E
+function _setup_network(handle)
+    local networkId = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(handle)
+    NETWORK.NETWORK_REGISTER_ENTITY_AS_NETWORKED(handle)
+    -- Maybe put as true?
+    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(networkId, true)
+    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(networkId, false)
+    return networkId
+end
 
 function spawn_entity(data, type, isPreview, pos, heading)
     if not data.model then
@@ -2929,10 +2938,12 @@ function spawn_entity(data, type, isPreview, pos, heading)
         handle = spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
         handle = spawn_object(data, isPreview, pos)
+        NETWORK.OBJ_TO_NET(handle)
     else
         return error("Invalid entity type \"" .. type .. "\"", 2)
     end
     Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model or "nil"))
+    _setup_network(handle)
     return handle
 end
 
@@ -3003,6 +3014,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
         if vehicleData.godmode or vehicleData.godmode == nil then
             ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
         end
+        _setup_network(handle)
     end
 
     if vehicleData.savedata then
@@ -3055,6 +3067,7 @@ function spawn_ped(data, isPreview, pos)
             end
             TASK.TASK_PLAY_ANIM(handle, data.animdata[1], data.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
         end
+        _setup_network(handle)
         return handle
     end
 end
@@ -3085,6 +3098,7 @@ function spawn_object(data, isPreview, pos)
             data.visible = true
         end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
+        _setup_network(object)
         return object
     end
 end
