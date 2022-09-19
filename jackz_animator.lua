@@ -59,7 +59,7 @@ function playRecording(entity, data, onFinish)
     menu.set_value(Player.frameControl, 1)
     menu.set_value(Player.startFrameControl, 1)
     menu.set_value(Player.endFrameControl, 1)
-    
+
     PlaybackController:StartPlayback(entity, data.points, data.interval, {
         speed = 1.0,
         debug = true,
@@ -125,6 +125,31 @@ function menu.list_adv(root, name, command, description, onView, onBack)
     return m
 end
 menu.list_adv(menu.my_root(), "Recordings", {}, "View all your recorded animations", loadRecordings)
+local startRecordingMenu
+local endRecordingMenu
+startRecordingMenu = menu.click_slider(menu.my_root(), "Start new recording", {}, "Starts recording a new recording", 100, 5000, 750, 100, function(interval)
+    menu.set_visible(startRecordingMenu, false)
+    menu.set_visible(endRecordingMenu, true)
+    RecordingController:StartRecording(interval)
+end)
+endRecordingMenu = menu.action(menu.my_root(), "Stop recording", {}, "Stops the current recording", function()
+    menu.set_visible(startRecordingMenu, true)
+    menu.set_visible(endRecordingMenu, false)
+    local positions, interval = RecordingController:StopRecording()
+    local file = io.open(RECORDINGS_DIR .. "/recording-" .. os.clock() * 1000 .. ".json", "w")
+    if file then
+        file:write(json.encode({
+            interval = interval,
+            points = positions,
+            version = RECORDING_FORMAT_VERSION
+        }))
+        file:close()
+        util.toast("Saved")
+    else
+        util.toast("Could not save recording to file")
+    end
+end)
+menu.set_visible(endRecordingMenu, false)
 Player.menuId = menu.divider(menu.my_root(), "Playback Controls", {}, "")
 Player.pauseControl = menu.toggle(menu.my_root(), "Pause", {}, "", function(value)
     if PlaybackController:IsInPlayback(Player.activeEntityId) then
