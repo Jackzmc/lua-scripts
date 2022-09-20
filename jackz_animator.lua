@@ -117,9 +117,10 @@ end
 function loadRecordingList(list, filepath)
     clearMenuArray(recordingListSubmenus)
 
-    local status, data = pcall(PlaybackController.LoadRecordingData, PlaybackController, filepath)
+    local status, data = pcall(PlaybackController.LoadRecordingData, filepath)
     if not status or not data then
-        util.toast("Could not load recordings: " .. data)
+        util.toast(SCRIPT_NAME .. ": Could not load recording data:\n" .. data)
+        Log.error("Could not load recording data:", data)
         return
     end
 

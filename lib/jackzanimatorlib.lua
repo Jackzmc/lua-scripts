@@ -1,6 +1,8 @@
 ANIMATOR_LIB_VERSION = "0.1.0"
 RECORDING_FORMAT_VERSION = 1
 
+local json = require("json")
+
 local STORE_DIRECTORY = filesystem.store_dir() .. "jackz_animator"
 local RECORDINGS_DIR = STORE_DIRECTORY .. "/recordings"
 filesystem.mkdirs(RECORDINGS_DIR)
@@ -226,7 +228,6 @@ function PlaybackController.SetFrame(self, entity, frame, startFrame, endFrame)
         if frame ~= nil then
             self.animations[entity].frame = frame
             self.animations[entity].time = self.animations[entity].interval * (frame - 1)
-            Log.debug("Setting animation for " .. entity .. " to frame " .. frame .. " and time " .. self.animations[entity].time)
         end
         if startFrame then
             self.animations[entity].startFrame = startFrame
