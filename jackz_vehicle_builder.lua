@@ -2666,15 +2666,23 @@ local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
     -- Only show attach to base if it's NOT attached to the base
+    if builder.entities[child].parent ~= -1 then
+        table.insert(attachEntSubmenus, menu.action(list, "World", {}, "Entity will be positioned in the world at the base vehicle's position with the specified offset.\nDoes not internally attach the entity", function()
+            builder.entities[child].parent = -1
+            attach_entity(0, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
+            util.toast("Entity's parent set to world")
+            menu.set_menu_name(list, "Attach to: World")
+            menu.focus(list)
+        end))
+    end
     if builder.entities[child].parent ~= nil then
-        local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
+        table.insert(attachEntSubmenus, menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
             attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
             util.toast("Entity's parent restored to base entity")
             menu.set_menu_name(list, "Attach to: Base")
             menu.focus(list)
-        end)
-        table.insert(attachEntSubmenus, base)
+        end))
     end
     for handle, data in pairs(builder.entities) do
         -- Prevent listing recursive parents, or an already set parent
@@ -3461,6 +3469,7 @@ function dump_table(o)
 end
 
 function get_entity_by_id(id)
+    if id == -1 then return 0 end
     if not id or not builder then return nil end
     for handle, data in pairs(builder.entities) do
         if data.id == id then
@@ -3482,6 +3491,13 @@ function attach_entity(parent, handle, offset, rot, index, collision)
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0
         )
+    elseif parent == 0 then
+        -- Attach to the world
+        local builderPos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+        local x = builderPos.x + offset.x
+        local y = builderPos.y + offset.y
+        local z = builderPos.z + offset.z
+        ENTITY.SET_ENTITY_COORDS_NO_OFFSET(handle, x, y, z)
     else
         if collision == nil then
             collision = true
