@@ -1,6 +1,11 @@
 ANIMATOR_LIB_VERSION = "0.1.0"
 RECORDING_FORMAT_VERSION = 1
 
+local STORE_DIRECTORY = filesystem.store_dir() .. "jackz_animator"
+local RECORDINGS_DIR = STORE_DIRECTORY .. "/recordings"
+filesystem.mkdirs(RECORDINGS_DIR)
+
+
 local RESOURCES_DIR = filesystem.resources_dir() .. "/jackz_animator"
 if not filesystem.exists(RESOURCES_DIR) then
     error("Missing jackz_animator resources folder")
@@ -342,6 +347,7 @@ util.create_tick_handler(function() PlaybackController:_processFrame() end)
 return {
     VERSION = ANIMATOR_LIB_VERSION,
     RECORDING_FORMAT_VERSION = RECORDING_FORMAT_VERSION,
+    RECORDINGS_DIRECTORY = RECORDINGS_DIR,
     RecordingController = RecordingController,
     PlaybackController = PlaybackController,
 }

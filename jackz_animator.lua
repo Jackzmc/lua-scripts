@@ -51,9 +51,6 @@ end
 local RecordingController = animatorLib.RecordingController
 local PlaybackController = animatorLib.PlaybackController
 
-local STORE_DIRECTORY = filesystem.store_dir() .. "jackz_animator"
-local RECORDINGS_DIR = STORE_DIRECTORY .. "/recordings"
-filesystem.mkdirs(RECORDINGS_DIR)
 
 function clearMenuTable(t)
     for k, h in pairs(t) do
@@ -77,7 +74,7 @@ local Player = {
 
 local recordingListSubmenus = {}
 function loadRecordings(list)
-    for _, path in ipairs(filesystem.list_files(RECORDINGS_DIR)) do
+    for _, path in ipairs(filesystem.list_files(animatorLib.RECORDINGS_DIRECTORY)) do
         local _, filename = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if not filesystem.is_dir(path) then
             local recordingList
@@ -193,7 +190,7 @@ local recordingsList = menu.list_adv(menu.my_root(), "Recordings", {}, "View all
             menu.set_menu_name(recordingMenu, "Start new recording")
             menu.set_help_text(recordingMenu, "Starts a recording at the specified recording interval")
             local positions, interval = RecordingController:StopRecording()
-            local filepath = RECORDINGS_DIR .. "/recording-" .. util.current_unix_time_seconds() .. ".json"
+            local filepath = animatorLib.RECORDINGS_DIRECTORY .. "/recording-" .. util.current_unix_time_seconds() .. ".json"
             local file = io.open(filepath, "w")
             if file then
                 file:write(json.encode({
@@ -244,7 +241,7 @@ end)
 Player.frameControl = menu.click_slider(menu.my_root(), "Frame", {}, "Displays and sets the current frame", 1, 1, 1, 1, function(frame)
     if PlaybackController:IsInPlayback(Player.activeEntityId) then
         PlaybackController:SetFrame(Player.activeEntityId, frame)
-        PlaybackController:Resume(Player.activeEntityId)
+        menu.set_value(Player.pauseControl, false)
     end
 end)
 
