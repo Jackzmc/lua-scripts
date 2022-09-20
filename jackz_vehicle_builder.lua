@@ -3290,7 +3290,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if entityData.customAnimation then
                         PlaybackController:StartPlayback(object, entityData.customAnimation.positions, entityData.customAnimation.interval, {
                             ["repeat"] = true,
-                            debug = true
+                            debug = SCRIPT_DEBUG
                         })
                     end
 
@@ -3328,7 +3328,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if pedData.customAnimation then
                         PlaybackController:StartPlayback(ped, pedData.customAnimation.positions, pedData.customAnimation.interval, {
                             ["repeat"] = true,
-                            debug = true
+                            debug = SCRIPT_DEBUG
                         })
                     end
 
@@ -3385,7 +3385,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             if vehData.customAnimation then
                 PlaybackController:StartPlayback(handle, vehData.customAnimation.positions, vehData.customAnimation.interval, {
                     ["repeat"] = true,
-                    debug = true
+                    debug = SCRIPT_DEBUG
                 })
             end
 
