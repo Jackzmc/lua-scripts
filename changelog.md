@@ -155,3 +155,6 @@ V1.24.0
 * Add sorting option (type and direction) for cloud lists
 * Organize builder entities by type
 * Add cloning non-networked entities
+* Add shortcuts to adding jackz_vehicles
+* Add abiity to attach entities directly to the world
+* Added ability to set animations on entities (see jackz_animator)
