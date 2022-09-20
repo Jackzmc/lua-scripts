@@ -586,8 +586,7 @@ local cloudSettings = {
     },
     limit = 30,
     page = 1,
-    maxPages = 2,
-    fetching = false
+    maxPages = 2
 }
 local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
 menu.on_focus(cloudRootMenuList, function() clear_build_preview() end)
@@ -637,11 +636,15 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
 end)
 -- local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
 local sortId = { "rating", "name", "author", "author", "uploaded"}
-local cloudUsersList = menu.list(cloudRootMenuList, "Browse Users", {}, "Browse all builds categorized by author name", function() _fetch_cloud_users() end, function() 
+local cloudBuildListMenus = {}
+local cloudUsersList = menu.list(cloudRootMenuList, "Browse Builds By User", {}, "Browse all builds categorized by uploader name", function() _fetch_cloud_users() end, function() 
     for _, data in pairs(cloudData) do
         menu.delete(data.parentList)
     end
     cloudData = {}
+end)
+local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds (sorted)", {}, "Browse all builds individually with above sorting criteria", function() _fetch_cloud_sorts() end, function()
+    clear_menu_array(cloudBuildListMenus)
 end)
 menu.divider(cloudRootMenuList, "")
 menu.list_select(cloudRootMenuList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
@@ -652,10 +655,6 @@ menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted 
 end, cloudSettings.sort.ascending)
 menu.slider(cloudRootMenuList, "Builds Per Page", {"jvbclimit"}, "Set the amount of builds shown in the browse builds list", 10, 100, cloudSettings.limit, 1, function(value) cloudSettings.limit = value end)
 local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
-local cloudBuildListMenus = {}
-local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds", {}, "Browse all builds individually with above sorting criteriaw", function() _fetch_cloud_sorts() end, function()
-    clear_menu_array(cloudBuildListMenus)
-end)
 menu.on_focus(cloudBuildsList, function() clear_build_preview() end)
 -- TODO: implement sorting
 function _add_pagination()
@@ -674,7 +673,6 @@ function _add_pagination()
 end
 function _fetch_cloud_sorts()
     clear_menu_array(cloudBuildListMenus)
-    cloudSettings.fetching = true
     show_busyspinner("Searching cloud builds...")
     async_http.init("jackz.me",
         string.format("/stand/cloud/builds.php?list&page=%d&limit=%d&sort=%s&asc=%d",
@@ -693,27 +691,19 @@ function _fetch_cloud_sorts()
                     local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
-                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, build)
+                        _fetch_vehicle_data(nil, build.uploader, build.name)
+                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { vehicle = build })
                     end)
-                    menu.on_focus(buildEntryList, function()
-                        if not cloudSettings.fetching then
-                            _fetch_vehicle_data(nil, build.uploader, build.name)
-                        end
-                    end)
-
                     table.insert(cloudBuildListMenus, buildEntryList)
                 end
                 table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
                 _add_pagination()
-                cloudSettings.fetching = false
             else
-                cloudSettings.fetching = false
                 Log.log("bad server response (_fetch_cloud_sorts): " .. status_code .. "\n" .. body)
                 util.toast("Server returned error " .. status_code)
             end
         end,
         function()
-            cloudSettings.fetching = false
             util.toast("Failed to fetch cloud data: Network error")
         end)
     async_http.dispatch()
@@ -974,9 +964,9 @@ function _format_vehicle_info(version, timestamp, author, rating)
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
         if versionDiff == 1 then
-            versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
+            versionText = string.format("%s\n\t(Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
-            versionText = string.format("%s (Unsupported version, latest %s)", fileVersion, BUILDER_VERSION)
+            versionText = string.format("%s\n\t(Unsupported version, latest %s)", fileVersion, BUILDER_VERSION)
         else
             versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
         end
@@ -3216,7 +3206,7 @@ function _compute_build_size(build)
             _compute_size(entity)
         end
     end
-    return (r_size + 7.5), h_size
+    return (r_size + 10), h_size
 end
 
 -- Spawns a custom build, requires build.base to be set, others optional
@@ -3290,7 +3280,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
                     if entityData.customAnimation then
-                        PlaybackController:StartPlayback(object, entityData.customAnimation.positions entityData.customAnimation.interval, {
+                        PlaybackController:StartPlayback(object, entityData.customAnimation.positions, entityData.customAnimation.interval, {
                             ["repeat"] = true,
                             debug = true
                         })
@@ -3328,7 +3318,7 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
 
                     if pedData.customAnimation then
-                        PlaybackController:StartPlayback(ped, pedData.customAnimation.positions pedData.customAnimation.interval, {
+                        PlaybackController:StartPlayback(ped, pedData.customAnimation.positions, pedData.customAnimation.interval, {
                             ["repeat"] = true,
                             debug = true
                         })
