@@ -114,24 +114,10 @@ function playRecording(entity, data, onFinish)
     menu.focus(Player.menuId)
 end
 
-function loadRecording(filepath)
-    local file = io.open(filepath, "r")
-    if file then
-        local status, data = pcall(json.decode, file:read("*a"))
-        if status then
-            return data
-        else
-            error("Invalid JSON reading file: " .. data)
-        end
-    else
-        error("Could not read file")
-    end
-end
-
 function loadRecordingList(list, filepath)
     clearMenuArray(recordingListSubmenus)
 
-    local status, data = pcall(loadRecording, filepath)
+    local status, data = pcall(PlaybackController.LoadRecordingData, PlaybackController, filepath)
     if not status or not data then
         util.toast("Could not load recordings: " .. data)
         return

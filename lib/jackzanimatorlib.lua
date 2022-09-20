@@ -99,6 +99,42 @@ PlaybackController = {
     animations = {}, activePlayer = nil
 }
 
+
+local function ListRecordings(list)
+    local function my_itr(lst, ind)
+      return next(lst, ind)
+    end
+    return my_itr, list, nil
+  end
+
+function PlaybackController.ListRecordings(onListEntry)
+    if onListEntry then
+        for _, path in ipairs(filesystem.list_files(RECORDINGS_DIR)) do
+            local _, filename = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+            if not filesystem.is_dir(path) then
+                onListEntry(path, filename)
+            end
+
+        end
+        return
+    end
+    return filesystem.list_files(RECORDINGS_DIR)
+end
+
+function PlaybackController.LoadRecordingData(filepath)
+    local file = io.open(filepath, "r")
+    if file then
+        local status, data = pcall(json.decode, file:read("*a"))
+        if status then
+            return data
+        else
+            error("Invalid JSON reading file: " .. data)
+        end
+    else
+        error("Could not read file")
+    end
+end
+
 --[[ 
 Value is the defaults,     
 Options: {
