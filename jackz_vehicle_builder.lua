@@ -4,6 +4,7 @@ local SCRIPT = "jackz_vehicle_builder"
 VERSION = "1.24.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
+local ANIMATOR_LIB_TARGET = "1.0.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -40,6 +41,22 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
         
     else
         util.toast("Outdated lib: 'jackzvehiclelib'")
+    end
+end
+
+local animatorLib = try_require("jackzanimatorlib")
+
+if not animatorLib or animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
+    if animatorLib and SCRIPT_SOURCE == "MANUAL" then
+        Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
+        util.toast("Outdated animator library, downloading update...")
+        download_lib_update("jackzanimatorlib.lua")
+        animatorLib = require("jackzanimatorlib")
+    elseif animatorLib then
+        util.toast("Outdated lib: 'jackzanimatorlib'")
+    else
+        util.toast("Missing lib: 'jackzanimatorlib'")
+        util.stop_script()
     end
 end
 
@@ -2377,7 +2394,8 @@ function add_entity_to_list(list, handle, name, data)
         boneIndex = data.boneIndex or 0,
         visible = data.visible,
         parent = data.parent,
-        godmode = data.godmode or (type ~= "OBJECT") and true or nil
+        godmode = data.godmode or (type ~= "OBJECT") and true or nil,
+        customAnimation = nil
     }
     if not data.id then
         builder._index = builder._index + 1
@@ -2437,6 +2455,19 @@ function clone_entity(handle, name, mirror_axis)
     add_entity_to_list(_find_entity_list(builder.entities[handle].type), entity, name, { offset = pos })
     highlightedHandle = entity
     return entity
+end
+
+function setup_animations_list(list, entity)
+    animatorLib.ListRecordings(function(filepath, filename)
+        menu.action(list, filename, {}, "Click to use this animation.\nFilepath: " .. filepath, function()
+            local data = PlaybackController.LoadRecordingData(filepath)
+            builder.entities[entity].customAnimation = data
+            PlaybackController:StartPlayback(entity, data.positions, data.interval, { 
+                ["repeat"] = true,
+                debug = true
+            })
+        end)
+    end)
 end
 
 function _find_entity_list(type)
@@ -2539,6 +2570,10 @@ function create_entity_section(tableref, handle, options)
             table.insert(tableref.listMenus, attachEntList)
         end
     end
+
+    local animationsList = menu.list(entityroot, "Animation")
+    setup_animations_list(animationsList, handle)
+    table.insert(tableref.listMenus, animationsList)
     if not options.noRename then
         table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the display name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
@@ -2924,6 +2959,15 @@ function copy_file(source, dest)
     destFile:close()
 end
 
+-- also see https://docs.fivem.net/natives/?_0x658500AE6D723A7E
+function _setup_network(handle)
+    local networkId = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(handle)
+    NETWORK.NETWORK_REGISTER_ENTITY_AS_NETWORKED(handle)
+    -- Maybe put as true?
+    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(networkId, true)
+    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(networkId, false)
+    return networkId
+end
 
 function spawn_entity(data, type, isPreview, pos, heading)
     if not data.model then
@@ -2937,10 +2981,12 @@ function spawn_entity(data, type, isPreview, pos, heading)
         handle = spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
         handle = spawn_object(data, isPreview, pos)
+        NETWORK.OBJ_TO_NET(handle)
     else
         return error("Invalid entity type \"" .. type .. "\"", 2)
     end
     Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model or "nil"))
+    _setup_network(handle)
     return handle
 end
 
@@ -3011,6 +3057,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
         if vehicleData.godmode or vehicleData.godmode == nil then
             ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
         end
+        _setup_network(handle)
     end
 
     if vehicleData.savedata then
@@ -3063,6 +3110,7 @@ function spawn_ped(data, isPreview, pos)
             end
             TASK.TASK_PLAY_ANIM(handle, data.animdata[1], data.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
         end
+        _setup_network(handle)
         return handle
     end
 end
@@ -3093,6 +3141,7 @@ function spawn_object(data, isPreview, pos)
             data.visible = true
         end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
+        _setup_network(object)
         return object
     end
 end
@@ -3248,6 +3297,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
+                    if entityData.customAnimation then
+                        PlaybackController:StartPlayback(object, entityData.customAnimation.positions entityData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = true
+                        })
+                    end
+
                     if addToBuilder then
                         add_entity_to_list(builder.objectsList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
@@ -3278,6 +3334,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     table.insert(handles, ped)
 
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
+
+                    if pedData.customAnimation then
+                        PlaybackController:StartPlayback(ped, pedData.customAnimation.positions pedData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = true
+                        })
+                    end
 
                     if addToBuilder then
                         local datatable = add_entity_to_list(builder.pedsList, ped, pedData.name or "unknown ped", pedData)
@@ -3328,6 +3391,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             table.insert(handles, handle)
 
             if vehData.id then idMap[tostring(vehData.id)] = handle end
+
+            if vehData.customAnimation then
+                PlaybackController:StartPlayback(handle, vehData.customAnimation.positions, vehData.customAnimation.interval, {
+                    ["repeat"] = true,
+                    debug = true
+                })
+            end
 
             if addToBuilder then
                 add_entity_to_list(builder.vehiclesList, handle, vehData.name or "unknown vehicle", vehData)
