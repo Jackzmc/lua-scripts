@@ -4,6 +4,7 @@ local SCRIPT = "jackz_vehicle_builder"
 VERSION = "1.24.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
+local ANIMATOR_LIB_TARGET = "1.0.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -40,6 +41,22 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
         
     else
         util.toast("Outdated lib: 'jackzvehiclelib'")
+    end
+end
+
+local animatorLib = try_require("jackzanimatorlib")
+
+if not animatorLib or animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
+    if animatorLib and SCRIPT_SOURCE == "MANUAL" then
+        Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
+        util.toast("Outdated animator library, downloading update...")
+        download_lib_update("jackzanimatorlib.lua")
+        animatorLib = require("jackzanimatorlib")
+    elseif animatorLib then
+        util.toast("Outdated lib: 'jackzanimatorlib'")
+    else
+        util.toast("Missing lib: 'jackzanimatorlib'")
+        util.stop_script()
     end
 end
 
@@ -2439,6 +2456,19 @@ function clone_entity(handle, name, mirror_axis)
     return entity
 end
 
+function setup_animations_list(list, entity)
+    animatorLib.ListRecordings(function(filepath, filename)
+        menu.action(list, filename, {}, "Click to use this animation.\nFilepath: " .. filepath, function()
+            local data = PlaybackController.LoadRecordingData(filepath)
+            builder.entities[entity].customAnimation = data
+            PlaybackController:StartPlayback(entity, data.positions, data.interval, { 
+                ["repeat"] = true,
+                debug = true
+            })
+        end)
+    end)
+end
+
 function _find_entity_list(type)
     if type == "VEHICLE" then
         return builder.vehiclesList
@@ -2539,6 +2569,10 @@ function create_entity_section(tableref, handle, options)
             table.insert(tableref.listMenus, attachEntList)
         end
     end
+
+    local animationsList = menu.list(entityroot, "Animation")
+    setup_animations_list(animationsList, handle)
+    table.insert(tableref.listMenus, animationsList)
     if not options.noRename then
         table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the display name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
