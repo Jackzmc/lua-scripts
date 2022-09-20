@@ -96,20 +96,7 @@ function RecordingController._recordFrame(self)
     return self.active
 end
 
-
-PlaybackController = {
-    animations = {}, activePlayer = nil
-}
-
-
-local function ListRecordings(list)
-    local function my_itr(lst, ind)
-      return next(lst, ind)
-    end
-    return my_itr, list, nil
-  end
-
-function PlaybackController.ListRecordings(onListEntry)
+function RecordingController.ListRecordings(onListEntry)
     if onListEntry then
         for _, path in ipairs(filesystem.list_files(RECORDINGS_DIR)) do
             local _, filename = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
@@ -123,12 +110,14 @@ function PlaybackController.ListRecordings(onListEntry)
     return filesystem.list_files(RECORDINGS_DIR)
 end
 
-function PlaybackController.LoadRecordingData(filepath)
+-- Returns the json data and the size of the file
+function RecordingController.LoadRecordingData(filepath)
     local file = io.open(filepath, "r")
     if file then
         local status, data = pcall(json.decode, file:read("*a"))
         if status then
-            return data
+            local size = file:seek("end")
+            return data, size
         else
             error("Invalid JSON reading file: " .. data)
         end
@@ -136,6 +125,11 @@ function PlaybackController.LoadRecordingData(filepath)
         error("Could not read file")
     end
 end
+
+
+PlaybackController = {
+    animations = {}, activePlayer = nil
+}
 
 --[[ 
 Value is the defaults,     
@@ -152,7 +146,9 @@ Options: {
         Also prevents onFinish called until :Stop is called
 }]]
 function PlaybackController.StartPlayback(self, entity, positions, recordInterval, options)
-    if not entity or not positions or not recordInterval then return error("Missing a required parameter", 2) end
+    if not entity then return error("Missing required parameter: entity") end
+    if not positions then return error("Missing a required parameter: positions (array of positions)") end
+    if not recordInterval then return error("Missing a required parameter: recordInterval") end
     if not options then options = {} end
     if #positions == 0 then
         return

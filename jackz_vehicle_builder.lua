@@ -2448,11 +2448,11 @@ function clone_entity(handle, name, mirror_axis)
 end
 
 function setup_animations_list(list, entity)
-    animatorLib.ListRecordings(function(filepath, filename)
-        menu.action(list, filename, {}, "Click to use this animation.\nFilepath: " .. filepath, function()
-            local data = PlaybackController.LoadRecordingData(filepath)
+    animatorLib.RecordingController.ListRecordings(function(filepath, filename)
+        menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
+            local data = animatorLib.RecordingController.LoadRecordingData(filepath)
             builder.entities[entity].customAnimation = data
-            PlaybackController:StartPlayback(entity, data.positions, data.interval, { 
+            PlaybackController:StartPlayback(entity, data.points, data.interval, {
                 ["repeat"] = true,
                 debug = true
             })

@@ -19,6 +19,12 @@ function Log.debug(...)
         Log._log("debug", arg)
     end
 end
+function Log.debugTable(table)
+    if SCRIPT_DEBUG then
+        local mod = debug.getinfo(3, "n").name or debug.getinfo(4, "n").name or "_anon_func"
+        util.log(string.format("%s:%s/%s: %s", SCRIPT_NAME, SCRIPT_SOURCE or "DEV", mod, dumpTable(table)))
+    end
+end
 function Log.warn(...)
     local arg = {...}
     Log._log("Warn", arg)
@@ -35,4 +41,19 @@ end
 function Log.log(...)
     local arg = {...}
     Log._log(nil, arg)
+end
+
+function dumpTable(o)
+    if type(o) == 'table' then
+       local s = '{ '
+       for k,v in pairs(o) do
+          if type(k) ~= 'number' then k = '"'..k..'"' end
+          s = s .. '['..k..'] = ' .. dumpTable(v) .. ','
+       end
+       return s .. '} '
+    elseif type(o) == "string" then
+        return '"' .. o .. "'"
+    else
+       return tostring(o)
+    end
 end
