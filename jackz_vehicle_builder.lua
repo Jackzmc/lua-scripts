@@ -2394,7 +2394,8 @@ function add_entity_to_list(list, handle, name, data)
         boneIndex = data.boneIndex or 0,
         visible = data.visible,
         parent = data.parent,
-        godmode = data.godmode or (type ~= "OBJECT") and true or nil
+        godmode = data.godmode or (type ~= "OBJECT") and true or nil,
+        customAnimation = nil
     }
     if not data.id then
         builder._index = builder._index + 1
@@ -3288,6 +3289,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
+                    if entityData.customAnimation then
+                        PlaybackController:StartPlayback(object, entityData.customAnimation.positions entityData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = true
+                        })
+                    end
+
                     if addToBuilder then
                         add_entity_to_list(builder.objectsList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
@@ -3318,6 +3326,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
                     table.insert(handles, ped)
 
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
+
+                    if pedData.customAnimation then
+                        PlaybackController:StartPlayback(ped, pedData.customAnimation.positions pedData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = true
+                        })
+                    end
 
                     if addToBuilder then
                         local datatable = add_entity_to_list(builder.pedsList, ped, pedData.name or "unknown ped", pedData)
@@ -3368,6 +3383,13 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
             table.insert(handles, handle)
 
             if vehData.id then idMap[tostring(vehData.id)] = handle end
+
+            if vehData.customAnimation then
+                PlaybackController:StartPlayback(handle, vehData.customAnimation.positions, vehData.customAnimation.interval, {
+                    ["repeat"] = true,
+                    debug = true
+                })
+            end
 
             if addToBuilder then
                 add_entity_to_list(builder.vehiclesList, handle, vehData.name or "unknown vehicle", vehData)
