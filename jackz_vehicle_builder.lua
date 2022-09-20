@@ -3493,6 +3493,7 @@ function attach_entity(parent, handle, offset, rot, index, collision)
         )
     elseif parent == 0 then
         -- Attach to the world
+        ENTITY.DETACH_ENTITY(handle, true, 0)
         local builderPos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local x = builderPos.x + offset.x
         local y = builderPos.y + offset.y
