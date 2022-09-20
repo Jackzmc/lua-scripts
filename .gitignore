@@ -35,6 +35,8 @@
 !resources/jackz_actions/*
 !resources/translations
 !resources/translations/*
+!resources/jackz_animator
+!resources/jackz_animator/*
 
 !templates/
 !templates/*
