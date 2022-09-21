@@ -1183,12 +1183,7 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
-    local baseType = "OBJECT"
-    if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
-        baseType = "PED"
-    elseif ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
-        baseType = "VEHICLE"
-    end
+    local baseType = _find_entity_type(builder.base.handle)
 
     local newBuildMenu
     newBuildMenu = menu.action(menu.my_root(), "Start a new build", {}, "Delete the current build and start a new", function() 
@@ -1405,12 +1400,7 @@ function setup_builder_menus(name)
 end
 
 function set_builder_base(handle, preserveExisting)
-    builder.base.type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        builder.base.type  = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        builder.base.type  = "PED"
-    end
+    builder.base.type = _find_entity_type(handle)
 
     local oldHandle = builder.base.handle
     builder.base.handle = handle
@@ -2365,12 +2355,7 @@ function add_entity_to_list(list, handle, name, data)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(handle)
     ENTITY._SET_ENTITY_CLEANUP_BY_ENGINE(handle, false)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
-    local type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        type = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        type = "PED"
-    end
+    local type = _find_entity_type(handle)
     if data.visible == nil then data.visible = true end
     builder.entities[handle] = {
         id = data.id or builder._index,
@@ -2442,7 +2427,7 @@ function clone_entity(handle, name, mirror_axis)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(_find_entity_list(builder.entities[handle].type), entity, name, { offset = pos })
+    add_entity_to_list(_find_entity_type(handle), entity, name, { offset = pos })
     highlightedHandle = entity
     return entity
 end
@@ -2461,6 +2446,16 @@ function setup_animations_list(list, entity)
             })
         end))
     end)
+end
+
+function _find_entity_type(handle)
+    local type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        type = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        type = "PED"
+    end
+    return type
 end
 
 function _find_entity_list(type)
