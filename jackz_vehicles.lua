@@ -87,6 +87,12 @@ function clear_menu_table(t)
         t[k] = nil
     end
 end
+function clear_menu_array(t)
+    for _, h in ipairs(t) do
+        pcall(menu.delete, h)
+    end
+    t = {}
+end
 -- Gets the player's vehicle, attempts to request control. Returns 0 if unable to get control
 function get_player_vehicle_in_control(pid, opts)
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()) -- Needed to turn off spectating while getting control
@@ -1060,11 +1066,88 @@ local nearbyMenu = menu.list(menu.my_root(), i18n.format("NEARBY_VEHICLES_NAME")
 local allPlayersMenu = menu.list(menu.my_root(), i18n.format("ALL_NAME"), {"vehicleall"}, i18n.format("ALL_DESC"))
 local autodriveMenu = menu.list(menu.my_root(), i18n.format("AUTODRIVE_NAME"), {"autodrive"}, i18n.format("AUTODRIVE_DESC"))
 menu.divider(menu.my_root(), "Vehicle Spawning")
-local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"}, _load_cloud_user_vehs)
 
-local cloudSearchMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
-local cloudSearchMenus = {}
+local cloudSortListMenus = {}
+local cloudRootList = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"})
+local cloudUsersMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_USERS", {"jvcloudusers"}, _load_cloud_user_vehs)
+local cloudVehiclesMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_VEHICLES", {"jvcloudvehicles"}, function() _load_cloud_vehicles() end, function() clear_menu_array(cloudSortListMenus) end)
+local sortId = { "rating", "name", "author", "author", "uploaded"}
 local cloudUserVehicleSaveDataCache = {}
+local cloudSettings = {
+    sort = {
+        type = "rating",
+        ascending = false,
+    },
+    limit = 30,
+    page = 1,
+    maxPages = 2
+}
+menu.divider(cloudRootList, "")
+menu.list_select(cloudRootList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+    cloudSettings.sort.type = sortId[index]
+end)
+menu.toggle(cloudRootList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+    cloudSettings.sort.ascending = value
+end, cloudSettings.sort.ascending)
+menu.slider(cloudRootList, "Builds Per Page", {"jvbclimit"}, "Set the amount of builds shown in the browse builds list", 10, 100, cloudSettings.limit, 1, function(value) cloudSettings.limit = value end)
+local paginatorMenu = menu.slider(cloudRootList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
+
+function _add_pagination()
+    if cloudSettings.page > 1 then
+        table.insert(cloudSortListMenus, menu.action(cloudVehiclesMenu, "View previous page", {}, "", function()
+            cloudSettings.page = cloudSettings.page - 1
+            _fetch_cloud_sorts()
+        end))
+    end
+    if cloudSettings.page < cloudSettings.maxPages then
+        table.insert(cloudSortListMenus, menu.action(cloudVehiclesMenu, "View next page", {}, "", function()
+            cloudSettings.page = cloudSettings.page + 1
+            _fetch_cloud_sorts()
+        end))
+    end
+end
+function _load_cloud_vehicles()
+    clear_menu_array(cloudSortListMenus)
+    show_busyspinner("Searching cloud vehicles...")
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/vehicles.php?list2&page=%d&limit=%d&sort=%s&asc=%d",
+            cloudSettings.page, cloudSettings.limit, cloudSettings.sort.type, cloudSettings.sort.ascending and 1 or 0
+        ),
+        function(body, res_headers, status_code)
+            if status_code == 200 and body:sub(1, 1) == "{" then
+                HUD.BUSYSPINNER_OFF()
+                local data = json.decode(body)
+                cloudSettings.maxPages = data.pages or 1
+                menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
+                -- FIXME: Causes stand exceptions when viewing next page?
+                -- _add_pagination()
+                table.insert(cloudSortListMenus, menu.divider(cloudVehiclesMenu, ""))
+                for _, vehicle in ipairs(data.vehicles) do
+                    local vehicleEntryList
+                    vehicleEntryList = menu.list(cloudVehiclesMenu, vehicle.uploader .. " / " .. vehicle.name, {}, _generate_cloud_info(vehicle), function()
+                        if not cloudUserVehicleSaveDataCache[vehicle.uploader] then
+                            cloudUserVehicleSaveDataCache[vehicle.uploader] = {}
+                        end
+                        setup_cloud_vehicle_submenu(vehicleEntryList, vehicle.uploader, vehicle.name)
+                    end)
+                    table.insert(cloudSortListMenus, vehicleEntryList)
+                end
+                table.insert(cloudSortListMenus, menu.divider(cloudVehiclesMenu, ""))
+                _add_pagination()
+            else
+                Log.log("bad server response (_fetch_cloud_sorts): " .. status_code .. "\n" .. body)
+                util.toast("Server returned error " .. status_code)
+            end
+        end,
+        function()
+            util.toast("Failed to fetch cloud data: Network error")
+        end)
+    async_http.dispatch()
+
+end
+
+local cloudSearchMenu = menu.list(cloudUsersMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
+local cloudSearchMenus = {}
 local previewVehicle = 0
 function spawn_preview_vehicle(saveData)
     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
@@ -1187,7 +1270,7 @@ menu.on_focus(cloudSearchMenu, function(_)
     end
     cloudSearchMenus = {}
 end)
-local cloudUploadMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
+local cloudUploadMenu = menu.list(cloudUsersMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
 local cloudUploadMenus = {}
 menu.on_focus(cloudUploadMenu, function(_)
     for _, m in ipairs(cloudUploadMenus) do
@@ -1264,7 +1347,7 @@ end
 local cloudUserMenus = {}
 local cloudUserVehicleMenus = {}
 local waitForFetch = false
-menu.divider(cloudVehiclesMenu, i18n.format("CLOUD_BROWSE_DIVIDER"))
+menu.divider(cloudUsersMenu, i18n.format("CLOUD_BROWSE_DIVIDER"))
 function do_cloud_request(uri, onSuccessCallback)
     if waitForFetch then
         util.yield()
@@ -1299,7 +1382,7 @@ function _load_cloud_user_vehs()
     cloudUserMenus = {}
     do_cloud_request("/stand/cloud/vehicles?list", function(data)
         for _, user in ipairs(data.users) do
-            cloudUserMenus[user] = menu.list(cloudVehiclesMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
+            cloudUserMenus[user] = menu.list(cloudUsersMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
             menu.on_focus(cloudUserMenus[user], function() _load_user_vehicle_list(user) end)
             cloudUserVehicleSaveDataCache[user] = {}
         end
