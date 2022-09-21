@@ -516,21 +516,33 @@ menu.action(utilsMenu, "Delete Preview", {"jvbstoppreview"}, "Removes currently 
     end
     clear_build_preview()
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"clearnearbyvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"clearnearbyvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_vehicles_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " vehicles")
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Objects", {"clearnearbyobjs"}, "Clears all nearby objects within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Objects", {"clearnearbyobjs"}, "Clears all nearby objects within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_objects_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " objects")
 end)
 
-menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears all nearby peds within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears all nearby peds within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_peds_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " peds")
+end)
+
+menu.click_slider(utilsMenu, "Clear Nearby Particles", {"clearnearbyparticles"}, "Clears all particles up to specified index", 1, 500, 20, 1, function(endIndex)
+    local particleIndex = 1
+    local count = 0
+    while particleIndex < endIndex do
+        if GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(particleIndex) then
+            GRAPHICS.REMOVE_PARTICLE_FX(particleIndex, true)
+        end
+        particleIndex = particleIndex + 1
+    end
+    util.toast("Deleted " .. count .. " particles")
 end)
 
 function _clear_ents(list, range, dryRun)
