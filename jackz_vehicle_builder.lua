@@ -533,12 +533,13 @@ menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears a
     util.toast("Deleted " .. count .. " peds")
 end)
 
-menu.click_slider(utilsMenu, "Clear Nearby Particles", {"clearnearbyparticles"}, "Clears all particles up to specified index", 1, 500, 20, 1, function(endIndex)
-    local particleIndex = 1
+menu.action(utilsMenu, "Clear Particles", {"clearnearbyparticles"}, "Clears all particles", function(endIndex)
+    local particleIndex = 0
     local count = 0
-    while particleIndex < endIndex do
+    while particleIndex < 160 do
         if GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(particleIndex) then
             GRAPHICS.REMOVE_PARTICLE_FX(particleIndex, true)
+            count = count + 1
         end
         particleIndex = particleIndex + 1
     end

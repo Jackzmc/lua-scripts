@@ -1,4 +1,4 @@
-ANIMATOR_LIB_VERSION = "0.1.0"
+ANIMATOR_LIB_VERSION = "1.0.0"
 RECORDING_FORMAT_VERSION = 1
 
 local json = require("json")
