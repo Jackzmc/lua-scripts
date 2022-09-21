@@ -2361,10 +2361,13 @@ menu.toggle_loop(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to dr
                 ENTITY.FREEZE_ENTITY_POSITION(driveOnWaterEntity, true)
                 ENTITY.SET_ENTITY_COLLISION(driveOnWaterEntity, true, false)
                 ENTITY.SET_ENTITY_VISIBLE(driveOnWaterEntity, false)
+                NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(driveOnWaterEntity), false)
+            end
+            if not NETWORK.NETWORK_HAS_CONTROL_OF_ENTITY(driveOnWaterEntity) then
+		        NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(driveOnWaterEntity)
             end
             local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
-            local height = memory.read_float(fHeight)
-            util.draw_debug_text(height)
+            local height = memory.read_float(fHeight) - 1.25
             ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, height)
             ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
             driveOnWaterNoWaterTicks = 0
