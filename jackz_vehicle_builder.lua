@@ -2447,16 +2447,19 @@ function clone_entity(handle, name, mirror_axis)
     return entity
 end
 
+local animationsList = {}
 function setup_animations_list(list, entity)
+    clear_menu_array(animationsList)
+    table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
     animatorLib.RecordingController.ListRecordings(function(filepath, filename)
-        menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
+        table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
             local data = animatorLib.RecordingController.LoadRecordingData(filepath)
             builder.entities[entity].customAnimation = data
             PlaybackController:StartPlayback(entity, data.points, data.interval, {
                 ["repeat"] = true,
                 debug = true
             })
-        end)
+        end))
     end)
 end
 
