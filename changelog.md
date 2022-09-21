@@ -39,6 +39,12 @@ v3.9.0
 * (3.9.14) Fix detach cargobob
 * (3.9.15) Add command names to cloud and saved lists
 
+v3.10.0
+
+* Add "Drive On Water" feature
+* (Pending) Add sorted cloud list
+* (Pending) Added cloud rating system
+
 # actions (v1)
 
 v1.9.0

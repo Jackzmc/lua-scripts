@@ -2341,9 +2341,27 @@ local smartAutoDriveData = {
     lastWaypoint = nil
 }
 
+local DRIVE_ON_WATER_MODEL = util.joaat("prop_lev_des_barge_02")
+local driveOnWaterEntity = nil
+
+menu.toggle(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to drive on top of water", function(value)
+    if value then
+        driveOnWaterEntity = entities.create_object(DRIVE_ON_WATER_MODEL, { x = 0, y = 0, z = 0})
+        ENTITY.SET_ENTITY_VISIBLE(driveOnWaterEntity, false)
+    else
+        driveOnWaterEntity = nil
+    end
+end)
+
 while true do
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+
+    if driveOnWaterEntity then
+        local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
+        pos.z = pos.z - 10
+        ENTITY.SET_ENTITY_COORDS(driveOnWaterEntity, pos)
+    end
     
     if my_vehicle > 0 then
         if CVModifiers.KeepUpright and ENTITY.GET_ENTITY_UPRIGHT_VALUE(my_vehicle) < .3 then
