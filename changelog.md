@@ -42,8 +42,8 @@ v3.9.0
 v3.10.0
 
 * Add "Drive On Water" feature
-* (Pending) Add sorted cloud list
-* (Pending) Added cloud rating system
+* Add sorted cloud list
+* Added cloud rating system
 
 # actions (v1)
 
