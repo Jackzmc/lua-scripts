@@ -46,17 +46,16 @@ end
 
 local animatorLib = try_require("jackzanimatorlib")
 
-if not animatorLib or animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
-    if animatorLib and SCRIPT_SOURCE == "MANUAL" then
+if not animatorLib then
+    download_lib_update("jackzanimatorlib.lua")
+elseif animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
+    if SCRIPT_SOURCE == "MANUAL" then
         Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
         util.toast("Outdated animator library, downloading update...")
         download_lib_update("jackzanimatorlib.lua")
         animatorLib = require("jackzanimatorlib")
     elseif animatorLib then
         util.toast("Outdated lib: 'jackzanimatorlib'")
-    else
-        util.toast("Missing lib: 'jackzanimatorlib'")
-        util.stop_script()
     end
 end
 
