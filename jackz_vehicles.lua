@@ -2307,6 +2307,10 @@ i18n.menus.toggle(menu.my_root(), "CRUISE_CONTROL", {"cruisecontrol"}, function(
     cruiseControl.currentVel = -1
 end, cruiseControl.enabled)
 
+local DRIVE_ON_WATER_MODEL = util.joaat("prop_lev_des_barge_02")
+local driveOnWaterEntity = nil
+local driveOnWaterNoWaterTicks = 0
+
 -- Cleanup all actions
 util.on_stop(function()
     local ped, vehicle = get_my_driver()
@@ -2318,6 +2322,9 @@ util.on_stop(function()
     end
     if ENTITY.DOES_ENTITY_EXIST(driveClone.vehicle) then
         entities.delete_by_handle(driveClone.vehicle)
+    end
+    if driveOnWaterEntity then
+        entities.delete_by_handle(driveOnWaterEntity)
     end
 end)
 
@@ -2341,27 +2348,55 @@ local smartAutoDriveData = {
     lastWaypoint = nil
 }
 
-local DRIVE_ON_WATER_MODEL = util.joaat("prop_lev_des_barge_02")
-local driveOnWaterEntity = nil
 
-menu.toggle(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to drive on top of water", function(value)
-    if value then
-        driveOnWaterEntity = entities.create_object(DRIVE_ON_WATER_MODEL, { x = 0, y = 0, z = 0})
-        ENTITY.SET_ENTITY_VISIBLE(driveOnWaterEntity, false)
-    else
-        driveOnWaterEntity = nil
+local fHeight = memory.alloc(4)
+menu.toggle_loop(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to drive on top of water", function()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+    if my_vehicle then
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_vehicle, 0, 5.0, -1.0)
+        if WATER.GET_WATER_HEIGHT(pos.x, pos.y, pos.z, fHeight) then
+            if not driveOnWaterEntity then
+                driveOnWaterEntity = entities.create_object(DRIVE_ON_WATER_MODEL, { x = 0, y = 0, z = 0})
+                ENTITY.FREEZE_ENTITY_POSITION(driveOnWaterEntity, true)
+                ENTITY.SET_ENTITY_COLLISION(driveOnWaterEntity, true, false)
+                ENTITY.SET_ENTITY_VISIBLE(driveOnWaterEntity, false)
+            end
+            local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
+            local height = memory.read_float(fHeight)
+            util.draw_debug_text(height)
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, height)
+            ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
+            driveOnWaterNoWaterTicks = 0
+        elseif driveOnWaterEntity then
+            if driveOnWaterNoWaterTicks > 100 then
+                entities.delete_by_handle(driveOnWaterEntity)
+                driveOnWaterEntity = nil
+            else
+                driveOnWaterNoWaterTicks = driveOnWaterNoWaterTicks + 1
+            end
+        end
     end
+end, function()
+    if driveOnWaterEntity then
+        entities.delete_by_handle(driveOnWaterEntity)
+    end
+    driveOnWaterEntity = nil
 end)
 
 while true do
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
 
-    if driveOnWaterEntity then
-        local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
-        pos.z = pos.z - 10
-        ENTITY.SET_ENTITY_COORDS(driveOnWaterEntity, pos)
-    end
+    -- if driveOnWaterEntity and my_vehicle then
+    --     local pos = ENTITY.GET_ENTITY_COORDS(my_vehicle)
+    --     local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
+    --     local status, z = util.get_ground_z(pos.x, pos.y, pos.z + 20)
+    --     if status then
+    --         ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, z)
+    --     end
+    --     ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
+    -- end
     
     if my_vehicle > 0 then
         if CVModifiers.KeepUpright and ENTITY.GET_ENTITY_UPRIGHT_VALUE(my_vehicle) < .3 then
