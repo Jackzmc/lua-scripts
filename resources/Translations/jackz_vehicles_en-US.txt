@@ -176,7 +176,10 @@ CLOUD_UPLOAD_VEHICLE_NOTICE: Will overwrite existing versions in the cloud.
 CLOUD_UPLOAD_NO_ID: You do not have a cloudID, contact jackz for help.
 CLOUD_UPLOAD_SUCCESS: Vehicle uploaded to cloud successfully.
 CLOUD_UPLOAD_ERROR: Failed to upload to the cloud: %s
-CLOUD_BROWSE_DIVIDER: Browse User Vehicles
+BROWSE_BY_USERS_NAME: Browse by Users
+BROWSE_BY_USERS_DESC: Browse vehicles grouped by uploader
+BROWSE_BY_VEHICLES_NAME: Browse by Vehicles
+BROWSE_BY_VEHICLES_DESC: Browse all vehicles based on the below sorting criteria
 CLOUD_BROWSE_VEHICLES_DESC: Browse all uploaded vehicles by
 CLOUD_BROWSE_VEHICLES_COUNT: %d vehicles
 # Menu: Spawn Saved
@@ -274,7 +277,7 @@ CVM_LIGHTS_DESC: Default: 100
 CVM_TORQUE_NAME: Acceleration
 CVM_TORQUE_DESC: Default: 100
 CVM_TRACTION_NAME: Traction
-CVM_TRACITON_DESC: Default -> 1
+CVM_TRACTION_DESC; Default = 1
 CVM_ACTIVE_NAME: Enable
 CVM_ACTIVE_DESC: Should the current multipliers be applied?
 CRUISE_CONTROL_NAME: Cruise Control

@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.9.14"
+VERSION = "3.10.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -86,6 +86,12 @@ function clear_menu_table(t)
         pcall(menu.delete, h)
         t[k] = nil
     end
+end
+function clear_menu_array(t)
+    for _, h in ipairs(t) do
+        pcall(menu.delete, h)
+    end
+    t = {}
 end
 -- Gets the player's vehicle, attempts to request control. Returns 0 if unable to get control
 function get_player_vehicle_in_control(pid, opts)
@@ -1060,12 +1066,88 @@ local nearbyMenu = menu.list(menu.my_root(), i18n.format("NEARBY_VEHICLES_NAME")
 local allPlayersMenu = menu.list(menu.my_root(), i18n.format("ALL_NAME"), {"vehicleall"}, i18n.format("ALL_DESC"))
 local autodriveMenu = menu.list(menu.my_root(), i18n.format("AUTODRIVE_NAME"), {"autodrive"}, i18n.format("AUTODRIVE_DESC"))
 menu.divider(menu.my_root(), "Vehicle Spawning")
-local cloudVehiclesMenu = i18n.menus.list(menu.my_root(), "CLOUD", {})
-menu.on_focus(cloudVehiclesMenu, function() _load_cloud_user_vehs() end)
 
-local cloudSearchMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
-local cloudSearchMenus = {}
+local cloudSortListMenus = {}
+local cloudRootList = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"})
+local cloudUsersMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_USERS", {"jvcloudusers"}, _load_cloud_user_vehs)
+local cloudVehiclesMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_VEHICLES", {"jvcloudvehicles"}, function() _load_cloud_vehicles() end, function() clear_menu_array(cloudSortListMenus) end)
+local sortId = { "rating", "name", "author", "author", "uploaded"}
 local cloudUserVehicleSaveDataCache = {}
+local cloudSettings = {
+    sort = {
+        type = "rating",
+        ascending = false,
+    },
+    limit = 30,
+    page = 1,
+    maxPages = 2
+}
+menu.divider(cloudRootList, "")
+menu.list_select(cloudRootList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+    cloudSettings.sort.type = sortId[index]
+end)
+menu.toggle(cloudRootList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+    cloudSettings.sort.ascending = value
+end, cloudSettings.sort.ascending)
+menu.slider(cloudRootList, "Builds Per Page", {"jvbclimit"}, "Set the amount of builds shown in the browse builds list", 10, 100, cloudSettings.limit, 1, function(value) cloudSettings.limit = value end)
+local paginatorMenu = menu.slider(cloudRootList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
+
+function _add_pagination()
+    if cloudSettings.page > 1 then
+        table.insert(cloudSortListMenus, menu.action(cloudVehiclesMenu, "View previous page", {}, "", function()
+            cloudSettings.page = cloudSettings.page - 1
+            _fetch_cloud_sorts()
+        end))
+    end
+    if cloudSettings.page < cloudSettings.maxPages then
+        table.insert(cloudSortListMenus, menu.action(cloudVehiclesMenu, "View next page", {}, "", function()
+            cloudSettings.page = cloudSettings.page + 1
+            _fetch_cloud_sorts()
+        end))
+    end
+end
+function _load_cloud_vehicles()
+    clear_menu_array(cloudSortListMenus)
+    show_busyspinner("Searching cloud vehicles...")
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/vehicles.php?list2&page=%d&limit=%d&sort=%s&asc=%d",
+            cloudSettings.page, cloudSettings.limit, cloudSettings.sort.type, cloudSettings.sort.ascending and 1 or 0
+        ),
+        function(body, res_headers, status_code)
+            if status_code == 200 and body:sub(1, 1) == "{" then
+                HUD.BUSYSPINNER_OFF()
+                local data = json.decode(body)
+                cloudSettings.maxPages = data.pages or 1
+                menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
+                -- FIXME: Causes stand exceptions when viewing next page?
+                -- _add_pagination()
+                table.insert(cloudSortListMenus, menu.divider(cloudVehiclesMenu, ""))
+                for _, vehicle in ipairs(data.vehicles) do
+                    local vehicleEntryList
+                    vehicleEntryList = menu.list(cloudVehiclesMenu, vehicle.uploader .. " / " .. vehicle.name, {}, _generate_cloud_info(vehicle), function()
+                        if not cloudUserVehicleSaveDataCache[vehicle.uploader] then
+                            cloudUserVehicleSaveDataCache[vehicle.uploader] = {}
+                        end
+                        setup_cloud_vehicle_submenu(vehicleEntryList, vehicle.uploader, vehicle.name)
+                    end)
+                    table.insert(cloudSortListMenus, vehicleEntryList)
+                end
+                table.insert(cloudSortListMenus, menu.divider(cloudVehiclesMenu, ""))
+                _add_pagination()
+            else
+                Log.log("bad server response (_fetch_cloud_sorts): " .. status_code .. "\n" .. body)
+                util.toast("Server returned error " .. status_code)
+            end
+        end,
+        function()
+            util.toast("Failed to fetch cloud data: Network error")
+        end)
+    async_http.dispatch()
+
+end
+
+local cloudSearchMenu = menu.list(cloudUsersMenu, i18n.format("CLOUD_SEARCH_NAME"), {"searchvehicles"}, i18n.format("CLOUD_SEARCH_DESC"))
+local cloudSearchMenus = {}
 local previewVehicle = 0
 function spawn_preview_vehicle(saveData)
     if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
@@ -1127,6 +1209,11 @@ function setup_cloud_vehicle_submenu(m, user, vehicleName)
                 file:close()
                 i18n.toast("FILE_SAVED", "%appdata%\\Stand\\Vehicles\\" .. user .. "_" .. vehicleName)
             end)
+            if user ~= SOCIALCLUB._SC_GET_NICKNAME() then
+                menu.click_slider(m, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded vehicle with 1-5 stars", 1, 5, 5, 1, function(rating)
+                    rate_vehicle(user, vehicleName, rating)
+                end)
+            end
         end)
     end
 end
@@ -1183,9 +1270,8 @@ menu.on_focus(cloudSearchMenu, function(_)
     end
     cloudSearchMenus = {}
 end)
-local cloudUploadMenu = menu.list(cloudVehiclesMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
+local cloudUploadMenu = menu.list(cloudUsersMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
 local cloudUploadMenus = {}
-os.remove(VEHICLE_DIR .. "/cloud.id")
 menu.on_focus(cloudUploadMenu, function(_)
     for _, m in ipairs(cloudUploadMenus) do
         menu.delete(m)
@@ -1221,13 +1307,47 @@ menu.on_focus(cloudUploadMenu, function(_)
         end)
     end, false)
 end)
+function rate_vehicle(user, vehicleName, rating)
+    if not user or not vehicleName or rating < 0 or rating > 5 then
+        Log.log("Invalid rate params. " .. user .. "|" .. vehicleName .. "|" .. rating)
+        return false
+    end
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+            user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
+        ),
+    function(body, res_header, status_code)
+        if status_code == 200 then
+            if body:sub(1, 1) == "{" then
+                local data = json.decode(body)
+                if data.success then
+                    util.toast("Rating submitted")
+                else
+                    Log.log(body)
+                    util.toast("Failed to submit rating, see logs for info")
+                end
+            else
+                util.toast("Failed to submit rating, server sent invalid response")
+            end
+        else
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            util.toast("Server returned error " .. status_code)
+        end
+
+    end, function()
+        util.toast("Failed to submit rating due to an unknown error")
+    end)
+    async_http.set_post("application/json", "")
+    async_http.dispatch()
+    return true
+end
 ----------------------------
 -- CLOUD VEHICLES BROWSE
 ----------------------------
 local cloudUserMenus = {}
 local cloudUserVehicleMenus = {}
 local waitForFetch = false
-menu.divider(cloudVehiclesMenu, i18n.format("CLOUD_BROWSE_DIVIDER"))
+menu.divider(cloudUsersMenu, i18n.format("CLOUD_BROWSE_DIVIDER"))
 function do_cloud_request(uri, onSuccessCallback)
     if waitForFetch then
         util.yield()
@@ -1262,7 +1382,7 @@ function _load_cloud_user_vehs()
     cloudUserMenus = {}
     do_cloud_request("/stand/cloud/vehicles?list", function(data)
         for _, user in ipairs(data.users) do
-            cloudUserMenus[user] = menu.list(cloudVehiclesMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
+            cloudUserMenus[user] = menu.list(cloudUsersMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
             menu.on_focus(cloudUserMenus[user], function() _load_user_vehicle_list(user) end)
             cloudUserVehicleSaveDataCache[user] = {}
         end
@@ -1312,7 +1432,7 @@ end
 -- Spawn Saved Vehicles
 ----------------------------
 local savedVehicleMenus = {}
-local savedVehiclesList = menu.list(menu.my_root(), i18n.format("SAVED_NAME"), {}, i18n.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
+local savedVehiclesList = menu.list(menu.my_root(), i18n.format("SAVED_NAME"), {"jvsaved"}, i18n.format("SAVED_DESC") .. " %appdata%\\Stand\\Vehicles", function() load_saved_vehicles_list() end)
 menu.on_focus(savedVehiclesList, function() clear_menu_table(savedVehicleMenus) end)
 local xmlMenusHandles = {}
 local xmlList = menu.list(savedVehiclesList, "Convert XML Vehicles", {}, "Vehicles (*.xml), typically from menyoo. Able to convert them through this menu.")
@@ -2270,6 +2390,10 @@ i18n.menus.toggle(menu.my_root(), "CRUISE_CONTROL", {"cruisecontrol"}, function(
     cruiseControl.currentVel = -1
 end, cruiseControl.enabled)
 
+local DRIVE_ON_WATER_MODEL = util.joaat("prop_lev_des_barge_02")
+local driveOnWaterEntity = nil
+local driveOnWaterNoWaterTicks = 0
+
 -- Cleanup all actions
 util.on_stop(function()
     local ped, vehicle = get_my_driver()
@@ -2281,6 +2405,9 @@ util.on_stop(function()
     end
     if ENTITY.DOES_ENTITY_EXIST(driveClone.vehicle) then
         entities.delete_by_handle(driveClone.vehicle)
+    end
+    if driveOnWaterEntity then
+        entities.delete_by_handle(driveOnWaterEntity)
     end
 end)
 
@@ -2304,9 +2431,58 @@ local smartAutoDriveData = {
     lastWaypoint = nil
 }
 
+
+local fHeight = memory.alloc(4)
+menu.toggle_loop(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to drive on top of water", function()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+    if my_vehicle then
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_vehicle, 0, 5.0, -1.0)
+        if WATER.GET_WATER_HEIGHT(pos.x, pos.y, pos.z, fHeight) then
+            if not driveOnWaterEntity then
+                driveOnWaterEntity = entities.create_object(DRIVE_ON_WATER_MODEL, { x = 0, y = 0, z = 0})
+                ENTITY.FREEZE_ENTITY_POSITION(driveOnWaterEntity, true)
+                ENTITY.SET_ENTITY_COLLISION(driveOnWaterEntity, true, false)
+                ENTITY.SET_ENTITY_VISIBLE(driveOnWaterEntity, false)
+                NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(driveOnWaterEntity), false)
+            end
+            if not NETWORK.NETWORK_HAS_CONTROL_OF_ENTITY(driveOnWaterEntity) then
+		        NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(driveOnWaterEntity)
+            end
+            local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
+            local height = memory.read_float(fHeight) - 1.25
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, height)
+            ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
+            driveOnWaterNoWaterTicks = 0
+        elseif driveOnWaterEntity then
+            if driveOnWaterNoWaterTicks > 100 then
+                entities.delete_by_handle(driveOnWaterEntity)
+                driveOnWaterEntity = nil
+            else
+                driveOnWaterNoWaterTicks = driveOnWaterNoWaterTicks + 1
+            end
+        end
+    end
+end, function()
+    if driveOnWaterEntity then
+        entities.delete_by_handle(driveOnWaterEntity)
+    end
+    driveOnWaterEntity = nil
+end)
+
 while true do
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+
+    -- if driveOnWaterEntity and my_vehicle then
+    --     local pos = ENTITY.GET_ENTITY_COORDS(my_vehicle)
+    --     local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
+    --     local status, z = util.get_ground_z(pos.x, pos.y, pos.z + 20)
+    --     if status then
+    --         ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, z)
+    --     end
+    --     ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
+    -- end
     
     if my_vehicle > 0 then
         if CVModifiers.KeepUpright and ENTITY.GET_ENTITY_UPRIGHT_VALUE(my_vehicle) < .3 then

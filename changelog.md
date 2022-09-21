@@ -37,6 +37,13 @@ v3.9.0
 * (3.9.10) Renamed commands to reduce conflicts
 * (3.9.12) Fix version issues
 * (3.9.14) Fix detach cargobob
+* (3.9.15) Add command names to cloud and saved lists
+
+v3.10.0
+
+* Add "Drive On Water" feature
+* Add sorted cloud list
+* Added cloud rating system
 
 # actions (v1)
 
@@ -63,6 +70,7 @@ v1.10.0
 * (1.10.6) Fix cloud favorites > browse failing
 * (1.10.7) Allow moving during special animations
 * (1.10.8) Auto download animations.txt
+* (1.10.9) Fix cloud bug
 
 # jackz chat (v1)
 
@@ -110,61 +118,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-V1.17.0
-
-* Allowed changing to a dev release channel
-* Added backend support for ped animations
-* Added blip icons to vehicles with ability to change (base vehicle -> settings -> blip icon)
-* Fix some bugs with invalid exceptions
-* Fix 'Remove All Entities' clearing base vehicle
-* Added Clone > Mirror for every axis
-* General bug fixes and improvements
-* Added some info boxes for builder entities
-* Added info boxes for cloud / saved vehicles
-* Added ability to favorite peds, objects, vehicles
-* Updated to latest jackzvehiclelib
-* (1.17.1) Fix extras (Thanks hexarobi)
-* (1.17.1) Change some blip icons
-* (1.17.3) Add warning to delete all
-* (1.17.3) Fix cloning issues
-* (1.17.4) Fix some bugs
-* (1.17.4) Actually fix extrasa
-* (1.17.5) Fix highlightedHandle not being reset on new base
-* (1.17.6) Autocreate save directory if not exist
-* (1.17.7) Fix some previews being inside base vehicle
-
-V1.18.0
-
-* Add ability to change attachment position of entities
-* Add ability to attach entities to other entities
-* Add vehicle name to pre-existing add overlay
-* Use hard entity pinning
-* Add setting to disable 'add to vehicle' overlay
-* Minor fixes / improvements, especially to descriptions
-* Add warning to deleting an entity
-* Automatically make a copy of last autosave on save failure
-* Allow having peds and objects to be a build's base entity
-* Allow offline browsing of vehicles (use local resource file)
-* Fix even more inconsisenties with vehicle saving
-* (1.18.1) Fix save_recents error with null vehicle name
-* (1.18.2) Fix errors when entity disappears, and setting a new base
-* (1.18.3) Fix meta error typo
-* (1.18.4) Fix Attach to: Missing base vehicle
-* (1.18.4) Only show overlays when builder menus are open
-
-V1.19.0
-
-* Auto smart distance for build previews and spawning
-* Added a "Create New Structure" menu
-* Cleaned up ui slightly
-
-V1.20.0
-
-* Allow adding other builds to your build
-* UI Improvements
-* Bug fixes
-* Fix non-vehicle bases not spawning
-
 V1.21.0
 
 * Allow to set a build's spawn location (Builder > Build > Spawn Location)
@@ -200,3 +153,14 @@ V1.23.0
 * Minor cleanup on some descriptions
 * Add command to spawn builds
 * (1.23.1) Fix error on older builds
+* (1.23.2) Possibly fix not spawning in builds
+
+V1.24.0
+
+* Internal change for vehicle search
+* Add sorting option (type and direction) for cloud lists
+* Organize builder entities by type
+* Add cloning non-networked entities
+* Add shortcuts to adding jackz_vehicles
+* Add abiity to attach entities directly to the world
+* Added ability to set animations on entities (see jackz_animator)

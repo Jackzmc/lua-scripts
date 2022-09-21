@@ -1,9 +1,10 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.23.1"
+VERSION = "1.24.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
+local ANIMATOR_LIB_TARGET = "1.0.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -43,6 +44,21 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     end
 end
 
+local animatorLib = try_require("jackzanimatorlib")
+
+if not animatorLib then
+    download_lib_update("jackzanimatorlib.lua")
+elseif animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
+    if SCRIPT_SOURCE == "MANUAL" then
+        Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
+        util.toast("Outdated animator library, downloading update...")
+        download_lib_update("jackzanimatorlib.lua")
+        animatorLib = require("jackzanimatorlib")
+    elseif animatorLib then
+        util.toast("Outdated lib: 'jackzanimatorlib'")
+    end
+end
+
 
 -- [ Begin actual script ]--
 -- Autosave state
@@ -74,6 +90,10 @@ function new_builder()
         },
         entities = {}, -- KV<Handle, Table>
         entitiesMenuList = nil,
+        vehiclesList = nil,
+        objectsList = nil,
+        pedsList = nil,
+        particlesList = nil,
         propSpawner = {
             root = nil,
             menus = {},
@@ -495,21 +515,34 @@ menu.action(utilsMenu, "Delete Preview", {"jvbstoppreview"}, "Removes currently 
     end
     clear_build_preview()
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"clearnearbyvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Vehicles", {"clearnearbyvehs"}, "Clears all nearby vehicles within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_vehicles_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " vehicles")
 end)
-menu.click_slider(utilsMenu, "Clear Nearby Objects", {"clearnearbyobjs"}, "Clears all nearby objects within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Objects", {"clearnearbyobjs"}, "Clears all nearby objects within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_objects_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " objects")
 end)
 
-menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears all nearby peds within defined range", 500, 100000, 500, 6000, function(range)
+menu.click_slider(utilsMenu, "Clear Nearby Peds", {"clearnearbypeds"}, "Clears all nearby peds within defined range", 500, 100000, 6000, 500, function(range)
     local vehicles = entities.get_all_peds_as_handles()
     local count = _clear_ents(vehicles, range)
     util.toast("Deleted " .. count .. " peds")
+end)
+
+menu.action(utilsMenu, "Clear Particles", {"clearnearbyparticles"}, "Clears all particles", function(endIndex)
+    local particleIndex = 0
+    local count = 0
+    while particleIndex < 160 do
+        if GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(particleIndex) then
+            GRAPHICS.REMOVE_PARTICLE_FX(particleIndex, true)
+            count = count + 1
+        end
+        particleIndex = particleIndex + 1
+    end
+    util.toast("Deleted " .. count .. " particles")
 end)
 
 function _clear_ents(list, range, dryRun)
@@ -558,12 +591,17 @@ menu.divider(menu.my_root(), "")
     CLOUD DATA
 ]]--
 local cloudData = {}
-local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players", function() _fetch_cloud_users() end, function() 
-    for _, data in pairs(cloudData) do
-        menu.delete(data.parentList)
-    end
-    cloudData = {}
-end)
+local cloudSettings = {
+    sort = {
+        type = "rating",
+        ascending = false,
+    },
+    limit = 30,
+    page = 1,
+    maxPages = 2
+}
+local cloudRootMenuList = menu.list(menu.my_root(), "Cloud Builds", {}, "Browse & download custom builds from other players")
+menu.on_focus(cloudRootMenuList, function() clear_build_preview() end)
 local cloudSearchList = menu.list(cloudRootMenuList, "Search Builds", {}, "Search all uploaded custom builds by name")
 local cloudSearchResults = {}
 menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search query", function(query)
@@ -573,16 +611,16 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         menu.delete(data.list)
     end
     cloudSearchResults = {}
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php?q=" .. query, function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. (cloudSettings.sort.ascending and 1 or 0) .. "&q=" .. query, function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
-                local results = json.decode(body).results
-                if #results == 0 then
+                local builds = json.decode(body).builds
+                if #builds == 0 then
                     util.toast("No builds found")
                     return
                 end
-                for _, vehicle in ipairs(results) do
+                for _, vehicle in ipairs(builds) do
                     
                     local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
                     cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
@@ -608,17 +646,91 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
     end)
     async_http.dispatch()
 end)
-menu.divider(cloudRootMenuList, "Users")
+-- local sortList = menu.list(cloudRootMenuList, "Sort", {}, "Change the way the list is sorted and which direction")
+local sortId = { "rating", "name", "author", "author", "uploaded"}
+local cloudBuildListMenus = {}
+local cloudUsersList = menu.list(cloudRootMenuList, "Browse Builds By User", {}, "Browse all builds categorized by uploader name", function() _fetch_cloud_users() end, function() 
+    for _, data in pairs(cloudData) do
+        menu.delete(data.parentList)
+    end
+    cloudData = {}
+end)
+local cloudBuildsList = menu.list(cloudRootMenuList, "Browse Builds (sorted)", {}, "Browse all builds individually with above sorting criteria", function() _fetch_cloud_sorts() end, function()
+    clear_menu_array(cloudBuildListMenus)
+end)
+menu.divider(cloudRootMenuList, "")
+menu.list_select(cloudRootMenuList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+    cloudSettings.sort.type = sortId[index]
+end)
+menu.toggle(cloudRootMenuList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)
+    cloudSettings.sort.ascending = value
+end, cloudSettings.sort.ascending)
+menu.slider(cloudRootMenuList, "Builds Per Page", {"jvbclimit"}, "Set the amount of builds shown in the browse builds list", 10, 100, cloudSettings.limit, 1, function(value) cloudSettings.limit = value end)
+local paginatorMenu = menu.slider(cloudRootMenuList, "Page", {"jvbcpage"}, "Set the page for the browse builds list", 1, cloudSettings.maxPages, cloudSettings.page, 1, function(value) cloudSettings.page = value end)
+menu.on_focus(cloudBuildsList, function() clear_build_preview() end)
+-- TODO: implement sorting
+function _add_pagination()
+    if cloudSettings.page > 1 then
+        table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View previous page", {}, "", function()
+            cloudSettings.page = cloudSettings.page - 1
+            _fetch_cloud_sorts()
+        end))
+    end
+    if cloudSettings.page < cloudSettings.maxPages then
+        table.insert(cloudBuildListMenus, menu.action(cloudBuildsList, "View next page", {}, "", function()
+            cloudSettings.page = cloudSettings.page + 1
+            _fetch_cloud_sorts()
+        end))
+    end
+end
+function _fetch_cloud_sorts()
+    clear_menu_array(cloudBuildListMenus)
+    show_busyspinner("Searching cloud builds...")
+    async_http.init("jackz.me",
+        string.format("/stand/cloud/builds.php?list&page=%d&limit=%d&sort=%s&asc=%d",
+            cloudSettings.page, cloudSettings.limit, cloudSettings.sort.type, cloudSettings.sort.ascending and 1 or 0
+        ),
+        function(body, res_headers, status_code)
+            if status_code == 200 and body:sub(1, 1) == "{" then
+                HUD.BUSYSPINNER_OFF()
+                local data = json.decode(body)
+                cloudSettings.maxPages = data.pages or 1
+                menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
+                -- FIXME: Causes stand exceptions when viewing next page?
+                -- _add_pagination()
+                table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
+                for _, build in ipairs(data.builds) do
+                    local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
+                    local buildEntryList
+                    buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
+                        _fetch_vehicle_data(nil, build.uploader, build.name)
+                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { vehicle = build })
+                    end)
+                    table.insert(cloudBuildListMenus, buildEntryList)
+                end
+                table.insert(cloudBuildListMenus, menu.divider(cloudBuildsList, ""))
+                _add_pagination()
+            else
+                Log.log("bad server response (_fetch_cloud_sorts): " .. status_code .. "\n" .. body)
+                util.toast("Server returned error " .. status_code)
+            end
+        end,
+        function()
+            util.toast("Failed to fetch cloud data: Network error")
+        end)
+    async_http.dispatch()
+
+end
 function _fetch_cloud_users()
     show_busyspinner("Fetching cloud data...")
-    async_http.init("jackz.me", "/stand/cloud/custom-vehicles.php", function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/cloud/builds.php?sort=" .. cloudSettings.sort.type .. "&asc=" .. (cloudSettings.sort.ascending and 1 or 0), function(body, res_headers, status_code)
         -- Server returns an array of key values, key is uploader name, value is metadata
         if status_code == 200 then
             HUD.BUSYSPINNER_OFF()
             if body[1] == "{" then
                 cloudData = json.decode(body).users
                 for user, vehicles in pairsByKeys(cloudData) do
-                    local userList = menu.list(cloudRootMenuList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
+                    local userList = menu.list(cloudUsersList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
                         _load_cloud_vehicles(user)
                     end, function()
                         cloudData[user].vehicleData = {}
@@ -642,7 +754,7 @@ function _fetch_cloud_users()
     end)
     async_http.dispatch()
 end
-function _load_cloud_vehicles(user) 
+function _load_cloud_vehicles(user)
     if not cloudData[user] then
         util.toast("Error: Missing cloud data for user " .. user)
     else
@@ -665,7 +777,7 @@ function _load_cloud_vehicles(user)
 end
 function _fetch_vehicle_data(tableref, user, vehicleName)
     show_busyspinner("Fetching build info...")
-    async_http.init("jackz.me", string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
+    async_http.init("jackz.me", string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
         clear_build_preview()
         if status_code == 200 then
@@ -676,28 +788,32 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                     util.toast("Invalid build data was fetched")
                     return
                 end
-                tableref['vehicle'] = data.vehicle
+                if tableref then
+                    tableref['vehicle'] = data.vehicle
+                end
                 if not data.vehicle.name then
                     data.vehicle.name = vehicleName
                 end
                 data.uploader = user
-                spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
-            else
-                local isRatelimited = body:find("503 Service Temporarily Unavailable")
-                if isRatelimited then
-                    util.toast("Rate limited, please wait")
+                if tableref then
+                    spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
                 else
-                    Log.log("invalid server response : " .. body, "_fetch_cloud_users")
-                    util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
+                    spawn_build(data.vehicle, true, _render_cloud_build_overlay, data)
                 end
+            elseif status_code == 503 then
+                util.toast("Rate limited, please wait")
+            else
+                Log.log("invalid server response : " .. body, "_fetch_vehicle_data")
+                util.toast("Server returned an invalid response. Server may be under maintenance or experiencing problems")
             end
         else
-            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+            Log.log("bad server response : " .. status_code .. "\n" .. body, "_fetch_vehicle_data")
             util.toast("Server returned error " .. status_code)
         end
     end)
     async_http.dispatch()
 end
+
 function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     local tries = 0
     while not vehicleData['vehicle'] and tries < 10 do
@@ -716,7 +832,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
     menu.action(rootList, "Spawn", {}, "", function()
         clear_build_preview()
         local baseHandle = spawn_build(vehicleData['vehicle'], false)
-        if (vehicleData['vehicle'].type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
+        if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
             util.yield()
             local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -746,9 +862,11 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
         end
     end, vehicleName .. ".json")
 
-    menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
-        rate_build(user, vehicleName, rating)
-    end)
+    if user ~= SOCIALCLUB._SC_GET_NICKNAME() then
+        menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
+            rate_build(user, vehicleName, rating)
+        end)
+    end
 end
 function rate_build(user, vehicleName, rating)
     if not user or not vehicleName or rating < 0 or rating > 5 then
@@ -756,7 +874,7 @@ function rate_build(user, vehicleName, rating)
         return false
     end
     async_http.init("jackz.me", 
-        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
+        string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
     function(body, res_header, status_code)
@@ -822,6 +940,7 @@ function _load_vehicles_from_dir(parentList, directory)
         local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if filesystem.is_dir(filepath) then
             local folderList = menu.list(parentList, filename, {}, "")
+            menu.on_focus(folderList, function() clear_build_preview() end)
             _load_vehicles_from_dir(folderList, filepath)
             table.insert(folderLists, folderList)
         else
@@ -857,9 +976,9 @@ function _format_vehicle_info(version, timestamp, author, rating)
         local fileVersion = m[#m]
         local versionDiff = compare_version(BUILDER_VERSION, fileVersion)
         if versionDiff == 1 then
-            versionText = string.format("%s (Older version, latest %s)", fileVersion, BUILDER_VERSION)
+            versionText = string.format("%s\n\t(Older version, latest %s)", fileVersion, BUILDER_VERSION)
         elseif versionDiff == -1 then
-            versionText = string.format("%s (Unsupported version, latest %s)", fileVersion, BUILDER_VERSION)
+            versionText = string.format("%s\n\t(Unsupported version, latest %s)", fileVersion, BUILDER_VERSION)
         else
             versionText = string.format("%s (Latest)", fileVersion, BUILDER_VERSION)
         end
@@ -895,7 +1014,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
                     local baseHandle = spawn_build(data, false)
-                    if (data.type or "VEHICLE") == "VEHICLE" and scriptSettings.spawnInVehicle then
+                    if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
                         util.yield()
                         local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                         TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
@@ -1076,12 +1195,7 @@ function setup_builder_menus(name)
     if not builder.base.handle or builder.ent_spawner_active then
         return
     end
-    local baseType = "OBJECT"
-    if ENTITY.IS_ENTITY_A_PED(builder.base.handle) then
-        baseType = "PED"
-    elseif ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
-        baseType = "VEHICLE"
-    end
+    local baseType = _find_entity_type(builder.base.handle)
 
     local newBuildMenu
     newBuildMenu = menu.action(menu.my_root(), "Start a new build", {}, "Delete the current build and start a new", function() 
@@ -1198,16 +1312,23 @@ function setup_builder_menus(name)
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "Manage all attached entities", function() highlightedHandle = nil end)
         menu.slider(builder.entitiesMenuList, "Coordinate Sensitivity", {"offsetsensitivity"}, "Sets the sensitivity of changing the offset coordinates of an entity", 1, 20, POS_SENSITIVITY, 1, function(value)
             POS_SENSITIVITY = value
+        end)
+        menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
+            FREE_EDIT = value
             if not value then
                 local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
                 ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
             end
-        end)
-        menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
-            FREE_EDIT = value
         end, FREE_EDIT)
-        menu.divider(builder.entitiesMenuList, "Entities")
+
+    menu.divider(builder.entitiesMenuList, "")
+    builder.objectsList = menu.list(builder.entitiesMenuList, "Props", {}, "All objects added to the build")
+    builder.vehiclesList = menu.list(builder.entitiesMenuList, "Vehicles", {}, "All vehicles added to the build")
+    builder.pedsList = menu.list(builder.entitiesMenuList, "Peds", {}, "All peds")
+    builder.particlesList = menu.list(builder.entitiesMenuList, "Particles", {}, "All particles added to the build")
+    menu.divider(builder.entitiesMenuList, "Builds")
+    
     local baseList = menu.list(mainMenu, "Base Entity", {}, "Manage settings relating to the base entity of your build")
         local settingsList = menu.list(baseList, "Settings", {}, "")
         menu.on_focus(settingsList, function()
@@ -1291,12 +1412,7 @@ function setup_builder_menus(name)
 end
 
 function set_builder_base(handle, preserveExisting)
-    builder.base.type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        builder.base.type  = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        builder.base.type  = "PED"
-    end
+    builder.base.type = _find_entity_type(handle)
 
     local oldHandle = builder.base.handle
     builder.base.handle = handle
@@ -1348,6 +1464,7 @@ function create_object_spawner_list(root)
     for _, prop in ipairs(CURATED_PROPS) do
         add_prop_menu(curatedList, prop)
     end
+    menu.hyperlink(root, "Find Props Online", "https://gtahash.ru/", "Find prop names from an online resource.\nDon't copy the hash, use the object name\nSpawn using \"Manual Input\" menu")
     local searchList = menu.list(root, "Search Props", {}, "Search for a prop by name")
     menu.text_input(searchList, "Search", {"searchprops"}, "Enter a prop name to search for", function(query)
         create_prop_search_results(searchList, query, 30)
@@ -1381,6 +1498,7 @@ function create_ped_spawner_list(root)
     for _, ped in ipairs(CURATED_PEDS) do
         add_ped_menu(curatedList, ped[1], ped[2])
     end
+    menu.hyperlink(root, "Find Peds Online", "https://gtahash.ru/skins/", "Find ped models from an online resource.\nDon't copy the hash, use the name\nSpawn using \"Manual Input\" menu")
     local searchList = menu.list(root, "Search Peds", {}, "Search for a ped by name")
     menu.text_input(searchList, "Search", {"builderquerypeds"}, "Enter a ped name to search for", function(query)
         create_ped_search_results(searchList, query, 30)
@@ -1415,6 +1533,14 @@ function create_vehicle_spawner_list(root)
     for _, data in ipairs(CURATED_VEHICLES) do
         add_vehicle_menu(curatedList, data[1], data[2])
     end
+    local jackzVehiclesList = menu.list(root, "Jackz Vehicles", {}, "Shortcut to your jackz vehicles list")
+    menu.action(jackzVehiclesList, "Cloud Vehicles", {}, "Open up the jackz vehicle's cloud list", function()
+        menu.trigger_commands("jvcloud")
+    end)
+    menu.hyperlink(root, "Find Vehicles Online", "https://gtahash.ru/cars/", "Find vehicle models from an online resource.\nDon't copy the hash, use the name\nSpawn using \"Manual Input\" menu")
+    menu.action(jackzVehiclesList, "Saved Vehicles", {}, "Opens up the jackz's vehicles saved list", function()
+        menu.trigger_commands("jvsaved")
+    end)
     local searchList = menu.list(root, "Search Vehicles")
     menu.text_input(searchList, "Search", {"searchvehicles"}, "Enter a vehicle name to search for", function(query)
         create_vehicle_search_results(searchList, query, 30)
@@ -1613,23 +1739,29 @@ function create_ped_search_results(parent, query, max)
         end
     end
 end
--- Search: via URL
-local requestActive = false
-
 function create_vehicle_search_results(searchList, query, max)
     clear_menu_table(searchResults)
-    if requestActive then return end
-    show_busyspinner("Searching builds...")
-    requestActive = true
-    async_http.init("jackz.me", "/stand/search-vehicle-db.php?q=" .. query .. "&max=" .. max, function(body)
-        for line in string.gmatch(body, "[^\r\n]+") do
-            local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
-            table.insert(searchResults, add_vehicle_menu(searchList, id, name, dlc))
+    show_busyspinner("Searching vehicles...")
+
+    local results = {}
+    for line in io.lines(VEHICLES_PATH) do
+        local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
+        local i, j = name:find(query)
+        if i then
+            table.insert(results, {
+                id = id,
+                vehicle = name,
+                dlc = dlc,
+                distance = j - i
+            })
         end
-        requestActive = false
-        HUD.BUSYSPINNER_OFF()
-    end)
-    async_http.dispatch()
+    end
+    table.sort(results, function(a, b) return a.distance > b.distance end)
+    for i = 1, max do
+        if results[i] then
+            table.insert(searchResults, add_vehicle_menu(searchList, results[i].id, results[i].name, results[i].dlc))
+        end
+    end
 end
 
 function _load_prop_browse_menus(parent)
@@ -1826,7 +1958,7 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
         local hash = util.joaat(propName)
         local pos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
         local entity = entities.create_object(hash, pos)
-        add_entity_to_list(builder.entitiesMenuList, entity, propName)
+        add_entity_to_list(builder.objectsList, entity, propName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -1896,7 +2028,7 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
         PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(entity, true)
         ENTITY.FREEZE_ENTITY_POSITION(entity)
-        add_entity_to_list(builder.entitiesMenuList, entity, pedName)
+        add_entity_to_list(builder.pedsList, entity, pedName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -1965,7 +2097,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
 
         local hash = util.joaat(vehicleID)
         local entity = spawn_vehicle({model = hash}, false)
-        add_entity_to_list(builder.entitiesMenuList, entity, displayName)
+        add_entity_to_list(builder.vehiclesList, entity, displayName)
         highlightedHandle = entity
     end)
     menu.on_focus(menuHandle, function()
@@ -2032,7 +2164,7 @@ function add_particles_menu(parent, dict, name, isFavoritesEntry)
         end
 
         local handle = spawn_particle(data, builder.base.handle)
-        add_particle_to_list(builder.entitiesMenuList, handle, data)
+        add_particle_to_list(builder.particlesList, handle, data)
     end)
     menu.on_focus(menuHandle, function()
         local key = dict .. "/" .. name
@@ -2083,9 +2215,11 @@ function _recurse_remove_attachments(handle, table)
             if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(entity, handle) then
                 for _, subEntity in ipairs(table) do
                     if subEntity ~= entity and subEntity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(subEntity, entity) then
+                        GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(subEntity)
                         entities.delete_by_handle(subEntity)
                     end
                 end
+                GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(entity)
                 entities.delete_by_handle(entity)
             end
         end
@@ -2096,6 +2230,7 @@ function remove_all_attachments(handle)
     _recurse_remove_attachments(handle, entities.get_all_objects_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
+    GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(handle)
 end
 function clear_build_preview()
     local oldEntity = preview.entity
@@ -2167,6 +2302,7 @@ end
 -- [ ENTITY EDITING HANDLING ]
 function add_particle_to_list(list, particleHandle, particleData)
     builder.entities[particleHandle] = {
+        type = "PARTICLE",
         id = particleData.id or builder._index,
         name = particleData.name or particleData.particle[2],
         particle = particleData.particle,
@@ -2234,12 +2370,7 @@ function add_entity_to_list(list, handle, name, data)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(handle)
     ENTITY._SET_ENTITY_CLEANUP_BY_ENGINE(handle, false)
     local model = ENTITY.GET_ENTITY_MODEL(handle)
-    local type = "OBJECT"
-    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
-        type = "VEHICLE"
-    elseif ENTITY.IS_ENTITY_A_PED(handle) then
-        type = "PED"
-    end
+    local type = _find_entity_type(handle)
     if data.visible == nil then data.visible = true end
     builder.entities[handle] = {
         id = data.id or builder._index,
@@ -2253,7 +2384,8 @@ function add_entity_to_list(list, handle, name, data)
         boneIndex = data.boneIndex or 0,
         visible = data.visible,
         parent = data.parent,
-        godmode = data.godmode or (type ~= "OBJECT") and true or nil
+        godmode = data.godmode or (type ~= "OBJECT") and true or nil,
+        customAnimation = nil
     }
     if not data.id then
         builder._index = builder._index + 1
@@ -2310,9 +2442,49 @@ function clone_entity(handle, name, mirror_axis)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(builder.entitiesMenuList, entity, name, { offset = pos })
+    add_entity_to_list(_find_entity_type(handle), entity, name, { offset = pos })
     highlightedHandle = entity
     return entity
+end
+
+local animationsList = {}
+function setup_animations_list(list, entity)
+    clear_menu_array(animationsList)
+    table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
+    animatorLib.RecordingController.ListRecordings(function(filepath, filename)
+        table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
+            local data = animatorLib.RecordingController.LoadRecordingData(filepath)
+            builder.entities[entity].customAnimation = data
+            PlaybackController:StartPlayback(entity, data.points, data.interval, {
+                ["repeat"] = true,
+                debug = true
+            })
+        end))
+    end)
+end
+
+function _find_entity_type(handle)
+    local type = "OBJECT"
+    if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
+        type = "VEHICLE"
+    elseif ENTITY.IS_ENTITY_A_PED(handle) then
+        type = "PED"
+    end
+    return type
+end
+
+function _find_entity_list(type)
+    if type == "VEHICLE" then
+        return builder.vehiclesList
+    elseif type == "OBJECT" then
+        return builder.objectsList
+    elseif type == "PED" then
+        return builder.pedsList
+    elseif type == "PARTICLE" then
+        return builder.particlesList
+    else
+        return builder.entitiesMenuList
+    end
 end
 
 function create_entity_section(tableref, handle, options)
@@ -2401,6 +2573,10 @@ function create_entity_section(tableref, handle, options)
             table.insert(tableref.listMenus, attachEntList)
         end
     end
+
+    local animationsList = menu.list(entityroot, "Animation")
+    setup_animations_list(animationsList, handle)
+    table.insert(tableref.listMenus, animationsList)
     if not options.noRename then
         table.insert(tableref.listMenus, menu.text_input(entityroot, "Rename", {"renameent" .. handle}, "Changes the display name of this entity", function(name)
             menu.set_menu_name(tableref.list, name)
@@ -2481,6 +2657,7 @@ function create_entity_section(tableref, handle, options)
                         end
                     end
                 end
+                end
                 menu.delete(entityroot)
                 -- Fix deleting not working
                 if builder.entities[handle] then
@@ -2503,15 +2680,23 @@ local attachEntSubmenus = {}
 
 function _load_attach_list(list, child)
     -- Only show attach to base if it's NOT attached to the base
+    if builder.entities[child].parent ~= -1 then
+        table.insert(attachEntSubmenus, menu.action(list, "World", {}, "Entity will be positioned in the world at the base vehicle's position with the specified offset.\nDoes not internally attach the entity", function()
+            builder.entities[child].parent = -1
+            attach_entity(0, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
+            util.toast("Entity's parent set to world")
+            menu.set_menu_name(list, "Attach to: World")
+            menu.focus(list)
+        end))
+    end
     if builder.entities[child].parent ~= nil then
-        local base = menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
+        table.insert(attachEntSubmenus, menu.action(list, "Base", {}, "Restore entity parent's to the original base entity", function()
             builder.entities[child].parent = nil
             attach_entity(builder.base.handle, child, builder.entities[child].pos, builder.entities[child].rot, builder.entities[child].boneIndex, builder.entities[child].collision)
             util.toast("Entity's parent restored to base entity")
             menu.set_menu_name(list, "Attach to: Base")
             menu.focus(list)
-        end)
-        table.insert(attachEntSubmenus, base)
+        end))
     end
     for handle, data in pairs(builder.entities) do
         -- Prevent listing recursive parents, or an already set parent
@@ -2556,7 +2741,7 @@ end
 function upload_build(name, data)
     show_busyspinner("Uploading build...")
     async_http.init("jackz.me", 
-        string.format("/stand/cloud/custom-vehicles.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
+        string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s&hashkey=%s&v=%s",
         SOCIALCLUB._SC_GET_NICKNAME(), name, menu.get_activation_key_hash(), VERSION
     ), function(body, res_headers, status_code)
         if status_code == 200 then
@@ -2778,23 +2963,34 @@ function copy_file(source, dest)
     destFile:close()
 end
 
+-- also see https://docs.fivem.net/natives/?_0x658500AE6D723A7E
+function _setup_network(handle)
+    local networkId = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(handle)
+    NETWORK.NETWORK_REGISTER_ENTITY_AS_NETWORKED(handle)
+    -- Maybe put as true?
+    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(networkId, true)
+    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(networkId, false)
+    return networkId
+end
 
 function spawn_entity(data, type, isPreview, pos, heading)
     if not data.model then
         return error("No entity model provided")
     end
 
-    local handle
+    local handle = 0
     if type == "VEHICLE" then
         handle = spawn_vehicle(data, isPreview, pos, heading)
     elseif type == "PED" then
         handle = spawn_ped(data, isPreview, pos)
     elseif type == "OBJECT" then
         handle = spawn_object(data, isPreview, pos)
+        NETWORK.OBJ_TO_NET(handle)
     else
-        error("Invalid entity type \"" .. type .. "\"", 2)
+        return error("Invalid entity type \"" .. type .. "\"", 2)
     end
-    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model))
+    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model or "nil"))
+    _setup_network(handle)
     return handle
 end
 
@@ -2865,6 +3061,7 @@ function spawn_vehicle(vehicleData, isPreview, pos, heading)
         if vehicleData.godmode or vehicleData.godmode == nil then
             ENTITY.SET_ENTITY_INVINCIBLE(handle, true)
         end
+        _setup_network(handle)
     end
 
     if vehicleData.savedata then
@@ -2917,6 +3114,7 @@ function spawn_ped(data, isPreview, pos)
             end
             TASK.TASK_PLAY_ANIM(handle, data.animdata[1], data.animdata[2], 8.0, 8.0, -1, 1, 1.0, false, false, false)
         end
+        _setup_network(handle)
         return handle
     end
 end
@@ -2947,6 +3145,7 @@ function spawn_object(data, isPreview, pos)
             data.visible = true
         end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
+        _setup_network(object)
         return object
     end
 end
@@ -3029,7 +3228,7 @@ function _compute_build_size(build)
             _compute_size(entity)
         end
     end
-    return (r_size + 7.5), h_size
+    return (r_size + 10), h_size
 end
 
 -- Spawns a custom build, requires build.base to be set, others optional
@@ -3102,8 +3301,15 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
                     if entityData.id then idMap[tostring(entityData.id)] = object end
 
+                    if entityData.customAnimation then
+                        PlaybackController:StartPlayback(object, entityData.customAnimation.positions, entityData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = SCRIPT_DEBUG
+                        })
+                    end
+
                     if addToBuilder then
-                        add_entity_to_list(builder.entitiesMenuList, object, entityData.name or "unknown object", entityData)
+                        add_entity_to_list(builder.objectsList, object, entityData.name or "unknown object", entityData)
                     elseif entityData.parent then
                         if entityData.parent ~= entityData.id then
                             table.insert(parentQueue, { handle = object, data = entityData })
@@ -3133,8 +3339,15 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
                     if pedData.id then idMap[tostring(pedData.id)] = ped end
 
+                    if pedData.customAnimation then
+                        PlaybackController:StartPlayback(ped, pedData.customAnimation.positions, pedData.customAnimation.interval, {
+                            ["repeat"] = true,
+                            debug = SCRIPT_DEBUG
+                        })
+                    end
+
                     if addToBuilder then
-                        local datatable = add_entity_to_list(builder.entitiesMenuList, ped, pedData.name or "unknown ped", pedData)
+                        local datatable = add_entity_to_list(builder.pedsList, ped, pedData.name or "unknown ped", pedData)
                         datatable.animdata = pedData.animdata
                     elseif pedData.parent then
                         if pedData.parent ~= pedData.id then
@@ -3183,8 +3396,15 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
 
             if vehData.id then idMap[tostring(vehData.id)] = handle end
 
+            if vehData.customAnimation then
+                PlaybackController:StartPlayback(handle, vehData.customAnimation.positions, vehData.customAnimation.interval, {
+                    ["repeat"] = true,
+                    debug = SCRIPT_DEBUG
+                })
+            end
+
             if addToBuilder then
-                add_entity_to_list(builder.entitiesMenuList, handle, vehData.name or "unknown vehicle", vehData)
+                add_entity_to_list(builder.vehiclesList, handle, vehData.name or "unknown vehicle", vehData)
             elseif vehData.parent then
                 if vehData.parent ~= vehData.id then
                     table.insert(parentQueue, { handle = handle, data = vehData })
@@ -3228,15 +3448,19 @@ function add_attachments(baseHandle, build, addToBuilder, isPreview)
         end
     end
 
-    for _, particle in ipairs(build.particles) do
-        local entity = builder.base.handle
-        if particle.parent then
-            entity = idMap[particle.parent]
-        end
+    if build.particles then
+        for _, particle in ipairs(build.particles) do
+            local entity = baseHandle
+            if particle.parent then
+                entity = idMap[particle.parent]
+            end
 
-        local handle = spawn_particle(particle, entity, isPreview)
-        if addToBuilder then
-           add_particle_to_list(builder.entitiesMenuList, handle, particle) 
+            particle.pos = particle.offset
+            particle.rot = particle.rotation
+            local handle = spawn_particle(particle, entity, isPreview)
+            if addToBuilder then
+            add_particle_to_list(builder.particlesList, handle, particle)
+            end
         end
     end
 
@@ -3259,6 +3483,7 @@ function dump_table(o)
 end
 
 function get_entity_by_id(id)
+    if id == -1 then return 0 end
     if not id or not builder then return nil end
     for handle, data in pairs(builder.entities) do
         if data.id == id then
@@ -3280,6 +3505,14 @@ function attach_entity(parent, handle, offset, rot, index, collision)
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0
         )
+    elseif parent == 0 then
+        -- Attach to the world
+        ENTITY.DETACH_ENTITY(handle, true, 0)
+        local builderPos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
+        local x = builderPos.x + offset.x
+        local y = builderPos.y + offset.y
+        local z = builderPos.z + offset.z
+        ENTITY.SET_ENTITY_COORDS_NO_OFFSET(handle, x, y, z)
     else
         if collision == nil then
             collision = true
@@ -3401,7 +3634,10 @@ while true do
             end
             if scriptSettings.showAddOverlay then
                 get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
-                    if did_hit and entity and builder.entities[entity] == nil and NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                    if did_hit and entity and builder.entities[entity] == nil then
+                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.IS_PED_A_PLAYER(entity) then
+                            return
+                        end
                         local hudPos = get_screen_coords(pos)
                         local height = 0.055
                         local name = "Pre-existing object"
@@ -3420,7 +3656,11 @@ while true do
                         if util.is_key_down(0x4A) then
                             if seconds - lastAddKeyPress > 1 then
                                 lastAddKeyPress = seconds
-                                add_entity_to_list(builder.entitiesMenuList, entity, name)
+                                if not NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(entity) then
+                                    clone_entity(entity, name)
+                                else
+                                    add_entity_to_list(builder.entitiesMenuList, entity, name)
+                                end
                             end
                         end
                     end
