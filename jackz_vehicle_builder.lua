@@ -1305,11 +1305,6 @@ function setup_builder_menus(name)
     builder.entitiesMenuList = menu.list(mainMenu, "Entities", {}, "Manage all attached entities", function() highlightedHandle = nil end)
         menu.slider(builder.entitiesMenuList, "Coordinate Sensitivity", {"offsetsensitivity"}, "Sets the sensitivity of changing the offset coordinates of an entity", 1, 20, POS_SENSITIVITY, 1, function(value)
             POS_SENSITIVITY = value
-            if not value then
-                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
-                ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
-            end
         end)
         menu.toggle(builder.entitiesMenuList, "Free Edit", {"jvbfreeedit"}, "Allows you to move entities by holding the following keys:\nWASD -> Normal\nSHIFT/CTRL - Up and down\nNumpad 8/5 - Pitch\nNumpad 4/6 - Roll\nNumpad 7/9 - Rotation\n\nWill only work when hovering over an entity or stand is closed, disabled in entity list.", function(value)
             FREE_EDIT = value
