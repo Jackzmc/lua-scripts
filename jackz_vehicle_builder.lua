@@ -2203,9 +2203,11 @@ function _recurse_remove_attachments(handle, table)
             if ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(entity, handle) then
                 for _, subEntity in ipairs(table) do
                     if subEntity ~= entity and subEntity ~= handle and ENTITY.IS_ENTITY_ATTACHED_TO_ENTITY(subEntity, entity) then
+                        GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(subEntity)
                         entities.delete_by_handle(subEntity)
                     end
                 end
+                GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(entity)
                 entities.delete_by_handle(entity)
             end
         end
@@ -2216,6 +2218,7 @@ function remove_all_attachments(handle)
     _recurse_remove_attachments(handle, entities.get_all_objects_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_vehicles_as_handles())
     _recurse_remove_attachments(handle, entities.get_all_peds_as_handles())
+    GRAPHICS.REMOVE_PARTICLE_FX_FROM_ENTITY(handle)
 end
 function clear_build_preview()
     local oldEntity = preview.entity
