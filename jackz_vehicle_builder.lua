@@ -706,7 +706,7 @@ function _fetch_cloud_sorts()
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
                         _fetch_vehicle_data(nil, build.uploader, build.name)
-                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { vehicle = build })
+                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { ['vehicle'] = build })
                     end)
                     table.insert(cloudBuildListMenus, buildEntryList)
                 end
@@ -797,7 +797,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                     data.vehicle.name = vehicleName
                 end
                 data.uploader = user
-                local status, data = pcall(spawn_build, tableref and tableref['vehicle'] or data.vehicle, true, _render_cloud_build_overlay, data)
+                local status, data = pcall(spawn_build, data.vehicle, true, _render_cloud_build_overlay, data)
                 if not status then
                     Log.toast("Cloud build is invalid, failed to spawn\n", data)
                 end
@@ -821,22 +821,23 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
         util.yield(500)
         tries = tries + 1
     end
-    if tries > 10 then
-        util.toast("Timed out acquiring build data")
+    if not vehicleData['vehicle'] and tries > 20 then
+        Log.toast("Timed out acquiring build data")
         return
     end
-    while not vehicleData and tries < 30 do
-        util.yield(500)
-        tries = tries + 1
-    end
-    if tries == 30 then return end
+
     menu.action(rootList, "Spawn", {}, "", function()
         clear_build_preview()
-        local baseHandle = spawn_build(vehicleData['vehicle'], false)
-        if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
-            util.yield()
-            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-            TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+        local status, baseHandle = pcall(spawn_build, vehicleData['vehicle'], false)
+        if status then
+            if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
+                util.yield()
+                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+            end
+        else
+            Log.error("spawn_build:", baseHandle)
+            Log.toast("Could not spawn build: Invalid build data")
         end
     end)
 
