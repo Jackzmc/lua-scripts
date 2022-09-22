@@ -3273,7 +3273,7 @@ function spawn_build(build, isPreview, previewFunc, previewData)
     local baseType = build.base.data.type or "VEHICLE"
     local baseHandle = spawn_entity(build.base.data, baseType, isPreview, pos)
     if baseHandle then
-        Log.log("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
+        Log.debug("spawned base " .. baseHandle .. " preview: " .. (isPreview and "yes" or "no"))
         if isPreview then
             set_preview(baseHandle, "_base", wSize, previewFunc, previewData, hSize)
         else
