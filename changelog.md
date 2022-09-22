@@ -166,3 +166,4 @@ V1.24.0
 * Added ability to set animations on entities (see jackz_animator)
 * Fix some bugs
 * (1.24.1) Fix bug
+* (1.24.2) Fix download process
