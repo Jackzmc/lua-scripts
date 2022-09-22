@@ -705,8 +705,9 @@ function _fetch_cloud_sorts()
                     local description = _format_vehicle_info(build.format, build.uploaded, build.author, build.rating)
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
-                        _fetch_vehicle_data(nil, build.uploader, build.name)
-                        _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { ['vehicle'] = build })
+                        _fetch_vehicle_data(nil, build.uploader, build.name, function(baseHandle, fullData)
+                            _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { ['vehicle'] = fullData })
+                        end)
                     end)
                     table.insert(cloudBuildListMenus, buildEntryList)
                 end
@@ -777,7 +778,7 @@ function _load_cloud_vehicles(user)
         end
     end
 end
-function _fetch_vehicle_data(tableref, user, vehicleName)
+function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess)
     show_busyspinner("Fetching build info...")
     async_http.init("jackz.me", string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
@@ -797,9 +798,13 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                     data.vehicle.name = vehicleName
                 end
                 data.uploader = user
-                local status, data = pcall(spawn_build, data.vehicle, true, _render_cloud_build_overlay, data)
-                if not status then
-                    Log.toast("Cloud build is invalid, failed to spawn\n", data)
+                local status, spawnResponse = pcall(spawn_build, data.vehicle, true, _render_cloud_build_overlay, data)
+                if status then
+                    if onSuccess then
+                        onSuccess(spawnResponse, data)
+                    end
+                else
+                    Log.toast("Cloud build is invalid, failed to spawn\n", spawnResponse)
                 end
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
