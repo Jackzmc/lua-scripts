@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.4"
+VERSION = "1.24.5"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -804,7 +804,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess)
                         onSuccess(spawnResponse, data)
                     end
                 else
-                    Log.toast("Cloud build is invalid, failed to spawn\n", spawnResponse)
+                    util.toast("Cloud build is invalid, failed to spawn\n", spawnResponse)
                 end
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
@@ -827,7 +827,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
         tries = tries + 1
     end
     if not vehicleData['vehicle'] and tries > 20 then
-        Log.toast("Timed out acquiring build data")
+        util.toast("Timed out acquiring build data")
         return
     end
 
@@ -842,7 +842,7 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
             end
         else
             Log.error("spawn_build:", baseHandle)
-            Log.toast("Could not spawn build: Invalid build data")
+            util.toast("Could not spawn build: Invalid build data")
         end
     end)
 
@@ -922,7 +922,7 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
         data.spawnLocation = ENTITY.GET_ENTITY_COORDS(issuerPed)
         status, errMsg = pcall(spawn_build, data, false)
         if not status then
-            Log.toast("A build was found but was invalid, cannot spawn.\n", errMsg)
+            util.toast("A build was found but was invalid, cannot spawn.\n", errMsg)
         end
     elseif issuer == players.user() then
         util.toast("Could not specified build")
@@ -1031,7 +1031,7 @@ function _setup_spawn_list_entry(parentList, filepath)
                             TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
                         end
                     else
-                        Log.toast("Build is invalid, cannot spawn\n", baseHandle)
+                        util.toast("Build is invalid, cannot spawn\n", baseHandle)
                     end
                 end))
     
