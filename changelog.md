@@ -167,3 +167,4 @@ V1.24.0
 * Fix some bugs
 * (1.24.1) Fix bug
 * (1.24.2) Fix download process
+* (1.24.3) Check for invalid builds on spawn

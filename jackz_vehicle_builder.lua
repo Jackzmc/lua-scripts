@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.2"
+VERSION = "1.24.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -797,10 +797,9 @@ function _fetch_vehicle_data(tableref, user, vehicleName)
                     data.vehicle.name = vehicleName
                 end
                 data.uploader = user
-                if tableref then
-                    spawn_build(tableref['vehicle'], true, _render_cloud_build_overlay, data)
-                else
-                    spawn_build(data.vehicle, true, _render_cloud_build_overlay, data)
+                local status, data = pcall(spawn_build, tableref and tableref['vehicle'] or data.vehicle, true, _render_cloud_build_overlay, data)
+                if not status then
+                    Log.toast("Cloud build is invalid, failed to spawn\n", data)
                 end
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
@@ -915,7 +914,10 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
         end
         local issuerPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(issuer)
         data.spawnLocation = ENTITY.GET_ENTITY_COORDS(issuerPed)
-        spawn_build(data, false)
+        status, errMsg = pcall(spawn_build, data, false)
+        if not status then
+            Log.toast("A build was found but was invalid, cannot spawn.\n", errMsg)
+        end
     elseif issuer == players.user() then
         util.toast("Could not specified build")
     end
@@ -1015,11 +1017,15 @@ function _setup_spawn_list_entry(parentList, filepath)
                     lastAutosave = os.seconds()
                     autosaveNextTime = lastAutosave + AUTOSAVE_INTERVAL_SEC
                     clear_build_preview()
-                    local baseHandle = spawn_build(data, false)
-                    if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
-                        util.yield()
-                        local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-                        TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+                    local status, baseHandle = pcall(spawn_build, data, false)
+                    if status then
+                        if ENTITY.IS_ENTITY_A_VEHICLE(baseHandle) and scriptSettings.spawnInVehicle then
+                            util.yield()
+                            local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+                            TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
+                        end
+                    else
+                        Log.toast("Build is invalid, cannot spawn\n", baseHandle)
                     end
                 end))
     
