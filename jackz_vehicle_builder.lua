@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.1"
+VERSION = "1.24.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -44,21 +44,23 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     end
 end
 
-local animatorLib = try_require("jackzanimatorlib")
+local animatorLib
+if SCRIPT_SOURCE == "MANUAL" then
+    animatorLib = try_require("jackzanimatorlib", true)
 
-if not animatorLib then
-    download_lib_update("jackzanimatorlib.lua")
-elseif animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
-    if SCRIPT_SOURCE == "MANUAL" then
-        Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
-        util.toast("Outdated animator library, downloading update...")
+    if not animatorLib then
         download_lib_update("jackzanimatorlib.lua")
-        animatorLib = require("jackzanimatorlib")
-    elseif animatorLib then
-        util.toast("Outdated lib: 'jackzanimatorlib'")
+    elseif animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
+        if SCRIPT_SOURCE == "MANUAL" then
+            Log.log("animatorlib current: " .. animatorLib.VERSION, ", target version: " .. ANIMATOR_LIB_TARGET)
+            util.toast("Outdated animator library, downloading update...")
+            download_lib_update("jackzanimatorlib.lua")
+            animatorLib = require("jackzanimatorlib")
+        elseif animatorLib then
+            util.toast("Outdated lib: 'jackzanimatorlib'")
+        end
     end
 end
-
 
 -- [ Begin actual script ]--
 -- Autosave state
@@ -2450,7 +2452,9 @@ end
 local animationsList = {}
 function setup_animations_list(list, entity)
     clear_menu_array(animationsList)
-    table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
+    if not animatorLib then
+        table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
+    end
     animatorLib.RecordingController.ListRecordings(function(filepath, filename)
         table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
             local data = animatorLib.RecordingController.LoadRecordingData(filepath)
