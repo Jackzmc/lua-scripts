@@ -820,7 +820,7 @@ function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess)
     async_http.dispatch()
 end
 
-function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
+function _setup_cloud_build_menu(rootList, user, buildName, vehicleData)
     local tries = 0
     while not vehicleData['vehicle'] and tries < 10 do
         util.yield(500)
@@ -841,19 +841,19 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
                 TASK.TASK_WARP_PED_INTO_VEHICLE(my_ped, baseHandle, -1)
             end
         else
-            Log.error("spawn_build:", baseHandle)
+            Log.error(string.format("spawn_build \"%s / %s\" failed: %s", user, buildName, baseHandle))
             util.toast("Could not spawn build: Invalid build data")
         end
     end)
 
     menu.action(rootList, "Edit", {}, "Allows you to edit this build in the builder", function()
-        if import_build_to_builder(vehicleData['vehicle'], vehicleName) then
+        if import_build_to_builder(vehicleData['vehicle'], buildName) then
             menu.focus(builder.entitiesMenuList)
         else
             util.toast("Could not spawn build's base entity; cannot spawn build.")
         end
     end)
-    menu.text_input(rootList, "Download", {"download"..user.."."..vehicleName}, "Downloads to " .. DOWNLOADS_DIRECTORY, function(filename)
+    menu.text_input(rootList, "Download", {"download"..user.."."..buildName}, "Downloads to " .. DOWNLOADS_DIRECTORY, function(filename)
         if filename == "" or scriptEnding then return end
         if not filesystem.exists(DOWNLOADS_DIRECTORY) then
             filesystem.mkdir(DOWNLOADS_DIRECTORY)
@@ -863,15 +863,15 @@ function _setup_cloud_build_menu(rootList, user, vehicleName, vehicleData)
             file:write(json.encode(vehicleData['vehicle']))
             file:flush()
             file:close()
-            util.toast(string.format("Downloaded %s to downloads directory", vehicleName))
+            util.toast(string.format("Downloaded %s to downloads directory", buildName))
         else
             util.toast("Could download file")
         end
-    end, vehicleName .. ".json")
+    end, buildName .. ".json")
 
     if user ~= SOCIALCLUB._SC_GET_NICKNAME() then
-        menu.click_slider(rootList, "Rate", {"rate"..user.."."..vehicleName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
-            rate_build(user, vehicleName, rating)
+        menu.click_slider(rootList, "Rate", {"rate"..user.."."..buildName}, "Rate the uploaded build with 1-5 stars", 1, 5, 5, 1, function(rating)
+            rate_build(user, buildName, rating)
         end)
     end
 end
