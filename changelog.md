@@ -164,3 +164,5 @@ V1.24.0
 * Add shortcuts to adding jackz_vehicles
 * Add abiity to attach entities directly to the world
 * Added ability to set animations on entities (see jackz_animator)
+* Fix some bugs
+* (1.24.1) Fix bug
