@@ -170,3 +170,4 @@ V1.24.0
 * (1.24.3) Check for invalid builds on spawn
 * (1.24.4) Changed cloud spawning logic
 * (1.24.5) Fix wrong toast
+* (1.24.6) Fix uncaught error
