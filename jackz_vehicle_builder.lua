@@ -46,8 +46,6 @@ end
 
 local animatorLib
 if SCRIPT_SOURCE == "MANUAL" then
-    animatorLib
-if SCRIPT_SOURCE == "MANUAL" then
     animatorLib = try_require("jackzanimatorlib", true, true)
 
     if not animatorLib then
