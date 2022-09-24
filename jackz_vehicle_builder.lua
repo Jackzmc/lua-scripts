@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.7"
+VERSION = "1.24.8"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -46,7 +46,9 @@ end
 
 local animatorLib
 if SCRIPT_SOURCE == "MANUAL" then
-    animatorLib = try_require("jackzanimatorlib", true)
+    animatorLib
+if SCRIPT_SOURCE == "MANUAL" then
+    animatorLib = try_require("jackzanimatorlib", true, true)
 
     if not animatorLib then
         download_lib_update("jackzanimatorlib.lua")
@@ -1605,7 +1607,7 @@ function create_particles_fx_spawner_list(root)
     end
     local searchList = menu.list(root, "Search Particles")
     menu.text_input(searchList, "Search", {"searchparticles"}, "Enter a particle name to search for", function(query)
-        create_vehicle_search_results(searchList, query, 30)
+        create_particles_search_results(searchList, query, 30)
     end)
     builder.particlesSpawner.recents.list = menu.list(root, "Recent Particles", {}, "Browse your most recently used particles", _load_particles_recent_menu)
     builder.particlesSpawner.favorites.list = menu.list(root, "Favorite Particles", {}, "Your favorited spawned particles\nPress SHIFT + ENTER to remove items from favorites", _load_particles_favorites_menu, _destroy_favorites_menus)
@@ -1774,6 +1776,39 @@ function create_vehicle_search_results(searchList, query, max)
     for i = 1, max do
         if results[i] then
             table.insert(searchResults, add_vehicle_menu(searchList, results[i].id, results[i].name, results[i].dlc))
+        end
+    end
+end
+
+function create_particles_search_results(searchList, query, max)
+    clear_menu_table(searchResults)
+    show_busyspinner("Searching particles...")
+
+    local results = {}
+    local currentDict
+    for line in io.lines(PARTICLES_PATH) do
+        local dict = line:match("^%[(%g+)%]")
+        if dict then
+            currentDict = dict
+        elseif currentDict then
+            line = line:gsub("%s+", "")
+            -- Ignore '#' comments and empty erlines
+            if line ~= "" and line:sub(1, 1) ~= "#" then
+                local i, j = name:find(query)
+                if i then
+                    table.insert(results, {
+                        dict = dict,
+                        name = line,
+                        distance = j - i
+                    })
+                end
+            end
+        end
+    end
+    table.sort(results, function(a, b) return a.distance > b.distance end)
+    for i = 1, max do
+        if results[i] then
+            table.insert(searchResults, add_particles_menu(searchList, results[i].dict, results[i].name))
         end
     end
 end
