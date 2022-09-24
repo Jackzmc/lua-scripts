@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.8"
+VERSION = "1.24.9"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -23,7 +23,7 @@ end
 
 local json = try_require("json")
 local vehiclelib = try_require("jackzvehiclelib")
-if vehiclelib == true then
+if vehiclelib == true or not vehiclelib then
     if SCRIPT_SOURCE == "REPO" then
         util.toast("Fatal error: Lib 'jackzvehiclelib' file is corrupted. Please report this issue.\n(REPO - V" .. VERSION .. ")")
     else
@@ -46,7 +46,7 @@ end
 
 local animatorLib
 if SCRIPT_SOURCE == "MANUAL" then
-    animatorLib = try_require("jackzanimatorlib", true, true)
+    animatorLib = try_require("jackzanimatorlib", true)
 
     if not animatorLib then
         download_lib_update("jackzanimatorlib.lua")
@@ -915,7 +915,7 @@ local spawnSavedCommand = menu.action(menu.my_root(), "internal:spawnsavedbuild"
     local status, data = pcall(get_build_data_from_file, args)
     if status then
         if issuer ~= players.user() and (not scriptSettings.scriptSettings.allowOthersToSpawn or not data.allowPlayerSpawning) then
-            Util.debug("Ignoring pid from spawning non authorized build: %d", issuer)
+            util.debug("Ignoring pid from spawning non authorized build: %d", issuer)
             return
         end
         local issuerPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(issuer)
@@ -1792,7 +1792,7 @@ function create_particles_search_results(searchList, query, max)
             line = line:gsub("%s+", "")
             -- Ignore '#' comments and empty erlines
             if line ~= "" and line:sub(1, 1) ~= "#" then
-                local i, j = name:find(query)
+                local i, j = line:find(query)
                 if i then
                     table.insert(results, {
                         dict = dict,

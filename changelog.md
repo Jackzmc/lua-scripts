@@ -173,3 +173,4 @@ V1.24.0
 * (1.24.6) Fix uncaught error
 * (1.24.7) Fix more merge errors
 * (1.24.8) Add missing particles search
+* (1.24.9) Fix another error -_-
