@@ -778,7 +778,7 @@ function _load_cloud_vehicles(user)
         end
     end
 end
-function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess, onSuccess)
+function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess)
     show_busyspinner("Fetching build info...")
     async_http.init("jackz.me", string.format("/stand/cloud/builds.php?scname=%s&vehicle=%s", user, vehicleName), function(body, res_headers, status_code)
         HUD.BUSYSPINNER_OFF()
