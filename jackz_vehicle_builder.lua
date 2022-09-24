@@ -2467,9 +2467,8 @@ local animationsList = {}
 function setup_animations_list(list, entity)
     clear_menu_array(animationsList)
     if not animatorLib then
-        if not animatorLib then
         table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
-    end
+        return
     end
     animatorLib.RecordingController.ListRecordings(function(filepath, filename)
         table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
