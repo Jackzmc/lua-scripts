@@ -172,3 +172,4 @@ V1.24.0
 * (1.24.5) Fix wrong toast
 * (1.24.6) Fix uncaught error
 * (1.24.7) Fix more merge errors
+* (1.24.8) Add missing particles search
