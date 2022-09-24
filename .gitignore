@@ -45,3 +45,4 @@
 !.vscode/settings.json
 !.gitignore
 !README.md
+*.sh
