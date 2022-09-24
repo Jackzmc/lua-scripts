@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.10"
+VERSION = "1.24.11"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -1783,7 +1783,7 @@ function create_particles_search_results(searchList, query, max)
     show_busyspinner("Searching particles...")
 
     local results = {}
-    local currentDict
+    local currentDict = nil
     for line in io.lines(PARTICLES_PATH) do
         local dict = line:match("^%[(%g+)%]")
         if dict then
@@ -1795,7 +1795,7 @@ function create_particles_search_results(searchList, query, max)
                 local i, j = line:find(query)
                 if i then
                     table.insert(results, {
-                        dict = dict,
+                        dict = currentDict,
                         name = line,
                         distance = j - i
                     })
