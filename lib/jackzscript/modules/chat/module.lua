@@ -59,10 +59,10 @@ local Module = {
 --- @return boolean TRUE if module should be loaded, false if not
 function Module:OnModulePreload(isManual, wasUpdated)
     lang.set_autodownload_uri("jackz.me", "/stand/translations/")
-    lang.load_translation_file("jackz_chat")
     if wasUpdated then
         lang.update_translation_file("jackz_chat")
     end
+    lang.load_translation_file("jackz_chat")
     return true
 end
 

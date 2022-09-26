@@ -27,6 +27,7 @@ function jutil.WriteKV(file, kv, prefix)
     file:flush()
 end
 
+-- TODO: Allow stopping timer
 --- Creates a timer that is called every millisecond
 --- @param callback function A function to be called every interval
 --- @param ... any arguments to pass to callback
@@ -40,6 +41,7 @@ function jutil.CreateTimer(ms, callback, ...)
     end)
 end
 
+-- TODO: Allow stopping timeout
 --- Creates a timeout that is called after the specified amount of ms elapses
 --- @param callback function A function to be called once time is up
 --- @param ... any arguments to pass to callback
@@ -93,6 +95,7 @@ function jutil.DumpTable(o)
     end
 end
 
+-- TODO: Replace sync return with async callback
 --- Fetches a URL and parses JSON.
 --- @param type string either 'GET' or 'POST'
 --- @param uri string The full url to fetch from
