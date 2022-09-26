@@ -641,6 +641,7 @@ function destroy_animations_data()
     end
     animMenuData = {}
     animLoaded = false
+    menu.collect_garbage()
 end
 function setup_category_animations(category)
     animMenuData[category].menus = {}
