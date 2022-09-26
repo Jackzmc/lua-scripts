@@ -102,44 +102,43 @@ end
 --- @return number internal modid
 function ModuleManager:LoadModule(name)
     if self:GetModuleIndex(name) ~= nil then
-        error(SCRIPT_NAME .. ": Attempted to load module that is already loaded (" .. name .. ")")
-    else
-        -- Pull module from modulename\\module.lua or just modulename.lua
-        -- local requirePath = (filesystem.is_dir(self.DIRECTORY .. name))
-        --     and "jackzscript\\modules\\" .. name .. "\\module"
-        --     or "jackzscript\\modules\\" .. name
-        local requirePath = "jackzscript\\modules\\" .. name .. "\\module"
-        if not filesystem.exists(requirePath) then
-            requirePath = "jackzscript\\modules\\" .. name .. "\\" .. name
-        end
+        return error(SCRIPT_NAME .. ": Attempted to load module that is already loaded (" .. name .. ")")
+    end
+    -- Pull module from modulename\\module.lua or just modulename.lua
+    -- local requirePath = (filesystem.is_dir(self.DIRECTORY .. name))
+    --     and "jackzscript\\modules\\" .. name .. "\\module"
+    --     or "jackzscript\\modules\\" .. name
+    local requirePath = "jackzscript\\modules\\" .. name .. "\\module"
+    if not filesystem.exists(requirePath) then
+        requirePath = "jackzscript\\modules\\" .. name .. "\\" .. name
+    end
 
-        local status, mod = pcall(require, requirePath)
-        if status then
-            if mod ~= nil and mod.OnModulePreload then
-                self:_initVariables(mod, name)
-                local wasUpdated = (jutil.ParseSemver(mod.VERSION) ~= nil and Versions:Get(name) ~= nil and Versions:Compare(name, mod.VERSION) == 1)
-                if wasUpdated then mod.previousVersion = Versions:Get(name) end
-                if mod:OnModulePreload(false, wasUpdated) then
-                    if mod.sharedLibs then
-                        for libid, data in pairs(mod.sharedLibs) do
-                            Libs:Load(libid, data, true)
-                            table.insert(Libs[libid].requiredByModules, name)
-                        end
+    local status, mod = pcall(require, requirePath)
+    if status then
+        if mod ~= nil and mod.OnModulePreload then
+            self:_initVariables(mod, name)
+            local wasUpdated = (jutil.ParseSemver(mod.VERSION) ~= nil and Versions:Get(name) ~= nil and Versions:Compare(name, mod.VERSION) == 1)
+            if wasUpdated then mod.previousVersion = Versions:Get(name) end
+            if mod:OnModulePreload(false, wasUpdated) then
+                if mod.sharedLibs then
+                    for libid, data in pairs(mod.sharedLibs) do
+                        Libs:Load(libid, data, true)
+                        table.insert(Libs[libid].requiredByModules, name)
                     end
-                    table.insert(self.Modules, mod)
-                    if self.initLoadComplete then
-                        self:_start(mod)
-                        Versions:Save()
-                    end
-                    return #self.Modules
                 end
-            else
-                error(SCRIPT_NAME .. ": Invalid module \"" .. name .. "\", missing preload function")
-                util.log(SCRIPT_NAME .. ": Invalid module \"" .. name .. "\", missing load function")
+                table.insert(self.Modules, mod)
+                if self.initLoadComplete then
+                    self:_start(mod)
+                    Versions:Save()
+                end
+                return #self.Modules
             end
         else
-            error(SCRIPT_NAME .. ": Could not load module \"" .. name .. "\": " .. mod)
+            error(SCRIPT_NAME .. ": Invalid module \"" .. name .. "\", missing preload function")
+            util.log(SCRIPT_NAME .. ": Invalid module \"" .. name .. "\", missing load function")
         end
+    else
+        error(SCRIPT_NAME .. ": Could not load module \"" .. name .. "\": " .. mod)
     end
 end
 
