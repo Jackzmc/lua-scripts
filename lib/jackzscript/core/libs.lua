@@ -76,7 +76,7 @@ end)
 
 --- Will unload lib once determined no other module is using it
 function Libs:DiscardLib(libid)
-    jutil.CreateTimeout(30000, function()
+    JUtil.CreateTimeout(30000, function()
         -- After this timeout, if this lib is still not used, delete it
         if Libs[libid] and #Libs[libid].requiredByModules == 0 then
             Libs[libid] = nil

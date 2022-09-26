@@ -36,7 +36,7 @@ local Module = {
 function Module:isModuleOutdated()
     local result = nil
     async_http.init("jackz.me", "/stand/updatecheck.php?ucv=3&module=no%20police%20helicopters", function(latest)
-        if jutil.CompareSemver(self.version, latest) == -1 then
+        if JUtil.CompareSemver(self.version, latest) == -1 then
             ModuleManager:DownloadSingle(self.name, "https://jackz.me/stand/modules/" .. self.name .. ".lua")
             result = true
         else

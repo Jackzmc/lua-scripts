@@ -117,7 +117,7 @@ function ModuleManager:LoadModule(name)
     if status then
         if mod ~= nil and mod.OnModulePreload then
             self:_initVariables(mod, name)
-            local wasUpdated = (jutil.ParseSemver(mod.VERSION) ~= nil and Versions:Get(name) ~= nil and Versions:Compare(name, mod.VERSION) == 1)
+            local wasUpdated = (JUtil.ParseSemver(mod.VERSION) ~= nil and Versions:Get(name) ~= nil and Versions:Compare(name, mod.VERSION) == 1)
             if wasUpdated then mod.previousVersion = Versions:Get(name) end
             if mod:OnModulePreload(false, wasUpdated) then
                 if mod.sharedLibs then
@@ -234,7 +234,7 @@ function ModuleManager:_setupModuleConfig(name, meta)
             enabledModules[name] = nil
             self:UnloadModule(name)
         end
-        jutil.WriteKV(stateFile, enabledModules)
+        JUtil.WriteKV(stateFile, enabledModules)
     end, enabledModules[name])
     if meta.url then
         menu.hyperlink(m, "View webpage", meta.url)
