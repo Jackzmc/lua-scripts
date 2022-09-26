@@ -100,44 +100,49 @@ end
 
 function Module:fetchMessages()
     local headers = self.devToken and { ["x-dev-token"] = self.devToken } or nil
-    local data = jutil.FetchJson("GET", "https://jackz.me/stand/chat/channels/" .. self.recvChannel .. "/" .. self.lastTimestamp, headers)
-    if data then
-        for _, message in ipairs(data.m) do
-            if message.u ~= self.user then
-              table.insert(self.messages, message)
+    jutil.GetJson("https://jackz.me/stand/chat/channels/" .. self.recvChannel .. "/" .. self.lastTimestamp, headers, function(statusCode, resHeaders, data)
+        if data then
+            for _, message in ipairs(data.m) do
+                if message.u ~= self.user then
+                  table.insert(self.messages, message)
+                end
+                -- max 20 messages
+                if #self.messages > 20 then
+                  table.remove(self.messages, 1)
+                end
             end
-            -- max 20 messages
-            if #self.messages > 20 then
-              table.remove(self.messages, 1)
-            end
+            self.lastTimestamp = data.t
         end
-        self.lastTimestamp = data.t
-    end
+    end)
+    
 end
 
 function Module:sendMessage(content)
     jutil.ShowBusySpinner("Sending message...")
-    async_http.init("stand-chat.jackz.me", "/channels/" .. self.sendChannel .. "?v=" .. self.VERSION, function(result)
-        if result == "OK" or result == "Bad Request" then
-          table.insert(self.messages, {
-            u = self.user,
-            c = content:sub(1,100),
-            t = util.current_unix_time_millis() * 1000,
-            l = self.sendChannel
-          })
-        elseif result == "MAINTENANCE" then
-          lang.toast("SEND_MAINTENANCE")
-        else
-          lang.toast("SEND_ERR", result)
+    jutil.PostJson(
+        "https://stand-chat.jackz.me/channels/" .. self.sendChannel .. "?v=" .. self.VERSION,
+        {
+            user = self.user,
+            content = content,
+            hash = self.keyhash,
+            rid = self.rid
+        },
+        function(statusCode, resHeaders, result)
+            HUD.BUSYSPINNER_OFF()
+            if result == "OK" or result == "Bad Request" then
+                table.insert(self.messages, {
+                u = self.user,
+                c = content:sub(1,100),
+                t = util.current_unix_time_millis() * 1000,
+                l = self.sendChannel
+                })
+            elseif result == "MAINTENANCE" then
+                lang.toast("SEND_MAINTENANCE")
+            else
+                lang.toast("SEND_ERR", result)
+            end
         end
-        HUD.BUSYSPINNER_OFF()
-    end)
-    async_http.set_post("application/json", json.encode({
-        user = self.user,
-        content = content,
-        hash = self.keyhash,
-        rid = self.rid
-    }))
+    )
 end
 
 function Module:setupOptionsMenu(root)
@@ -175,17 +180,16 @@ end
 function Module:setupChannelList(root)
     local channelList = menu.list(root, lang.format("CHANNELS_NAME"), {}, lang.format("CHANNELS_DESC") .. "\n\n" .. lang.format("CHANNELS_ACTIVE", "default"))
 
-    local info = jutil.FetchJson("GET", "https://jackz.me/stand/chat/info")
-    if info then
+    jutil.GetJson("https://jackz.me/stand/chat/info", {}, function(succesCode, resHeaders, info)
         for _, channel in ipairs(info.publicChannels) do
             menu.action(channelList, channel, {"chatchannel" .. channel}, lang.format("CHANNELS_SWITCH_TO", channel), function(_)
                 self:switchChannel(channel)
             end)
         end
-    else
-        util.toast("fail")
-        self.log("Could not fetch public channels list")
-    end
+    end, function(statusCode, error)
+        util.toast("Failed to acquire chat information")
+        Log.error(string.format("Could not fetch public channels list (code=%d): %s", statusCode, error))
+    end)
 
     -- lang.menus.text_input(channelList, "CHANNELS_SPECIFIC", { "chatchannel" }, function(args)
     --     args = args:gsub('%W','')
