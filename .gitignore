@@ -13,8 +13,22 @@
 !jackz_chat.lua
 !jackz_vehicle_builder.lua
 !jackz_animator.lua
+!jackzscript.lua
 
 !lib/
+!lib/jackzscript/
+!lib/jackzscript/*
+!lib/jackzscript/core/
+!lib/jackzscript/core/*
+!lib/jackzscript/modules/
+!lib/jackzscript/modules/*
+!lib/jackzscript/modules/chat/
+!lib/jackzscript/modules/example/
+!lib/jackzscript/modules/jackz_vehicles/
+!lib/jackzscript/modules/chat/*
+!lib/jackzscript/modules/example/*
+!lib/jackzscript/modules/jackz_vehicles/*
+
 !lib/natives-1627063482.lua
 !lib/natives-1639742232.lua
 !lib/animations.lua
