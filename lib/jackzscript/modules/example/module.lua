@@ -8,6 +8,8 @@
 AVAILABLE GLOBALS:
 Log: debug, log, toast, warn, error, severe methods
 json (json.lua library)
+JUtil: Some utility functions
+l18n: (translations library)
 Any natives of version CONFIG.NATIVES_VERSION
 MODULE_FILENAME - The name of the actual module's filename, without ext
 MODULE_FILENAME_EXT - Same as above, but with the .lua extension
@@ -84,7 +86,7 @@ end
 --- Return nil for no update or return a string of the new version. This will then download from Config.UpdateCheck.SourceUrl
 --- @param source string The source of update check, "module" for a module update, or if a dependency, it's provided name.
 function Module:OnUpdateCheck(source, statusCode, body)
-    if jutil.CompareSemver(self.Version, body) == 1 then
+    if JUtil.CompareSemver(self.Version, body) == 1 then
         -- TODO: Print a changelog!
         return body
     else

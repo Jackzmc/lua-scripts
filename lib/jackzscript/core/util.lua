@@ -1,11 +1,11 @@
-local jutil = {}
-function jutil.TouchFile(path)
+local JUtil = {}
+function JUtil.TouchFile(path)
     if not filesystem.exists(path) then
         local file = io.open(path, "w")
         file:close()
     end
 end
-function jutil.ReadKV(file)
+function JUtil.ReadKV(file)
     local kv = {}
     for line in file:lines("l") do
         local key, value = line:match("(.+): (%g+)")
@@ -16,7 +16,7 @@ function jutil.ReadKV(file)
     return kv
 end
 
-function jutil.WriteKV(file, kv, prefix)
+function JUtil.WriteKV(file, kv, prefix)
     file:seek("set", 0)
     if prefix then
         file:write(prefix)
@@ -40,7 +40,7 @@ end
 --- @param callback function A function to be called every interval
 --- @param ... any arguments to pass to callback
 --- @returns number Returns a timer id
-function jutil.CreateTimer(ms, callback, ...)
+function JUtil.CreateTimer(ms, callback, ...)
     if not ms or not callback then error("Missing one or more properties: 'ms', and 'callback'") end
     local data = {...}
     local timerId = _get_timer_id()
@@ -56,7 +56,7 @@ end
 --- @param callback function A function to be called once time is up
 --- @param ... any arguments to pass to callback
 --- @returns number Returns a timer id
-function jutil.CreateTimeout(ms, callback, ...)
+function JUtil.CreateTimeout(ms, callback, ...)
     if not ms or not callback then error("Missing one or more properties: 'ms', and 'callback'") end
     local data = {...}
     local timerId = _get_timer_id()
@@ -75,14 +75,14 @@ end
 --- @param callback function A function to be called once time is up
 --- @param ... any arguments to pass to callback
 --- @returns boolean returns true if timer was valid
-function jutil.StopTimer(timerId)
+function JUtil.StopTimer(timerId)
     local result = false
     if _timers[timerId] then result = true end
     _timers[timerId] = nil
     return result
 end
 
-function jutil.ParseSemver(version)
+function JUtil.ParseSemver(version)
     local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
     if not major then return nil end
     return {
@@ -93,9 +93,9 @@ function jutil.ParseSemver(version)
 end
 --- Compares two semver versions.
 --- @return number 1 if A > B, 0 if same, -1 if A < B
-function jutil.CompareSemver(a, b)
-    local av = jutil.ParseSemver(a)
-    local bv = jutil.ParseSemver(b)
+function JUtil.CompareSemver(a, b)
+    local av = JUtil.ParseSemver(a)
+    local bv = JUtil.ParseSemver(b)
 
     if av.major > bv.major then return 1
     elseif av.major < bv.major then return -1
@@ -106,12 +106,12 @@ function jutil.CompareSemver(a, b)
     else return 0 end
 end
 
-function jutil.DumpTable(o)
+function JUtil.DumpTable(o)
     if type(o) == 'table' then
        local s = '{ '
        for k,v in pairs(o) do
           if type(k) ~= 'number' then k = '"'..k..'"' end
-          s = s .. '['..k..'] = ' .. jutil.DumpTable(v) .. ','
+          s = s .. '['..k..'] = ' .. JUtil.DumpTable(v) .. ','
        end
        return s .. '} '
     else
@@ -125,7 +125,7 @@ end
 --- @param payload ?string A payload optionally to send, will be sent as serialized json (don't encode before)
 --- @param successCallback function Called with json results (statusCode, resultHeaders, result). If status code is 204, result is nil
 --- @param errorCallback ?function Optionally called with any errors. (statusCode, resultHeaders, errorMessage) Network error is -1 
-function jutil.GetJson(uri, headers, successCallback, errorCallback)
+function JUtil.GetJson(uri, headers, successCallback, errorCallback)
     _doJsonRequest("POST", uri, headers, nil, successCallback, errorCallback)
 end
 
@@ -135,7 +135,7 @@ end
 --- @param payload ?string A payload optionally to send, will be sent as serialized json (don't encode before)
 --- @param successCallback function Called with json results (statusCode, resultHeaders, result). If status code is 204, result is nil
 --- @param errorCallback ?function Optionally called with any errors. (statusCode, resultHeaders, errorMessage) Network error is -1 
-function jutil.PostJson(uri, headers, payload, successCallback, errorCallback)
+function JUtil.PostJson(uri, headers, payload, successCallback, errorCallback)
     _doJsonRequest("GET", uri, headers, payload, successCallback, errorCallback)
 end
 
@@ -186,14 +186,14 @@ function _doJsonRequest(type, uri, headers, payload, successCallback, errorCallb
     async_http.dispatch()
 end
 
-function jutil.ShowBusySpinner(text)
+function JUtil.ShowBusySpinner(text)
     HUD.BEGIN_TEXT_COMMAND_BUSYSPINNER_ON("STRING")
     HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
-function jutil.StopBusySpinner(text)
+function JUtil.StopBusySpinner(text)
     HUD.BUSYSPINNER_OFF()
 end
 
 
-return jutil
+return JUtil

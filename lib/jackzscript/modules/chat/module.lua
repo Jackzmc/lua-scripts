@@ -82,7 +82,7 @@ function Module:OnReady(root)
     Module:setupOptionsMenu(root)
     Module:setupChannelList(root)
 
-    jutil.CreateTimer(7000, function()
+    JUtil.CreateTimer(7000, function()
         Module:fetchMessages()
     end)
 
@@ -100,7 +100,7 @@ end
 
 function Module:fetchMessages()
     local headers = self.devToken and { ["x-dev-token"] = self.devToken } or nil
-    jutil.GetJson("https://jackz.me/stand/chat/channels/" .. self.recvChannel .. "/" .. self.lastTimestamp, headers, function(statusCode, resHeaders, data)
+    JUtil.GetJson("https://jackz.me/stand/chat/channels/" .. self.recvChannel .. "/" .. self.lastTimestamp, headers, function(statusCode, resHeaders, data)
         if data then
             for _, message in ipairs(data.m) do
                 if message.u ~= self.user then
@@ -118,8 +118,8 @@ function Module:fetchMessages()
 end
 
 function Module:sendMessage(content)
-    jutil.ShowBusySpinner("Sending message...")
-    jutil.PostJson(
+    JUtil.ShowBusySpinner("Sending message...")
+    JUtil.PostJson(
         "https://stand-chat.jackz.me/channels/" .. self.sendChannel .. "?v=" .. self.VERSION,
         {
             user = self.user,
@@ -180,7 +180,7 @@ end
 function Module:setupChannelList(root)
     local channelList = menu.list(root, lang.format("CHANNELS_NAME"), {}, lang.format("CHANNELS_DESC") .. "\n\n" .. lang.format("CHANNELS_ACTIVE", "default"))
 
-    jutil.GetJson("https://jackz.me/stand/chat/info", {}, function(succesCode, resHeaders, info)
+    JUtil.GetJson("https://jackz.me/stand/chat/info", {}, function(succesCode, resHeaders, info)
         for _, channel in ipairs(info.publicChannels) do
             menu.action(channelList, channel, {"chatchannel" .. channel}, lang.format("CHANNELS_SWITCH_TO", channel), function(_)
                 self:switchChannel(channel)

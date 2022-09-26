@@ -28,7 +28,7 @@ async_http.dispatch()
 --#P:END
 
 -- Loads into global scope
-jutil = require('jackzscript\\core\\util')
+JUtil = require('jackzscript\\core\\util')
 Versions = require('jackzscript\\core\\version')
 Libs = require('jackzscript\\core\\libs')
 while not Libs.loadComplete do
@@ -37,13 +37,13 @@ end
 Versions:Load()
 
 local STATE_FILE_PATH = filesystem.store_dir() .. "jackzscript.state.txt"
-jutil.TouchFile(STATE_FILE_PATH)
+JUtil.TouchFile(STATE_FILE_PATH)
 stateFile = io.open(STATE_FILE_PATH, "r+")
 
 util.require_natives(NATIVES_VERSION)
 lang.add_language_selector_to_menu(menu.my_root())
 
-enabledModules = jutil.ReadKV(stateFile)
+enabledModules = JUtil.ReadKV(stateFile)
 
 local ModuleManager = require('jackzscript\\core\\modules') --requires natives
 

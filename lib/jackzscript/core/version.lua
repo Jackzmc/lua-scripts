@@ -6,11 +6,11 @@ local Version = {
 
 function Version:Load()
     if not self.file then
-        jutil.TouchFile(self.PATH)
+        JUtil.TouchFile(self.PATH)
         self.file = io.open(self.PATH, "r+")
     end
-    jutil.ReadKV(self.file)
-    if self.versions["_core_"] == nil or jutil.CompareSemver(VERSION, self.versions["_core_"]) == 1 then
+    JUtil.ReadKV(self.file)
+    if self.versions["_core_"] == nil or JUtil.CompareSemver(VERSION, self.versions["_core_"]) == 1 then
         if self.versions["_core_"] ~= nil then
             async_http.init("jackz.me", "/stand/changelog.php?raw=1&script=" .. SCRIPT_NAME .. "&since=" .. self.versions["_core_"], function(result)
                 util.toast("Changelog for " .. SCRIPT_NAME .. " version " .. VERSION .. ":\n" .. result)
@@ -23,7 +23,7 @@ function Version:Load()
 end
 
 function Version:Compare(module, b)
-    return jutil.CompareSemver(self.versions[module], b)
+    return JUtil.CompareSemver(self.versions[module], b)
 end
 
 function Version:Get(module)
@@ -39,7 +39,7 @@ function Version:Save()
     if not self.file then
         error("Versions have not been loaded, cannot save")
     end
-    jutil.WriteKV(self.file, self.versions, "# DO NOT EDIT ! File is used for changelogs\n")
+    JUtil.WriteKV(self.file, self.versions, "# DO NOT EDIT ! File is used for changelogs\n")
 end
 
 -- Check for core-version changelog
