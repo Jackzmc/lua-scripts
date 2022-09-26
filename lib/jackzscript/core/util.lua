@@ -126,7 +126,7 @@ end
 --- @param successCallback function Called with json results (statusCode, resultHeaders, result). If status code is 204, result is nil
 --- @param errorCallback ?function Optionally called with any errors. (statusCode, resultHeaders, errorMessage) Network error is -1 
 function jutil.GetJson(uri, headers, successCallback, errorCallback)
-    _doJsonRequest(uri, headers, nil, successCallback, errorCallback)
+    _doJsonRequest("POST", uri, headers, nil, successCallback, errorCallback)
 end
 
 --- POST to a URL and parses JSON.
@@ -136,12 +136,12 @@ end
 --- @param successCallback function Called with json results (statusCode, resultHeaders, result). If status code is 204, result is nil
 --- @param errorCallback ?function Optionally called with any errors. (statusCode, resultHeaders, errorMessage) Network error is -1 
 function jutil.PostJson(uri, headers, payload, successCallback, errorCallback)
-    _doJsonRequest(uri, headers, payload, successCallback, errorCallback)
+    _doJsonRequest("GET", uri, headers, payload, successCallback, errorCallback)
 end
 
 function _doJsonRequest(type, uri, headers, payload, successCallback, errorCallback)
-    if not successCallback then
-        error("Missing callback for successful requests")
+    if type == 'GET' and not successCallback then
+        error("Missing success callback for GET request")
     end
     
     local domain, path = uri:match("([a-zA-Z.-]+)(/.*)")
