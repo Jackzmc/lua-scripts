@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.11"
+VERSION = "1.24.12"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.0.0"
@@ -706,7 +706,9 @@ function _fetch_cloud_sorts()
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
                         _fetch_vehicle_data(nil, build.uploader, build.name, function(baseHandle, fullData)
-                            _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, { ['vehicle'] = fullData })
+                            Log.debug("fetch data: ")
+                            Log.debugTable(fullData)
+                            _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, fullData)
                         end)
                     end)
                     table.insert(cloudBuildListMenus, buildEntryList)
