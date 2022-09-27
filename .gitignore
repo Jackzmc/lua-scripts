@@ -20,6 +20,8 @@
 !lib/jackzscript/*
 !lib/jackzscript/core/
 !lib/jackzscript/core/*
+!lib/jackzscript/core/wrappers/
+!lib/jackzscript/core/wrappers/*
 !lib/jackzscript/modules/
 !lib/jackzscript/modules/*
 !lib/jackzscript/modules/chat/

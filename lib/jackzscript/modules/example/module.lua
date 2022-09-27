@@ -36,7 +36,7 @@ local Module = {
     Dependencies = {
         Libs = {
             jackzvehiclelib = {
-                SourceUrl = "https://jackz.me/stand/libs/jackzvehiclelib.lua",
+                SourceUrl = "https://jackz.me/stand/get-lua.php?script=jackzvehiclelib&branch=%branch%",
                 Version = "0.1.0",
                 UpdateCheckUrl = nil -- Optional. If provided will call Module:OnUpdateCheck("jackzvehiclelib", statusCode, body) with results of url
             }
