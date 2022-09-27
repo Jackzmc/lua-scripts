@@ -118,7 +118,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-
 V1.22.0
 
 * Added "Create Manual Base" to spawn a manual model name
