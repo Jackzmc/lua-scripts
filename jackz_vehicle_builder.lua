@@ -706,8 +706,6 @@ function _fetch_cloud_sorts()
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
                         _fetch_vehicle_data(nil, build.uploader, build.name, function(baseHandle, fullData)
-                            Log.debug("fetch data: ")
-                            Log.debugTable(fullData)
                             _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, fullData)
                         end)
                     end)
