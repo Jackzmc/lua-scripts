@@ -176,3 +176,4 @@ V1.24.0
 * (1.24.9) Fix another error -_-
 * (1.24.10) Fix another git issue (cloud sorts lists)
 * (1.24.11) Fix search error
+* (1.24.12) Fix cloud sorts > spawn not working
