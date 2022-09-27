@@ -195,5 +195,12 @@ function JUtil.StopBusySpinner(text)
     HUD.BUSYSPINNER_OFF()
 end
 
+function JUtil.LoadModel(model)
+    STREAMING.REQUEST_MODEL(model)
+    while not STREAMING.IS_MODEL_LOADED(model) do
+        util.yield()
+    end
+end
+
 
 return JUtil
