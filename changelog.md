@@ -164,6 +164,11 @@ V1.25.0
 
 * Switched to new format 2 for jackz_animator (breaks old recordings)
 
+V1.26.0
+
+* Improved default names for some entities
+* (Manual only) Automatically restart script on update
+
 # jackz animator (v1)
 
 V1.1.0
