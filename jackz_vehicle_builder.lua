@@ -1,10 +1,10 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.24.12"
+VERSION = "1.25.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
-local ANIMATOR_LIB_TARGET = "1.0.0"
+local ANIMATOR_LIB_TARGET = "1.1.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -706,8 +706,6 @@ function _fetch_cloud_sorts()
                     local buildEntryList
                     buildEntryList = menu.list(cloudBuildsList, build.uploader .. " / " .. build.name, {}, description or "<invalid build metadata>", function()
                         _fetch_vehicle_data(nil, build.uploader, build.name, function(baseHandle, fullData)
-                            Log.debug("fetch data: ")
-                            Log.debugTable(fullData)
                             _setup_cloud_build_menu(buildEntryList, build.uploader, build.name, fullData)
                         end)
                     end)
@@ -2504,12 +2502,13 @@ function setup_animations_list(list, entity)
         return
     end
     animatorLib.RecordingController.ListRecordings(function(filepath, filename)
-        table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity.\n\nFilepath: " .. filepath, function()
+        table.insert(animationsList, menu.action(list, filename, {}, "Click to use this animation for this entity. Only compatible with newer version formats (ones that start with Recording YY-MM-DD)\n\nFilepath: " .. filepath, function()
             local data = animatorLib.RecordingController.LoadRecordingData(filepath)
             builder.entities[entity].customAnimation = data
             PlaybackController:StartPlayback(entity, data.points, data.interval, {
                 ["repeat"] = true,
-                debug = true
+                debug = true,
+                positionsFormat = 2
             })
         end))
     end)

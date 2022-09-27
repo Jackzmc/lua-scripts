@@ -7,6 +7,7 @@ function Log._log(prefix, ...)
     local msg = ""
     for _, a in ipairs(...) do
         if a == nil then a = "<nil>" end
+        if type(a) == "table" then a = dumpTable(a) end
         msg = msg .. tostring(a) .. "\t"
     end
     if prefix then prefix = "[" .. prefix .. "] "

@@ -1,5 +1,5 @@
 ANIMATOR_LIB_VERSION = "1.0.0"
-RECORDING_FORMAT_VERSION = 1
+RECORDING_FORMAT_VERSION = 2
 
 local json = require("json")
 
@@ -40,12 +40,15 @@ RecordingController = {
 -- Starts a recording at the specified interval
 function RecordingController.StartRecording(self, recordingInterval)
     if not recordingInterval then recordingInterval = 750 end
+
+    local myPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    self.rootPosition = v3.new(ENTITY.GET_ENTITY_COORDS(myPed))
     self.active = true
     self.positions = {}
     self.positionsCount = 0
     self.interval = recordingInterval
-    util.create_tick_handler(function() self:_renderUI() end)
-    util.create_tick_handler(function() self:_recordFrame() end)
+    util.create_tick_handler(function() return self:_renderUI() end)
+    util.create_tick_handler(function() return self:_recordFrame() end)
 end
 
 function RecordingController.IsRecording(self)
@@ -72,12 +75,14 @@ function RecordingController._renderUI(self)
     directx.draw_rect(0.93, 0.00, 0.25, 0.03, { r = 0.0, g = 0.0, b = 0.0, a = 0.3 })
     directx.draw_texture_client(RECORD_ICON, ICON_SIZE, ICON_SIZE, 0, 0, 0.94, 0.0, 0, 1.0, 1.0, 1.0, 1.0)
     directx.draw_text_client(0.999, 0.0132, "Frame " .. self.positionsCount, ALIGN_CENTRE_RIGHT, 0.65, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
+    return self.active
 end
 
 function RecordingController._recordFrame(self)
     local myPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local weaponIndex = WEAPON.GET_CURRENT_PED_WEAPON_ENTITY_INDEX(myPed)
-    local pos = ENTITY.GET_ENTITY_COORDS(myPed)
+    local offset = v3.new(ENTITY.GET_ENTITY_COORDS(myPed))
+    offset:sub(self.rootPosition)
     local ang = ENTITY.GET_ENTITY_ROTATION(myPed)
     
     local weaponModel = ENTITY.GET_ENTITY_MODEL(weaponIndex)
@@ -88,7 +93,7 @@ function RecordingController._recordFrame(self)
     end
     self.positionsCount = self.positionsCount + 1
     self.positions[self.positionsCount] = {
-        pos.x, pos.y, pos.z,
+        offset:getX(), offset:getY(), offset:getZ(),
         ang.x, ang.y, ang.z,
         weaponModel
     }
@@ -132,6 +137,8 @@ PlaybackController = {
 }
 
 --[[ 
+Playback will start at the entity's current position, or specify startPosition to change the position
+
 Value is the defaults,     
 Options: {
     speed = 1.0, -- Starting speed
@@ -149,11 +156,12 @@ function PlaybackController.StartPlayback(self, entity, positions, recordInterva
     if not entity then return error("Missing required parameter: entity") end
     if not positions then return error("Missing a required parameter: positions (array of positions)") end
     if not recordInterval then return error("Missing a required parameter: recordInterval") end
-    if not options then options = {} end
     if #positions == 0 then
         return
     end
     if not options.startFrame then options.startFrame = 1 end
+    if not options.positionsFormat then options.positionsFormat = RECORDING_FORMAT_VERSION end
+    if options.positionsFormat > 1 and not options.startingPosition then options.startingPosition = ENTITY.GET_ENTITY_COORDS(entity) end
     local entityType = 0
     if ENTITY.IS_ENTITY_A_PED(entity) then
         entityType = 1
@@ -162,6 +170,9 @@ function PlaybackController.StartPlayback(self, entity, positions, recordInterva
         active = true,
         entity = entity,
         entityType = entityType,
+        positionsFormat = options.positionsFormat,
+        -- Don't record root position if on legacy
+        rootPosition = options.startingPosition,
         positions = shallowCopyArray(positions),
         time = recordInterval * (options.startFrame - 1),
         prevTime = os.clock() * 1000,
@@ -177,6 +188,9 @@ function PlaybackController.StartPlayback(self, entity, positions, recordInterva
         onFrame = options.onFrame,
         keepOnEnd = options.keepOnEnd
     }
+    if options.showUI then
+        self.activePlayer = entity
+    end
 end
 function PlaybackController.IsInPlayback(self, entity)
     if entity == nil then return false end
@@ -289,6 +303,7 @@ function PlaybackController._stop(self, entity, forceDelete)
     TASK.CLEAR_PED_TASKS(entity)
     util.toast(entity .. ": End of animation on frame " .. self.animations[entity].frame .. " time " .. self.animations[entity].time)
     if forceDelete or not self.animations[entity].keepOnEnd then
+        util.toast("deleting record data")
         if self.activePlayer == entity then
             self.activePlayer = nil
         end
@@ -300,7 +315,7 @@ function PlaybackController._stop(self, entity, forceDelete)
         self.animations[entity].active = false
     end
 end
-function PlaybackController._DisplayPlayerInfo(self, entity, offset)
+function PlaybackController._DisplayPlayerInfo(self, entity)
     directx.draw_rect(0.93, 0.00, 0.25, 0.03, { r = 0.0, g = 0.0, b = 0.0, a = 0.3 })
     local animation = self.animations[entity]
     if animation.speed > 2.0 then
@@ -325,6 +340,11 @@ function PlaybackController._processFrame(self)
                 local timeDelta = animation.time % animation.interval / animation.interval
                 local pX, pY, pZ = computeInterpVec(a, b, 1, timeDelta)
                 local rX, rY, rZ = computeInterpVec(a, b, 4, timeDelta)
+                if animation.rootPosition then
+                    pX = animation.rootPosition.x + pX
+                    pY = animation.rootPosition.y + pY
+                    pZ = animation.rootPosition.z + pZ
+                end
                 local frameTime = now - animation.prevTime
 
                 if animation.debug then

@@ -1,8 +1,8 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_animator"
-VERSION = "1.0.0"
-local ANIMATOR_LIB_TARGET = "1.0.0"
+VERSION = "1.1.0"
+local ANIMATOR_LIB_TARGET = "1.1.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -73,6 +73,7 @@ local Player = {
 }
 
 local recordingListSubmenus = {}
+local recordingsListMenus= {}
 function loadRecordings(list)
     for _, path in ipairs(filesystem.list_files(animatorLib.RECORDINGS_DIRECTORY)) do
         local _, filename = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
@@ -83,6 +84,7 @@ function loadRecordings(list)
             end, function() 
                 clearMenuArray(recordingListSubmenus)
             end)
+            table.insert(recordingsListMenus, recordingList)
         end
     end
 end
@@ -103,14 +105,14 @@ function playRecording(entity, data, onFinish)
     PlaybackController:StartPlayback(entity, data.points, data.interval, {
         speed = 1.0,
         debug = true,
+        positionsFormat = data.version,
         onFinish = onFinish,
+        showUI = true,
         onFrame = function(frame, time)
             menu.set_value(Player.frameControl, frame)
         end,
         keepOnEnd = true
     })
-
-    PlaybackController:ShowPlayerUI(entity)
     menu.focus(Player.menuId)
 end
 
@@ -142,7 +144,9 @@ function loadRecordingList(list, filepath)
 
     table.insert(recordingListSubmenus, menu.action(list, "Play", {}, "Play the specified animation with a cone model", function()
         local hash = util.joaat("prop_roadcone02a")
-        local handle = entities.create_object(hash, { x = 0, y = 0, z = 0})
+        local myPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local myPos = ENTITY.GET_ENTITY_COORDS(myPed)
+        local handle = entities.create_object(hash, myPos)
         playRecording(handle, data, function(endingFrame, time)
             entities.delete_by_handle(handle)
         end)
@@ -169,7 +173,9 @@ function menu.list_adv(root, name, command, description, onView, onBack)
     end, onBack)
     return m
 end
-local recordingsList = menu.list_adv(menu.my_root(), "Recordings", {}, "View all your recorded animations", loadRecordings)
+local recordingsList = menu.list_adv(menu.my_root(), "Recordings", {}, "View all your recorded animations", loadRecordings, function()
+    clearMenuArray(recordingsListMenus)
+end)
 
     local recordingMenu
     recordingMenu = menu.click_slider(recordingsList, "Start new recording", {}, "Starts a recording at the specified recording interval", 100, 5000, 750, 100, function(interval)
@@ -177,8 +183,10 @@ local recordingsList = menu.list_adv(menu.my_root(), "Recordings", {}, "View all
             menu.set_menu_name(recordingMenu, "Start new recording")
             menu.set_help_text(recordingMenu, "Starts a recording at the specified recording interval")
             local positions, interval = RecordingController:StopRecording()
-            local filepath = animatorLib.RECORDINGS_DIRECTORY .. "/recording-" .. util.current_unix_time_seconds() .. ".json"
+            local filename = "Recording " .. os.date("%Y-%m-%d") .. ".json"
+            local filepath = animatorLib.RECORDINGS_DIRECTORY .. "/" .. filename
             local file = io.open(filepath, "w")
+
             if file then
                 file:write(json.encode({
                     interval = interval,
@@ -188,7 +196,12 @@ local recordingsList = menu.list_adv(menu.my_root(), "Recordings", {}, "View all
                 file:flush()
                 file:close()
                 util.toast("Recording saved. " .. #positions .. " frames saved")
-                loadRecordingList(recordingsList, filepath)
+                local recordingList
+                recordingList = menu.list(recordingsList, filename, {}, "New recording", function()
+                    loadRecordingList(recordingList, filepath)
+                end, function()
+                    clearMenuArray(recordingListSubmenus)
+                end)
             else
                 util.toast("Could not save recording to file")
             end
