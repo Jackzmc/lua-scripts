@@ -2489,7 +2489,7 @@ function clone_entity(handle, name, mirror_axis)
     else
         entity = entities.create_object(model, pos)
     end
-    add_entity_to_list(_find_entity_type(handle), entity, name, { offset = pos })
+    add_entity_to_list(_find_entity_type(handle), entity, name .. " (Clone)", { offset = pos })
     highlightedHandle = entity
     return entity
 end
@@ -3690,14 +3690,13 @@ while true do
                         end
                         local hudPos = get_screen_coords(pos)
                         local height = 0.055
-                        local name = "Pre-existing object"
+                        local model = ENTITY.GET_ENTITY_MODEL(entity)
+                        local name = "pre_" .. util.reverse_joaat(model)
                         if ENTITY.IS_ENTITY_A_VEHICLE(entity) then
                             local hash = ENTITY.GET_ENTITY_MODEL(entity)
                             local manufacturer = VEHICLE._GET_MAKE_NAME_FROM_VEHICLE_MODEL(hash)
                             local vehName = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(hash)
-                            name = manufacturer .. " " .. vehName
-                        elseif ENTITY.IS_ENTITY_A_PED(entity) then
-                            name = "Pre-existing ped"
+                            name = "pre_" .. manufacturer .. " " .. vehName
                         end
                         directx.draw_rect(hudPos.x, hudPos.y, 0.2, height, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
                         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, name, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
