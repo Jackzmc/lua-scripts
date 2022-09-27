@@ -8,7 +8,8 @@ function check_for_update(branch)
             end
             if chunks[1] == "OUTDATED" then
                 download_script_update(branch, function()
-                    util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nRestart script to load new update.", TOAST_ALL)
+                    util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
+                    util.restart_script()
                 end, function()
                     util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
                 end)
