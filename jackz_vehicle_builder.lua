@@ -4,7 +4,7 @@ local SCRIPT = "jackz_vehicle_builder"
 VERSION = "1.25.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
-local ANIMATOR_LIB_TARGET = "1.0.0"
+local ANIMATOR_LIB_TARGET = "1.1.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
