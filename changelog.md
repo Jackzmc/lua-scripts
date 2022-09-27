@@ -161,7 +161,7 @@ V1.24.0
 * (1.24.11) Fix search error
 * (1.24.12) Fix cloud sorts > spawn not working
 
-V1.24.0
+V1.25.0
 
 * Switched to new format 2 for jackz_animator (breaks old recordings)
 
