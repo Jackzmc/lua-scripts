@@ -118,23 +118,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-V1.21.0
-
-* Allow to set a build's spawn location (Builder > Build > Spawn Location)
-* Add some checks to increase stability
-* Ensure nested builds entities don't collide with other build entities
-* Fix builds not spawning objects
-* Added option to turn off an entity's collision
-* Fix non-base entities not being transparent
-* jackzvehiclelib: Allow turning on siren sounds separate from lights (Thanks hexarobi)
-* Bug fixes and improvements hopefully
-* Updated natives to latest version`
-* (1.21.2) Add Script Meta > Upload logs for support purposes
-* (1.21.2) Add Settings > Debug Mode for support purposes
-* (1.21.2) jackzvehiclelib: Fix bug with license plates
-* (1.21.2) Fix cloud overlays erroring
-* (1.21.3) Fix overlay on builds erroring
-
 
 V1.22.0
 
@@ -177,3 +160,16 @@ V1.24.0
 * (1.24.10) Fix another git issue (cloud sorts lists)
 * (1.24.11) Fix search error
 * (1.24.12) Fix cloud sorts > spawn not working
+
+V1.24.0
+
+* Switched to new format 2 for jackz_animator (breaks old recordings)
+
+# jackz animator (v1)
+
+V1.1.0
+
+* Made positions relative for builder
+* Fixed recording not ending
+* Fixed recording list not clearing previous entries
+* Changed filename format for new recordings
