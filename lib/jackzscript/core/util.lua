@@ -52,6 +52,42 @@ function JUtil.CreateTimer(ms, callback, ...)
     return timerId
 end
 
+AdvancedTimer = {
+    active = false,
+    paused = false,
+    tick = 0
+}
+function AdvancedTimer:CreateTimer(func, duration, durationOn)
+    if not duration then error("Missing duration of timer") end
+    if not durationOn then durationOn = duration end
+    util.create_tick_handler(function()
+        if self.tick > duration then
+            func()
+        end
+        self.tick = self.tick + 1
+        if self.tick > durationOn then
+            self.tick = 0
+        end
+        return self ~= nil
+    end)
+    local this = {}
+    setmetatable(this, AdvancedTimer)
+    AdvancedTimer.__index = AdvancedTimer
+    return this
+end
+
+function AdvancedTimer:Enable()
+    self.active = true
+end
+
+function AdvancedTimer:Disable()
+    self.active = false
+end
+
+function AdvancedTimer:Kill()
+    self = nil
+end
+
 --- Creates a timeout that is called after the specified amount of ms elapses. Use jtuil.StopTimer to cancel
 --- @param callback function A function to be called once time is up
 --- @param ... any arguments to pass to callback
