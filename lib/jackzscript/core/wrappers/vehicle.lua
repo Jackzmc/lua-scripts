@@ -1,7 +1,9 @@
-local Vehicle = {}
+local Vehicle = {
+    Health =
+}
 
 function Vehicle.FromHandle(handle)
-    if ENTITY.IS_ENTITY_VALID(handle) then
+    if ENTITY.DOES_ENTITY_EXIST(handle) then
         local this = {}
         this.handle = handle
         setmetatable(this, Vehicle)
@@ -40,8 +42,8 @@ function Vehicle:Exists()
     return ENTITY.DOES_ENTITY_EXIST(self.handle)
 end
 
-function Vehicle:Health()
-    return VEHICLE.GET_VEHICLE_PERCENTAGE_HEALTH(self.handle)
+function Vehicle:Health() 
+    return self.health
 end
 
 function Vehicle:Teleport(x, y, z)
