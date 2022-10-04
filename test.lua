@@ -298,7 +298,7 @@ menu.action(menu.my_root(), "Clear All Objects", {}, "", function(on_click)
 end)
 
 menu.action(menu.my_root(), "stop veh", {}, "", function(on_click)
-    local peds = util.get_all_peds()
+    local peds = entities.get_all_peds_as_handles()
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
@@ -545,8 +545,8 @@ while true do
             VEHICLE.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME(1)
             local me = PLAYER.PLAYER_PED_ID()
             local my_pos = ENTITY.GET_ENTITY_COORDS(me)
-            local my_heading = ENTITY.GET_ENTITY_HEADING(entities.get_user_vehicle_as_handle()())
-            local peds = util.get_all_peds()
+            local my_heading = ENTITY.GET_ENTITY_HEADING(entities.get_user_vehicle_as_handle())
+            local peds = entities.get_all_peds_as_handles()
             local dists = {}
             local min = my_heading - 15.0
             local max = my_heading + 15.0
