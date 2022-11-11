@@ -163,7 +163,7 @@ V1.24.0
 V1.25.0
 
 * Switched to new format 2 for jackz_animator (breaks old recordings)
-* (1.25.1) Load animator if builder is from repo
+* (1.25.2) Load animator if builder is from repo
 
 # jackz animator (v1)
 
