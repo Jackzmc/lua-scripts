@@ -10,7 +10,7 @@ end
 local model_alias = {
     lester = util.joaat("cs_lestercrest"), -- removed cause we have chat command if 'lester' is said anywhere in msg
     simeon = util.joaat("ig_siemonyetarian"),
-    jesus = util.joaat("u_m_m_jesus_01"),
+    jesus = util.joaat("w"),
     tom = util.joaat("ig_tomcasino"),
     liveinvader = util.joaat("cs_lifeinvad_01")
 }
