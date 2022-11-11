@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.1"
+VERSION = "1.25.2"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -44,10 +44,8 @@ if vehiclelib.LIB_VERSION ~= VEHICLELIB_TARGET_VERSION then
     end
 end
 
-local animatorLib
+local animatorLib = try_require("jackzanimatorlib", true)
 if SCRIPT_SOURCE == "MANUAL" then
-    animatorLib = try_require("jackzanimatorlib", true)
-
     if not animatorLib then
         download_lib_update("jackzanimatorlib.lua")
     elseif animatorLib.VERSION ~= ANIMATOR_LIB_TARGET then
