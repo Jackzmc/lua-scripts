@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.0"
+VERSION = "1.25.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -2498,7 +2498,7 @@ local animationsList = {}
 function setup_animations_list(list, entity)
     clear_menu_array(animationsList)
     if not animatorLib then
-        table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install."))
+        table.insert(animationsList, menu.hyperlink(list, "Get Jackz Animator", "https://www.guilded.gg/stand/groups/x3ZgB10D/channels/7430c963-e9ee-40e3-ab20-190b8e4a4752/docs/337440", "Record animations using Jackz Animator lua script. Click this link view instructions on how to install.\nRestart this script once you have installed."))
         return
     end
     animatorLib.RecordingController.ListRecordings(function(filepath, filename)
