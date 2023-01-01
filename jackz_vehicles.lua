@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.10.0"
+VERSION = "3.10.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -2178,6 +2178,8 @@ for _, style in pairs(DRIVING_STYLES) do
             TASK.SET_DRIVE_TASK_DRIVING_STYLE(ped, style[1])
             PED.SET_DRIVER_ABILITY(ped, 1.0)
             PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
+            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
         end
         i18n.toast("AUTODRIVE_STYLE_INDV_SUCCESS", style[2])
     end)
@@ -2204,9 +2206,11 @@ menu.action(autodriveMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiway
 
     local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
     get_waypoint_pos(function(pos)
-        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
         PED.SET_DRIVER_ABILITY(ped, 1.0)
         PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
     end)
 end)
 
@@ -2229,7 +2233,8 @@ end)
 menu.action(autodriveMenu, i18n.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwander"}, i18n.format("AUTODRIVE_WANDER_HOVER_DESC"), function(v)
     local ped, vehicle = get_my_driver()
     is_driving = true
-
+    PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+    TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
     TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, drive_speed, drive_style)
     PED.SET_DRIVER_ABILITY(ped, 1.0)
     PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
@@ -2270,6 +2275,10 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
                 TASK.TASK_WARP_PED_INTO_VEHICLE(driver, vehicle, -1)
                 util.yield(100)
             end
+            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+            VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+            PED.SET_PED_FLEE_ATTRIBUTES(driver, 46, true)
         elseif PED.IS_PED_A_PLAYER(driver) then
             -- hijack if its a player
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)

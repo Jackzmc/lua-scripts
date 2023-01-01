@@ -44,6 +44,7 @@ v3.10.0
 * Add "Drive On Water" feature
 * Add sorted cloud list
 * Added cloud rating system
+* (3.10.1) Made chauffer ped not flee
 
 # actions (v1)
 
