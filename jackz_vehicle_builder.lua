@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.2"
+VERSION = "1.25.3"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -63,12 +63,12 @@ end
 -- [ Begin actual script ]--
 -- Autosave state
 local AUTOSAVE_INTERVAL_SEC = 60 * 3
-local MAX_AUTOSAVES = 5 
+local MAX_AUTOSAVES = 5
 local autosaveNextTime = 0
 local autosaveIndex = 1
 
 local BUILDER_VERSION = "1.6.0" -- For version diff warnings
-local FORMAT_VERSION = "Jackz Builder " .. BUILDER_VERSION
+local FORMAT_VERSION = "Jackz Builder: Stand " .. BUILDER_VERSION
 local builder = nil
 local editorActive = false
 local scriptEnding = false
