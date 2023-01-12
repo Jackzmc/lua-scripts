@@ -1,13 +1,5 @@
 -- Taken & Modified from FiveM dpemotes https://github.com/andristum/dpemotes/blob/master/Client/AnimationList.lua
-AnimationFlags = {
-   ANIM_FLAG_NORMAL = 0,
-   ANIM_FLAG_REPEAT = 1,
-   ANIM_FLAG_STOP_LAST_FRAME = 2,
-   ANIM_FLAG_UPPERBODY = 16,
-   ANIM_FLAG_ENABLE_PLAYER_CONTROL = 32,
-   ANIM_FLAG_CANCELABLE = 120
-}
-ANIMATION_DATA_VERSION = "1.0.0"
+ANIMATION_DATA_VERSION = "1.1.0"
 SPECIAL_ANIMATIONS = {
    Interaction = {
        ["handshake"] = {

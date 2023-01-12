@@ -2,10 +2,10 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.13"
+VERSION = "1.10.14"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
-local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
+local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -59,6 +59,17 @@ function pairsByKeys(t, f)
         util.toast("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
         -- util.stop_script()
     end
+end
+
+if AnimationFlags == nil then
+    AnimationFlags = {
+        ANIM_FLAG_NORMAL = 0,
+        ANIM_FLAG_REPEAT = 1,
+        ANIM_FLAG_STOP_LAST_FRAME = 2,
+        ANIM_FLAG_UPPERBODY = 16,
+        ANIM_FLAG_ENABLE_PLAYER_CONTROL = 32,
+        ANIM_FLAG_CANCELABLE = 120
+    }
 end
 
 -- Messy Globals
