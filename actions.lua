@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.14"
+VERSION = "1.10.15"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -82,6 +82,109 @@ local recents = {}
 local animFlags = AnimationFlags.ANIM_FLAG_REPEAT | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
 local allowControl = true
 local affectType = 0
+
+
+function play_animation(group, anim, doNotAddRecent, data, remove)
+    local flags = animFlags -- Keep legacy animation flags
+    local duration = -1
+    local props
+    if data ~= nil then
+        flags = AnimationFlags.ANIM_FLAG_NORMAL
+        if data.AnimationOptions ~= nil then
+            if data.AnimationOptions.Loop then
+                flags = flags | AnimationFlags.ANIM_FLAG_REPEAT
+            end
+            if data.AnimationOptions.Controllable then
+                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL | AnimationFlags.ANIM_FLAG_UPPERBODY
+            end
+            if data.AnimationOptions.EmoteDuration then
+                duration = data.AnimationOptions.EmoteDuration
+            end
+        end
+        if data.AnimationOptions and data.AnimationOptions.Props then
+            props = data.AnimationOptions.Props
+        end
+    end
+    if remove then
+        for i, favorite in ipairs(favorites) do
+            if favorite[1] == group and favorite[2] == anim then
+                table.remove(favorites, i)
+                populate_favorites()
+                save_favorites()
+                util.toast("Removed " .. group .. "\n" .. anim .. " from favorites")
+                return
+            end
+        end
+        table.insert(favorites, { group, anim })
+        populate_favorites()
+        save_favorites()
+        util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
+    else
+        clear_anim_props()
+        STREAMING.REQUEST_ANIM_DICT(group)
+        while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
+            util.yield(100)
+        end
+        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        
+
+        if not is_anim_in_recent(group, anim) and not doNotAddRecent then
+            add_anim_to_recent(group, anim)
+        end
+
+        -- Play animation on all npcs if enabled:
+        if affectType > 0 then
+            local peds = entities.get_all_peds_as_handles()
+            for _, npc in ipairs(peds) do
+                if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
+                    _play_animation(npc, group, anim, flags, duration, props)
+                end
+            end
+        end
+        -- Play animation on self if enabled:
+        if affectType == 0 or affectType == 2 then
+            _play_animation(ped, group, anim, flags, duration, props)
+        end
+        STREAMING.REMOVE_ANIM_DICT(group)
+    end
+end
+
+function _play_animation(ped, group, animation, flags, duration, props)
+    if clearActionImmediately then
+        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    end
+    if props ~= nil then
+        local pos = ENTITY.GET_ENTITY_COORDS(ped)
+        for _, propData in ipairs(props) do
+            local boneIndex = PED.GET_PED_BONE_INDEX(ped, propData.Bone)
+            local hash = util.joaat(propData.Prop)
+            STREAMING.REQUEST_MODEL(hash)
+            while not STREAMING.HAS_MODEL_LOADED(hash) do
+                util.yield()
+            end
+            local object = entities.create_object(hash, pos)
+            animAttachments[object] = propData.DeleteOnEnd ~= nil
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                object, ped, boneIndex,
+                propData.Placement[1] or 0.0,
+                propData.Placement[2] or 0.0,
+                propData.Placement[3] or 0.0,
+                propData.Placement[4] or 0.0,
+                propData.Placement[5] or 0.0,
+                propData.Placement[6] or 0.0,
+                false,
+                true,
+                false,
+                true,
+                1,
+                true
+            )
+            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+        end
+    end
+    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
+end
+
 -----------------------
 -- SCENARIOS
 ----------------------
@@ -720,108 +823,6 @@ function setup_animation_list()
     end
     animLoaded = true
 end
-
-function play_animation(group, anim, doNotAddRecent, data, remove)
-    local flags = animFlags -- Keep legacy animation flags
-    local duration = -1
-    local props
-    if data ~= nil then
-        flags = AnimationFlags.ANIM_FLAG_NORMAL
-        if data.AnimationOptions ~= nil then
-            if data.AnimationOptions.Loop then
-                flags = flags | AnimationFlags.ANIM_FLAG_REPEAT
-            end
-            if data.AnimationOptions.Controllable then
-                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL | AnimationFlags.ANIM_FLAG_UPPERBODY
-            end
-            if data.AnimationOptions.EmoteDuration then
-                duration = data.AnimationOptions.EmoteDuration
-            end
-        end
-        if data.AnimationOptions and data.AnimationOptions.Props then
-            props = data.AnimationOptions.Props
-        end
-    end
-    if remove then
-        for i, favorite in ipairs(favorites) do
-            if favorite[1] == group and favorite[2] == anim then
-                table.remove(favorites, i)
-                populate_favorites()
-                save_favorites()
-                util.toast("Removed " .. group .. "\n" .. anim .. " from favorites")
-                return
-            end
-        end
-        table.insert(favorites, { group, anim })
-        populate_favorites()
-        save_favorites()
-        util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
-    else
-        clear_anim_props()
-        STREAMING.REQUEST_ANIM_DICT(group)
-        while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
-            util.yield(100)
-        end
-        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-        
-
-        if not is_anim_in_recent(group, anim) and not doNotAddRecent then
-            add_anim_to_recent(group, anim)
-        end
-
-        -- Play animation on all npcs if enabled:
-        if affectType > 0 then
-            local peds = entities.get_all_peds_as_handles()
-            for _, npc in ipairs(peds) do
-                if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
-                    _play_animation(npc, group, anim, flags, duration, props)
-                end
-            end
-        end
-        -- Play animation on self if enabled:
-        if affectType == 0 or affectType == 2 then
-            _play_animation(ped, group, anim, flags, duration, props)
-        end
-        STREAMING.REMOVE_ANIM_DICT(group)
-    end
-end
-
-function _play_animation(ped, group, animation, flags, duration, props)
-    if clearActionImmediately then
-        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
-    end
-    if props ~= nil then
-        local pos = ENTITY.GET_ENTITY_COORDS(ped)
-        for _, propData in ipairs(props) do
-            local boneIndex = PED.GET_PED_BONE_INDEX(ped, propData.Bone)
-            local hash = util.joaat(propData.Prop)
-            STREAMING.REQUEST_MODEL(hash)
-            while not STREAMING.HAS_MODEL_LOADED(hash) do
-                util.yield()
-            end
-            local object = entities.create_object(hash, pos)
-            animAttachments[object] = propData.DeleteOnEnd ~= nil
-            ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                object, ped, boneIndex,
-                propData.Placement[1] or 0.0,
-                propData.Placement[2] or 0.0,
-                propData.Placement[3] or 0.0,
-                propData.Placement[4] or 0.0,
-                propData.Placement[5] or 0.0,
-                propData.Placement[6] or 0.0,
-                false,
-                true,
-                false,
-                true,
-                1,
-                true
-            )
-            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
-        end
-    end
-    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
-end
-
 ------------------------------
 -- Loading & Saving Favorites
 --------------------------------
