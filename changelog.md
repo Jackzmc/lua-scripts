@@ -73,6 +73,7 @@ v1.10.0
 * (1.10.8) Auto download animations.txt
 * (1.10.9) Fix cloud bug
 * (1.10.12) Attempt to fix resource issue
+* (1.10.13) Remove encoding issue from resource file
 
 # jackz chat (v1)
 
