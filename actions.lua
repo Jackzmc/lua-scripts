@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.11"
+VERSION = "1.10.12"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -43,14 +43,21 @@ function pairsByKeys(t, f)
     end
     return iter
  end
- local status = pcall(require, 'resources/jackz_actions/actions_data')
+ local hasSpecialAnimations, err = pcall(require, 'resources/jackz_actions/actions_data')
+ if not hasSpecialAnimations then
+    util.log("Failed to read actions_data:\n" .. err)
+    hasSpecialAnimations = pcall(require, 'jackz_actions/actions_data')
+    if not hasSpecialAnimations then
+        util.log("Failed to read actions_data(2):\n" .. err)
+    end
+ end
  if ANIMATION_DATA_VERSION == nil or ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
         download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
         util.toast("Restart script to use updated resource file")
     else
         util.toast("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
-        util.stop_script()
+        -- util.stop_script()
     end
 end
 
@@ -117,18 +124,25 @@ menu.toggle(specialAnimationsMenu, "Controllable", {"animationcontrollable"}, "S
 local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
 menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
 
+if hasSpecialAnimations then
 
-for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
-    local catmenu = menu.list(specialAnimationsMenu, category, {})
-    for key, data in pairsByKeys(rows) do
-        menu.action(
-            catmenu,
-            data[3] or key,
-            {"playanim"..key},
-            string.format("%s %s\nPlay this animation\nAnimation Id: %s", data[1], data[2], key),
-            generateAnimationAction(key, data)
-        )
+    for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
+        local catmenu = menu.list(specialAnimationsMenu, category, {})
+        for key, data in pairsByKeys(rows) do
+            menu.action(
+                catmenu,
+                data[3] or key,
+                {"playanim"..key},
+                string.format("%s %s\nPlay this animation\nAnimation Id: %s", data[1], data[2], key),
+                generateAnimationAction(key, data)
+            )
+        end
     end
+
+else
+
+    menu.readonly(specialAnimationsMenu, "Error", "Could not read file resources/jackz_actions/actions_data.lua, so this feature is unavailable.")
+
 end
 
 
