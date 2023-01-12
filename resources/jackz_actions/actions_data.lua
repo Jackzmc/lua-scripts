@@ -1,4 +1,4 @@
-﻿-- Taken & Modified from FiveM dpemotes https://github.com/andristum/dpemotes/blob/master/Client/AnimationList.lua
+-- Taken & Modified from FiveM dpemotes https://github.com/andristum/dpemotes/blob/master/Client/AnimationList.lua
 AnimationFlags = {
    ANIM_FLAG_NORMAL = 0,
    ANIM_FLAG_REPEAT = 1,
