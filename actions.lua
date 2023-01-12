@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.10"
+VERSION = "1.10.11"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
@@ -43,12 +43,8 @@ function pairsByKeys(t, f)
     end
     return iter
  end
-local status = pcall(require, 'resources/jackz_actions/actions_data')
-if not status then
-    util.toast("Failed to load resource file: jackz_actions/actions_data.lua")
-    util.stop_script()
-end
-if ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
+ local status = pcall(require, 'resources/jackz_actions/actions_data')
+ if ANIMATION_DATA_VERSION == nil or ANIMATION_DATA_VERSION ~= SPECIAL_ANIMATIONS_DATA_FILE_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
         download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
         util.toast("Restart script to use updated resource file")
