@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.15"
+VERSION = "1.10.16"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -56,8 +56,7 @@ function pairsByKeys(t, f)
         download_resources_update("jackz_actions/actions_data.min.lua", "jackz_actions/actions_data.lua")
         util.toast("Restart script to use updated resource file")
     else
-        util.toast("jackz_actions: Warn: Outdated or missing actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
-        -- util.stop_script()
+        util.log("jackz_actions: Warn: Outdated or missing optional actions_data. Version: " .. (ANIMATION_DATA_VERSION or "<missing>"))
     end
 end
 
@@ -254,9 +253,10 @@ if hasSpecialAnimations then
     end
 
 else
-
+    if SCRIPT_SOURCE == "REPO" then
+        menu.readonly(specialAnimationsMenu, "Repo Unsupported", "The repository version lacks a required file for special animations. Please use the manual install from https://jackz.me/stand/get-latest-zip to use special animations, make sure to uncheck repo version.")
+    end
     menu.readonly(specialAnimationsMenu, "Error", "Could not read file resources/jackz_actions/actions_data.lua, so this feature is unavailable.")
-
 end
 
 

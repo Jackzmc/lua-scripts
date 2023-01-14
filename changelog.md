@@ -75,6 +75,7 @@ v1.10.0
 * (1.10.13) Remove encoding issue from resource file
 * (1.10.14) Make actions_data file optional
 * (1.10.15) Fix playing animations erroring
+* (1.10.16) Update error message to clarify
 
 # jackz chat (v1)
 
