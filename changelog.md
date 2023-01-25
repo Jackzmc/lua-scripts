@@ -77,6 +77,7 @@ v1.10.0
 * (1.10.15) Fix playing animations erroring
 * (1.10.16) Update error message to clarify
 * (1.10.17) Fix variable scope issue
+* (1.10.18) Fix add to favorites functionality missing
 
 # jackz chat (v1)
 

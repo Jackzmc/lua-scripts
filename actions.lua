@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.17"
+VERSION = "1.10.18"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -116,6 +116,8 @@ function play_animation(group, anim, doNotAddRecent, data, remove)
                 return
             end
         end
+    end
+    if PAD.IS_CONTROL_PRESSED(2, 209) then
         table.insert(favorites, { group, anim })
         populate_favorites()
         save_favorites()
