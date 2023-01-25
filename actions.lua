@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.10.16"
+VERSION = "1.10.17"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -81,6 +81,8 @@ local recents = {}
 local animFlags = AnimationFlags.ANIM_FLAG_REPEAT | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
 local allowControl = true
 local affectType = 0
+local animLoaded = false
+local animAttachments = {}
 
 
 function play_animation(group, anim, doNotAddRecent, data, remove)
@@ -263,8 +265,7 @@ end
 -----------------------
 -- ANIMATIONS
 ----------------------
-local animLoaded = false
-local animAttachments = {}
+
 function clear_anim_props()
     for ent, shouldDelete in pairs(animAttachments) do
         if shouldDelete then
