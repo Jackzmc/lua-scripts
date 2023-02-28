@@ -98,14 +98,18 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of 
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then
         show_busyspinner("Uploading logs....")
-        async_http.init("hastebin.com", "/documents", function(body)
+        async_http.init("paste.jackz.me", "/paste?textOnly=1&expires=604800", function(body)
             HUD.BUSYSPINNER_OFF()
-            local url = "https://hastebin.com/" .. body:sub(9, -3)
+            local lines = {}
+            for s in body:gmatch("[^\r\n]+") do
+                table.insert(lines, s)
+            end
+            local url = lines[3] or ("https://paste.jackz.me/" .. lines[2])
             util.toast("Uploaded: " .. url)
             menu.hyperlink(SCRIPT_META_LIST, "Open Uploaded Log", url)
         end, function()
             util.toast("Failed to submit logs, network error")
-            HUD.BUSYSPINNER_OFF() 
+            HUD.BUSYSPINNER_OFF()
         end)
         logs:seek("end", -3072)
         local content = logs:read("*a")
