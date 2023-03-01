@@ -104,9 +104,10 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of 
             for s in body:gmatch("[^\r\n]+") do
                 table.insert(lines, s)
             end
-            local url = lines[3] or ("https://paste.jackz.me/" .. lines[2])
-            util.toast("Uploaded: " .. url)
+            local url = lines[3] or ("https://paste.jackz.me/" .. lines[1])
+            util.toast("Uploaded: " .. url, 2)
             menu.hyperlink(SCRIPT_META_LIST, "Open Uploaded Log", url)
+                :setTemporary()
         end, function()
             util.toast("Failed to submit logs, network error")
             HUD.BUSYSPINNER_OFF()
