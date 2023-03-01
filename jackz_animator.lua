@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_animator"
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
 
 --#P:DEBUG_ONLY

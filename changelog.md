@@ -45,6 +45,7 @@ v3.10.0
 * Add sorted cloud list
 * Added cloud rating system
 * (3.10.1) Made chauffer ped not flee
+* (3.10.2) Update to 'Upload Logs' to use new provider
 
 # actions (v1)
 
@@ -78,6 +79,7 @@ v1.10.0
 * (1.10.16) Update error message to clarify
 * (1.10.17) Fix variable scope issue
 * (1.10.18) Fix add to favorites functionality missing
+* (1.10.19) Update to 'Upload Logs' to use new provider
 
 # jackz chat (v1)
 
@@ -106,6 +108,7 @@ V1.2.0
 * (1.2.21) Fix some deprecated and weird time based bugs
 * (1.2.22) Actually fix it (fixes messages not clearing)
 * (1.2.23) Fix preprocessor bug
+* (1.2.24) Update to 'Upload Logs' to use new provider
 
 # train control (v1)
 
@@ -122,6 +125,7 @@ V1.1.0
 * (1.1.3) Remove auto updated dupe files
 * (1.1.6) Fix errors
 * (1.1.7) Updated translations
+* (1.1.8) Update to 'Upload Logs' to use new provider
 
 # jackz vehicle builder (v1)
 
@@ -172,6 +176,7 @@ V1.25.0
 * Switched to new format 2 for jackz_animator (breaks old recordings)
 * (1.25.2) Load animator if builder is from repo
 * (1.25.4) Fix cloning failing
+* (1.25.5) Update to 'Upload Logs' to use new provider
 
 # jackz animator (v1)
 
@@ -181,3 +186,4 @@ V1.1.0
 * Fixed recording not ending
 * Fixed recording list not clearing previous entries
 * Changed filename format for new recordings
+* (1.1.1) Update to 'Upload Logs' to use new provider

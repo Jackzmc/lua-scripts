@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-VERSION = "1.1.7"
+VERSION = "1.1.8"
 
 --#P:DEBUG_ONLY
 require('templates/log')
