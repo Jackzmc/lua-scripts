@@ -46,6 +46,7 @@ v3.10.0
 * Added cloud rating system
 * (3.10.1) Made chauffer ped not flee
 * (3.10.2) Update to 'Upload Logs' to use new provider
+* (3.10.3) Fix Cloud Vehicles > Browse By Users not working
 
 # actions (v1)
 
