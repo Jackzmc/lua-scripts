@@ -105,7 +105,8 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of 
                 table.insert(lines, s)
             end
             local url = lines[3] or ("https://paste.jackz.me/" .. lines[1])
-            util.toast("Uploaded: " .. url, 2)
+            util.copy_to_clipboard(url, true)
+            util.toast("Uploaded: " .. url .. "\nCopied to clipboard", 2)
             menu.hyperlink(SCRIPT_META_LIST, "Open Uploaded Log", url)
                 :setTemporary()
         end, function()
