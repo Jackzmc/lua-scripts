@@ -178,6 +178,8 @@ V1.25.0
 * (1.25.2) Load animator if builder is from repo
 * (1.25.4) Fix cloning failing
 * (1.25.5) Update to 'Upload Logs' to use new provider
+* (1.25.6) Fix assigning base changing rotation of base entity
+* (1.25.6) Stop using read_vector3 -> v3
 
 # jackz animator (v1)
 

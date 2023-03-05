@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.5"
+VERSION = "1.25.6"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -1456,7 +1456,7 @@ function set_builder_base(handle, preserveExisting)
     Log.log("Reassigned base " .. (oldHandle or "-none-") .. " -> " .. handle)
     for subhandle, data in pairs(builder.entities) do
         -- Ignore entity if parent is not builder, as it's parent should be re-attached
-        if not data.parent then
+        if not data.parent and subhandle ~= builder.base.handle then
             attach_entity(handle, subhandle, data.pos, data.rot, data.boneIndex)
         end
     end
@@ -2320,27 +2320,23 @@ function get_entity_lookat(distance, radius, flags, callback)
     local pos = ENTITY.GET_ENTITY_COORDS(my_ped)
     local dest = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(my_ped, 0, distance, 1.0)
     local p_bool = memory.alloc(8)
-    local p_endPos = memory.alloc(24)
-    local p_surfaceNormal = memory.alloc(24)
+    local v_endPos = v3.new()
+    local v_surfaceNormal = v3.new()
     local p_entityHit = memory.alloc(8)
     if not flags then
         flags = 2 | 8 | 16
     end
     local handle = SHAPETEST.START_SHAPE_TEST_CAPSULE(pos.x, pos.y, pos.z, dest.x, dest.y, dest.z, radius, flags, my_ped, 7)
     util.create_thread(function()
-        while SHAPETEST.GET_SHAPE_TEST_RESULT(handle, p_bool, p_endPos, p_surfaceNormal, p_entityHit) == 1 do
+        while SHAPETEST.GET_SHAPE_TEST_RESULT(handle, p_bool, v_endPos, v_surfaceNormal, p_entityHit) == 1 do
             util.yield()
         end
         local did_hit = memory.read_byte(p_bool)
         local entity = nil
-        local endCoords = nil
-        local surfaceNormal = nil
         if did_hit == 1 then
             entity = memory.read_int(p_entityHit)
-            endCoords = memory.read_vector3(p_endPos)
-            surfaceNormal = memory.read_vector3(p_surfaceNormal)
         end
-        callback(did_hit, entity, endCoords, surfaceNormal)
+        callback(did_hit, entity, v_endPos, v_surfaceNormal)
     end)
 end
 
@@ -3548,6 +3544,7 @@ function attach_entity(parent, handle, offset, rot, index, collision)
         return
     end
     if parent == handle then
+        util.toast("ROTATE" .. parent)
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
         GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
@@ -3675,6 +3672,7 @@ end
 local lastAddKeyPress = 0
 while true do
     local seconds = os.seconds()
+    local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     if builder ~= nil then
         if menu.is_open() and editorActive then
             if scriptSettings.autosaveEnabled and seconds >= autosaveNextTime then
@@ -3684,7 +3682,7 @@ while true do
             if scriptSettings.showAddOverlay then
                 get_entity_lookat(40.0, 5.0, nil, function(did_hit, entity, pos)
                     if did_hit and entity and builder.entities[entity] == nil then
-                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.IS_PED_A_PLAYER(entity) then
+                        if ENTITY.IS_ENTITY_A_PED(entity) and PED.IS_PED_A_PLAYER(entity) or entity == my_ped then
                             return
                         end
                         local hudPos = get_screen_coords(pos)
@@ -3817,7 +3815,6 @@ while true do
                     update = true
                 end
 
-                local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
                 if not update then
                     ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, false)
                     ENTITY.FREEZE_ENTITY_POSITION(my_ped, false)
