@@ -76,6 +76,7 @@ v1.10.0
 v1.11.0
 
 * Added translations support
+* Added chinese (traditional) translation (Thanks Zero)
 
 # jackz chat (v1)
 

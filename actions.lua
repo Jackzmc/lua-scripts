@@ -40,9 +40,11 @@ if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VE
   end
   
 
-if metaList then
-    menu.divider(metaList, "-- Credits --")
-    menu.hyperlink(metaList, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
+if SCRIPT_META_LIST then
+    menu.divider(SCRIPT_META_LIST, "-- Credits --")
+    menu.hyperlink(SCRIPT_META_LIST, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
+    menu.divider(SCRIPT_META_LIST, "Zero - Chinese Translation")
+
 end
 
 -- Iterates in consistent order a Key/Value
