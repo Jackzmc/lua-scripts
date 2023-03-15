@@ -1,0 +1,86 @@
+REMOVE_FAVORITE: Removed %s\n%s from favorites
+ADD_FAVORITE: Added %s\n%s to favorites
+STOP_ALL_ACTIONS_NAME: Stop All Actions
+STOP_ALL_ACTIONS_DESC: Stops the current scenario or animation
+CLEAR_ACTION_IMMEDIATELY_NAME: Clear Action Immediately
+CLEAR_ACTION_IMMEDIATELY_DESC: If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.
+ACTION_TARGETS_NAME: Action Targets
+ACTION_TARGETS_DESC: The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS
+ACTION_TARGETS_OPTION1: Only yourself
+ACTION_TARGETS_OPTION2: Only NPCs
+ACTION_TARGETS_OPTION3: Both
+PLAYING_ANIM: Playing animation %s
+SPECIAL_ANIMATIONS_NAME: Special Animations
+SPECIAL_ANIMATIONS_DESC: Special animations that can use props
+CONTROLLABLE_NAME: Controllable
+CONTROLLABLE_DESC: Should the animation allow player control?
+ANIMATIONS_NAME: Animations
+ANIMATIONS_DESC: List of the animations you can play
+PLAY_THIS_ANIM: Play this animation\nAnimation ID: %s
+REPO_UNSUPPORTED_NAME: Repo Unsupported
+REPO_UNSUPPORTED_DESC: The repository version lacks a required file for special animations. Please use the manual install from https://jackz.me/stand/get-latest-zip to use special animations, make sure to uncheck repo version.
+DATA_ERROR_NAME: Error
+DATA_ERROR_DESC: Could not read file resources/jackz_actions/actions_data.lua, so this feature is unavailable
+CLOUD_FAVORITES_NAME: Cloud Favorites
+CLOUD_FAVORITES_DESC: View categorized saved favorites from other users, or store your own.
+FAVORITES_NAME: Favorites
+FAVORITES_DESC: List of all your favorited animations. Hold SHIFT to add or remove from favorites.
+UPLOAD_NAME: Upload
+UPLOAD_DESC: Add your own cloud animation favorites.
+FROM_FAVORITES_NAME: From Favorites
+FROM_FAVORITES_DESC: Browse your favorite played animations to upload them
+FROM_RECENT_NAME: From Recent
+FROM_RECENT_DESC: Browse your recently played animations to upload them
+BROWSE_NAME: Browse
+BROWSE_DESC: Browse all uploaded cloud animation favorites
+CLOUD_ERROR: An error occurred fetching cloud data. Code: %s
+UPLOADING_ANIM: Uploading animation
+UPLOAD_SUCCESS: Upload successful for %s/%s
+UPLOAD_CONFLICT: Animation already was uploaded
+UPLOAD_FAILED: Upload failed for %s/%s: %s
+UPLOAD_FAVORITE_DESC: Upload the %s from group %s to the cloud
+FETCHING_ANIM: Fetching animations for %s
+RATELIMIT: Ratelimited, try again in a few seconds
+FETCHING_USERS: Fetching users
+CLOUD_USER_FAVORITES_DESC: All action categories favorited by %s
+CLOUD_FETCHING_DICTS: Fetching dictionaries for %s
+CLOUD_USER_FAVORITES_ANIM_DESC: All actions in %s favorited by %s
+RECENTS_NAME: Recents
+RECENTS_DESC: List of all your recently played animations
+RAW_ANIMATIONS_DIVIDER: Raw Animations
+SEARCH_NAME: Search
+SEARCH_DESC: Search for animations
+SEARCH_ANIM_GROUPS_NAME: Search Animation Groups
+SEARCH_ANIM_GROUPS_DESC: Searches all animation groups for the inputted text
+ANIM_DATA_OUTDATED: Animation data out of date, updating...
+ANIM_DATA_DOWNLOADING: Downloading animation data
+ANIM_DATA_SUCCESS: Downloaded resource file successfully
+ANIM_DATA_ERROR: Failed to automatically download animations data file. Please download latest file manually.
+PLAY_ANIM_DESC: Plays the %s animation from group %s
+BROWSE_ANIMS_NAME: Browse Animations
+BROWSE_ANIMS_DESC: WARNING: Will cause a freeze when exiting, stand does not like unloading 15,000 animations. Use search if your pc cannot handle.
+BROWSE_UNLOAD_WARN: WARN: Unloading animation browse list, prepare for lag.
+LOADING_MENUS: Loading menus
+SCENARIOS_NAME: Scenarios
+SCENARIOS_DESC: List of scenarios you can play\nSome scenarios only work on certain genders, example AA Coffee only works on male peds.
+SCENARIO_GROUP_DESC: All %s scenarios
+SCENARIO_PLAY_DESC: Plays the %s scenario
+AMBIENT_SPEECH_NAME: Ambient Speech
+AMBIENT_SPEECH_DESC: Allow you to play ambient speeches on yourself or other peds
+SPEECH_LINES_NAME: Speech Lines
+SPEECH_LINES_DESC: List of Speeches peds can say.\nSome lines may not work on some NPCs
+SPEECH_METHOD_NAME: Speech Method
+SPEECH_METHOD_DESC: Controls how the speech is played
+SELF_MODEL_VOICE_NAME: Self Model Voice
+SELF_MODEL_VOICE_DESC: What model to use when playing a self-ambient speech\nOnly used if your current model is MP (Fe)male
+FEMALE_PEDS_DIVIDER: Female Peds
+SELF_VOICE_DESC: Uses %s model as your ambient speech voice
+MALE_PEDS_DIVIDER: Male Peds
+SPEECH_DURATION_NAME: Duration
+SPEECH_DURATION_DESC: How many times should the speech be played?\n 0 to play forever, use 'Stop Active Speech' to end.
+SPEECH_INTERVAL_NAME: Speech Interval
+SPEECH_INTERVAL_DESC: How many milliseconds per repeat of line?
+SPEECH_STOP_NAME: Stop Active Speech
+SPEECH_STOP_DESC: Stops any active ambient speeches
+DELETE_FAVORITE_WARN: Are you sure you want to remove this animation from your favorites?
+HINT_SET_FAVORITES: Hold LEFT SHIFT on an animation to add or remove it from your favorites.

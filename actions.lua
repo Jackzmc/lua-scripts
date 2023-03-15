@@ -5,7 +5,8 @@ local SCRIPT = "actions"
 VERSION = "1.10.10"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
-local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.0.0" -- target version of actions_data
+local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
+local LANG_TARGET_VERSION = "1.4.0" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -18,6 +19,26 @@ require('templates/common')
 
 
 util.require_natives(1627063482)
+
+local _lang = require("translations")
+if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
+    if SCRIPT_SOURCE == "MANUAL" then
+      util.toast("Outdated translations library, downloading update...")
+      os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+      package.loaded["translations"] = nil
+      _G["translations"] = nil
+      download_lib_update("translations.lua")
+      _lang = require("translations")
+    else
+      util.toast("Outdated lib: 'translations'")
+    end
+  end
+  _lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+  _lang.load_translation_file(SCRIPT)
+  if wasUpdated then
+    _lang.update_translation_file(SCRIPT)
+  end
+  
 
 if metaList then
     menu.divider(metaList, "-- Credits --")
@@ -68,11 +89,118 @@ local recents = {}
 local animFlags = AnimationFlags.ANIM_FLAG_REPEAT | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL
 local allowControl = true
 local affectType = 0
+local animLoaded = false
+local animAttachments = {}
+
+
+function play_animation(group, anim, doNotAddRecent, data, remove)
+    local flags = animFlags -- Keep legacy animation flags
+    local duration = -1
+    local props
+    if data ~= nil then
+        flags = AnimationFlags.ANIM_FLAG_NORMAL
+        if data.AnimationOptions ~= nil then
+            if data.AnimationOptions.Loop then
+                flags = flags | AnimationFlags.ANIM_FLAG_REPEAT
+            end
+            if data.AnimationOptions.Controllable then
+                flags = flags | AnimationFlags.ANIM_FLAG_ENABLE_PLAYER_CONTROL | AnimationFlags.ANIM_FLAG_UPPERBODY
+            end
+            if data.AnimationOptions.EmoteDuration then
+                duration = data.AnimationOptions.EmoteDuration
+            end
+        end
+        if data.AnimationOptions and data.AnimationOptions.Props then
+            props = data.AnimationOptions.Props
+        end
+    end
+    if remove then
+        for i, favorite in ipairs(favorites) do
+            if favorite[1] == group and favorite[2] == anim then
+                table.remove(favorites, i)
+                populate_favorites()
+                save_favorites()
+                util.toast("Removed " .. group .. "\n" .. anim .. " from favorites")
+                return
+            end
+        end
+    end
+    if PAD.IS_CONTROL_PRESSED(2, 209) then
+        table.insert(favorites, { group, anim })
+        populate_favorites()
+        save_favorites()
+        util.toast("Added " .. group .. "\n" .. anim .. " to favorites")
+    else
+        clear_anim_props()
+        STREAMING.REQUEST_ANIM_DICT(group)
+        while not STREAMING.HAS_ANIM_DICT_LOADED(group) do
+            util.yield(100)
+        end
+        local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        
+
+        if not is_anim_in_recent(group, anim) and not doNotAddRecent then
+            add_anim_to_recent(group, anim)
+        end
+
+        -- Play animation on all npcs if enabled:
+        if affectType > 0 then
+            local peds = entities.get_all_peds_as_handles()
+            for _, npc in ipairs(peds) do
+                if not PED.IS_PED_A_PLAYER(npc) and not PED.IS_PED_IN_ANY_VEHICLE(npc, true) then
+                    _play_animation(npc, group, anim, flags, duration, props)
+                end
+            end
+        end
+        -- Play animation on self if enabled:
+        if affectType == 0 or affectType == 2 then
+            _play_animation(ped, group, anim, flags, duration, props)
+        end
+        STREAMING.REMOVE_ANIM_DICT(group)
+    end
+end
+
+function _play_animation(ped, group, animation, flags, duration, props)
+    if clearActionImmediately then
+        TASK.CLEAR_PED_TASKS_IMMEDIATELY(ped)
+    end
+    if props ~= nil then
+        local pos = ENTITY.GET_ENTITY_COORDS(ped)
+        for _, propData in ipairs(props) do
+            local boneIndex = PED.GET_PED_BONE_INDEX(ped, propData.Bone)
+            local hash = util.joaat(propData.Prop)
+            STREAMING.REQUEST_MODEL(hash)
+            while not STREAMING.HAS_MODEL_LOADED(hash) do
+                util.yield()
+            end
+            local object = entities.create_object(hash, pos)
+            animAttachments[object] = propData.DeleteOnEnd ~= nil
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                object, ped, boneIndex,
+                propData.Placement[1] or 0.0,
+                propData.Placement[2] or 0.0,
+                propData.Placement[3] or 0.0,
+                propData.Placement[4] or 0.0,
+                propData.Placement[5] or 0.0,
+                propData.Placement[6] or 0.0,
+                false,
+                true,
+                false,
+                true,
+                1,
+                true
+            )
+            STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+        end
+    end
+    TASK.TASK_PLAY_ANIM(ped, group, animation, 8.0, 8.0, duration, flags, 0.0, false, false, false)
+end
+
 -----------------------
 -- SCENARIOS
 ----------------------
 
-menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current scenario or animation", function(v)
+_lang.menus.action(menu.my_root(), "STOP_ALL_ACTIONS", {"stopself"}, function()
     clear_anim_props()
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     if clearActionImmediately then
@@ -94,10 +222,10 @@ menu.action(menu.my_root(), "Stop All Actions", {"stopself"}, "Stops the current
         end
     end
 end)
-menu.toggle(menu.my_root(), "Clear Action Immediately", {"clearimmediately"}, "If enabled, will immediately stop the animation / scenario that is playing when activating a new one. If false, you will transition smoothly to the next action.", function(on)
+_lang.menus.toggle(menu.my_root(), "CLEAR_ACTION_IMMEDIATELY", {"clearimmediately"}, function(on)
     lclearActionImmediately = on
 end, clearActionImmediately)
-menu.list_select(menu.my_root(), "Action Targets", {"actiontarget"}, "The entities that will play this action.\n0 = Only yourself\n1 = Only NPCs\n2 = Both you and NPCS", { { "Only yourself" }, { "Only NPCs" }, {"Both"} }, 1, function(index)
+_lang.menus.list_select(menu.my_root(), "ACTION_TARGETS", {"actiontarget"}, { { _lang.format("ACTION_TARGETS_OPTION1") }, { _lang.format("ACTION_TARGETS_OPTION2") }, { _lang.format("ACTION_TARGETS_OPTION3")} }, 1, function(index)
     affectType = index - 1
 end)
 function onControllablePress(value)
@@ -109,32 +237,38 @@ function onControllablePress(value)
 end
 function generateAnimationAction(key, data)
     return function()
-        util.toast("Playing anim: " .. data[3] or key)
+        _lang.toast("PLAYING_ANIM", data[3] or key)
         util.log(string.format("dict=%s anim=%s name=%s", data[1], data[2], data[3]))
         play_animation(data[1], data[2], false, data)
     end
 end
 
-menu.divider(menu.my_root(), "Stuff")
-local specialAnimationsMenu = menu.list(menu.my_root(), "Special Animations", {}, "Special animations that can use props")
-menu.toggle(specialAnimationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
-local animationsMenu = menu.list(menu.my_root(), "Animations", {}, "List of animations you can play")
-menu.toggle(animationsMenu, "Controllable", {"animationcontrollable"}, "Should the animation allow player control?", onControllablePress, allowControl)
+menu.divider(menu.my_root(), "")
+local specialAnimationsMenu = _lang.menus.list(menu.my_root(), "SPECIAL_ANIMATIONS", {})
+_lang.menus.toggle(specialAnimationsMenu, "CONTROLLABLE", {"animationcontrollable"}, onControllablePress, allowControl)
+local animationsMenu = _lang.menus.list(menu.my_root(), "ANIMATIONS", {})
+_lang.menus.toggle(animationsMenu, "CONTROLLABLE", {"animationcontrollable"}, onControllablePress, allowControl)
 
 
-for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
-    local catmenu = menu.list(specialAnimationsMenu, category, {})
-    for key, data in pairsByKeys(rows) do
-        menu.action(
-            catmenu,
-            data[3] or key,
-            {"playanim"..key},
-            string.format("%s %s\nPlay this animation\nAnimation Id: %s", data[1], data[2], key),
-            generateAnimationAction(key, data)
-        )
+    for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
+        local catmenu = menu.list(specialAnimationsMenu, category, {})
+        for key, data in pairsByKeys(rows) do
+            menu.action(
+                catmenu,
+                data[3] or key,
+                {"playanim"..key},
+                string.format("%s %s\nPlay this animation\nAnimation Id: %s", data[1], data[2], key),
+                generateAnimationAction(key, data)
+            )
+        end
     end
-end
 
+else
+    if SCRIPT_SOURCE == "REPO" then
+        menu.readonly(specialAnimationsMenu, "Repo Unsupported", "The repository version lacks a required file for special animations. Please use the manual install from https://jackz.me/stand/get-latest-zip to use special animations, make sure to uncheck repo version.")
+    end
+    menu.readonly(specialAnimationsMenu, "Error", "Could not read file resources/jackz_actions/actions_data.lua, so this feature is unavailable.")
+end
 
 -----------------------
 -- ANIMATIONS
@@ -158,25 +292,26 @@ end
 
 local animMenuData = {}
 local resultMenus = {}
-local cloudFavoritesMenu = menu.list(animationsMenu, "Cloud Favorites", {}, "View categorized saved favorites from other users, or store your own.")
-local favoritesMenu = menu.list(animationsMenu, "Favorites", {}, "List of all your favorited animations. Hold SHIFT to add or remove from favorites.")
-local cloudFavoritesUploadMenu = menu.list(cloudFavoritesMenu, "Upload", {}, "Add your own cloud animation favorites. BETA.")
-    local cloudUploadFromFavorites = menu.list(cloudFavoritesUploadMenu, "From Favorites", {}, "Browse your favorite played animations to upload them", function() populate_cloud_list(true) end)
-    local cloudUploadFromRecent = menu.list(cloudFavoritesUploadMenu, "From Recent", {}, "Browse your recently played animations to upload them",  function() populate_cloud_list(false) end)
-local cloudFavoritesBrowseMenu = menu.list(cloudFavoritesMenu, "Browse", {}, "Browse all uploaded cloud animation favorites")
+local cloudFavoritesMenu = _lang.menus.list(animationsMenu, "CLOUD_FAVORITES", {})
+local favoritesMenu = _lang.menus.list(animationsMenu, "FAVORITES", {})
+local cloudFavoritesUploadMenu = _lang.menus.list(cloudFavoritesMenu, "UPLOAD", {})
+    local cloudUploadFromFavorites = _lang.menus.list(cloudFavoritesUploadMenu, "FROM_FAVORITES", {}, function() populate_cloud_list(true) end)
+    local cloudUploadFromRecent = _lang.menus.list(cloudFavoritesUploadMenu, "FROM_RECENT", {}, function() populate_cloud_list(false) end)
+local cloudFavoritesBrowseMenu = _lang.menus.list(cloudFavoritesMenu, "BROWSE", {})
 
 local cloudUsers = {} -- Record<user, { menu, categories = Record<dictionary, { menu, animations = {} }>}
 local cloud_loading = false
 function cloudvehicle_fetch_error(code)
     return function()
         cloud_loading = false
-        util.toast("An error occurred fetching cloud data. Code: " .. code, TOAST_ALL)
+        _lang.toast("CLOUD_ERROR", code)
+        Log.error("cloud fetch error", code)
         HUD.BUSYSPINNER_OFF()
     end
 end
 local cloud_list = {}
 function upload_animation(group, animation, alias)
-    show_busyspinner("Uploading animation")
+    show_busyspinner(_lang.format("UPLOADING_ANIM"))
     async_http.init('jackz.me',
         string.format(
             '/stand/cloud/actions/manage?scname=%s&hash=%d&alias=%s&dict=%s&anim=%s',
@@ -188,11 +323,11 @@ function upload_animation(group, animation, alias)
         ),
         function(body)
             if body == "OK" then
-                util.toast("Upload successful for " .. group .. "/" .. animation)
+                _lang.toast("UPLOAD_SUCCESS", group, animation)
             elseif body == "Conflict" then
-                util.toast("Animation already uploaded")
+                _lang.toast("UPLOAD_CONFLICT", group, animation)
             else
-                util.toast("Upload failed for " .. group .. "/" .. animation .. ": " .. body)
+                _lang.toast("UPLOAD_FAILED", group, animation, body)
             end
             HUD.BUSYSPINNER_OFF()
         end
@@ -212,14 +347,14 @@ function populate_cloud_list(useFavorites)
         -- if favorite[3] then
         --     name = favorite[3] .. " (" .. favorite[2] .. ")"
         -- end
-        local action = menu.action(listMenu, name, {}, "Upload the " .. favorite[2] .. " from group " .. favorite[1] .. " to the cloud", function(v)
+        local action = menu.action(listMenu, name, {}, _lang.format("UPLOAD_FAVORITE_DESC", favorite[1], favorite[2]), function(v)
             upload_animation(favorite[1], favorite[2], nil)
         end)
         table.insert(cloud_list, action)
     end
 end
 function populate_user_dict(user, dictionary)
-    show_busyspinner("Fetching animations for " .. dictionary)
+    show_busyspinner(_lang.format("FETCHING_ANIM", dictionary))
     while cloud_loading do
         util.yield()
     end
@@ -227,8 +362,9 @@ function populate_user_dict(user, dictionary)
     async_http.init('jackz.me', '/stand/cloud/actions/list?method=actions&scname=' .. user .. "&dict=" .. dictionary, function(body)
         cloud_loading = false
         if body:sub(1, 1) == "<" then
-            util.toast("Ratelimited, try again in a few seconds.")
-            menu.divider(cloudUsers[user].categories[dictionary].menu, "Ratelimited, try again in a few seconds")
+            local msg = _lang.format("RATELIMIT")
+            util.toast(msg)
+            menu.divider(cloudUsers[user].categories[dictionary].menu, msg)
             return
         end
         for _, animation in ipairs(cloudUsers[user].categories[dictionary].animations) do
@@ -249,7 +385,7 @@ function populate_user_dict(user, dictionary)
     async_http.dispatch()
 end
 menu.on_focus(cloudFavoritesBrowseMenu, function()
-    show_busyspinner("Fetching users")
+    show_busyspinner(_lang.format("FETCHING_USERS"))
     while cloud_loading do
         util.yield()
     end
@@ -273,14 +409,14 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
             cloudUsers[user].menu = nil
         end
         for user in string.gmatch(body, "[^\r\n]+") do
-            local userMenu = menu.list(cloudFavoritesBrowseMenu, user, {}, "All action categories favorited by " .. user)
+            local userMenu = menu.list(cloudFavoritesBrowseMenu, user, {}, _lang.format("CLOUD_USER_FAVORITES_DESC", user))
             cloudUsers[user] = {
                 menu = userMenu,
                 categories = {}
             }
             -- TODO: Move from on_focus to on click
             menu.on_focus(userMenu, function(_)
-                show_busyspinner("Fetching dictionaries for " .. user)
+                show_busyspinner(util.format("CLOUD_FETCHING_DICTS", user))
                 while cloud_loading do
                     util.yield()
                 end
@@ -301,7 +437,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
                     local count = 0
                     for dictionary in string.gmatch(body, "[^\r\n]+") do
                         count = count + 1
-                        local dictMenu = menu.list(userMenu, dictionary, {}, "All actions in " .. dictionary .. " favorited by " .. user, function() populate_user_dict(user, dictionary) end)
+                        local dictMenu = menu.list(userMenu, dictionary, {}, _lang.format("CLOUD_USER_FAVORITES_ANIM_DESC", dictionary, user), function() populate_user_dict(user, dictionary) end)
                         cloudUsers[user].categories[dictionary] = {
                             menu = dictMenu,
                             animations = {}
@@ -317,10 +453,10 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
     end, cloudvehicle_fetch_error("FETCH_USERS"))
     async_http.dispatch()
 end)
-local recentsMenu = menu.list(animationsMenu, "Recents", {}, "List of all your recently played animations")
-menu.divider(animationsMenu, "Raw Animations")
-local searchMenu = menu.list(animationsMenu, "Search", {}, "Search for animation groups")
-menu.action(searchMenu, "Search Animation Groups", {"searchanim"}, "Searches all animation groups for the inputted text", function()
+local recentsMenu = _lang.menus.list(animationsMenu, "RECENTS", {})
+_lang.menus.divider(animationsMenu, "RAW_ANIMATIONS")
+local searchMenu = _lang.menus.list(animationsMenu, "SEARCH", {})
+_lang.menus.action(searchMenu, "SEARCH_ANIM_GROUPS", {"searchanim"}, function()
     menu.show_command_box("searchanim ")
 end, function(args)
     -- Delete existing results
@@ -354,7 +490,7 @@ end, function(args)
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                util.toast("Animation data out of date, updating...")
+                _lang.toast("ANIM_DATA_OUTDATED")
                 download_animation_data()
             end
             isHeaderRead = true
@@ -366,30 +502,30 @@ end, function(args)
     for i = 1, 201 do
         if results[i] then
             -- local m = menu.list(searchMenu, group, {}, "All animations for " .. group)
-           local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, "Plays the " .. results[i][2] .. " animation from group " .. results[i][1], function(v)
+           local m = menu.action(searchMenu, results[i][2], {"animate" .. results[i][1] .. " " .. results[i][2]}, _lang.format("PLAY_ANIM_DESC", results[i][2], results[i][1]), function(v)
                 play_animation(results[i][1], results[i][2], false)
             end)
             table.insert(resultMenus, m)
         end
     end
 end)
-local browseMenu = menu.list(animationsMenu, "Browse Animations", {}, "WARNING: Will cause a freeze when exiting, stand does not like unloading 15,000 animations. Use search if your pc cannot handle.", function() setup_animation_list() end)
+local browseMenu = _lang.menus.list(animationsMenu, "BROWSE_ANIMS", {}, function() setup_animation_list() end)
 menu.on_focus(browseMenu, function()
     if animLoaded then
-        util.toast("WARN: Unloading animation browse list, prepare for lag.")
+        _lang.toast("BROWSE_UNLOAD_WARN")
         util.yield(100)
         destroy_animations_data()
     end
 end)
-show_busyspinner("Loading Menus...")
+show_busyspinner(_lang.format("LOADING_MENUS"))
 
 
-local scenariosMenu = menu.list(menu.my_root(), "Scenarios", {}, "List of scenarios you can play\nSome scenarios only work on certain genders, example AA Coffee only works on male peds.")
+local scenariosMenu = _lang.menus.list(menu.my_root(), "SCENARIOS", {})
 for group, scenarios in pairs(SCENARIOS) do
-    local submenu = menu.list(scenariosMenu, group, {}, "All " .. group .. " scenarios")
+    local submenu = menu.list(scenariosMenu, group, {}, _lang.format("SCENARIO_GROUP_DESC", group))
     for _, scenario in ipairs(scenarios) do
         scenarioCount = scenarioCount + 1
-        menu.action(submenu, scenario[2], {"scenario"}, "Plays the " .. scenario[2] .. " scenario", function(v)
+        menu.action(submenu, scenario[2], {"scenario"}, _lang.format("SCENARIO_PLAY_DESC", scenario[2]), function(v)
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             
             -- Play scenario on all npcs if enabled:
@@ -428,8 +564,8 @@ local activeSpeech = "GENERIC_HI"
 local ambientSpeechDuration = 1
 local speechDelay = 1000
 local repeatEnabled = false
-local ambientSpeechMenu = menu.list(menu.my_root(), "Ambient Speech", {}, "Allow you to play ambient speeches on yourself or other peds")
-local speechMenu = menu.list(ambientSpeechMenu, "Speech Lines", {"speechlines"}, "List of Speeches peds can say.\nSome lines may not work on some NPCs")
+local ambientSpeechMenu = _lang.menus.list(menu.my_root(), "AMBIENT_SPEECH_NAME", {})
+local speechMenu = _lang.menus.list(ambientSpeechMenu, "SPEECH_LINES", {"speechlines"})
 for _, pair in ipairs(SPEECHES) do
     local desc = pair[2]
     if pair[3] then
@@ -505,10 +641,10 @@ for _, pair in ipairs(SPEECH_PARAMS) do
         speechParam = pair[2]
     end)
 end
-local selfModelVoice = menu.list(ambientSpeechMenu, "Self Model Voice", {"selfvoice", "What model to use when playing a self-ambient speech\nOnly used if your current model is MP (Fe)male"})
-menu.divider(selfModelVoice, "Female Peds")
+local selfModelVoice = _lang.menus.list(ambientSpeechMenu, "SELF_MODEL_VOICE", {"selfvoice"})
+_lang.menus.divider(selfModelVoice, "FEMALE_PEDS")
 for _, model in ipairs(VOICE_MODELS.FEMALE) do
-    menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
+    menu.action(selfModelVoice, model, {"voice" .. model}, _lang.format("SELF_VOICE_DESC", model), function(a)
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
             entities.delete(selfSpeechPed.entity)
             selfSpeechPed.entity = 0
@@ -516,9 +652,9 @@ for _, model in ipairs(VOICE_MODELS.FEMALE) do
         selfSpeechPed.model = util.joaat(model)
     end)
 end
-menu.divider(selfModelVoice, "Male Peds")
+_lang.menus.divider(selfModelVoice, "MALE_PEDS")
 for _, model in ipairs(VOICE_MODELS.MALE) do
-    menu.action(selfModelVoice, model, {"voice" .. model}, "Uses \"" .. model .. "\" model as your ambient speech voice", function(a)
+    menu.action(selfModelVoice, model, {"voice" .. model}, _lang.format("SELF_VOICE_DESC", model), function(a)
         if ENTITY.DOES_ENTITY_EXIST(selfSpeechPed.entity) then
             entities.delete(selfSpeechPed.entity)
             selfSpeechPed.entity = 0
@@ -527,13 +663,13 @@ for _, model in ipairs(VOICE_MODELS.MALE) do
     end)
 end
 
-menu.slider(ambientSpeechMenu, "Duration", {"speechduration"}, "How many times should the speech be played?\n 0 to play forever, use 'Stop Active Speech' to end.", 0, 100, ambientSpeechDuration, 1, function(value)
+_lang.menus.slider(ambientSpeechMenu, "SPEECH_DURATION", {"speechduration"}, 0, 100, ambientSpeechDuration, 1, function(value)
     ambientSpeechDuration = value
 end)
-menu.slider(ambientSpeechMenu, "Speech Interval", {"speechinterval"}, "How many milliseconds per repeat of line?", 100, 30000, speechDelay, 100, function(value)
+_lang.menus.slider(ambientSpeechMenu, "SPEECH_INTERVAL", {"speechinterval"}, 100, 30000, speechDelay, 100, function(value)
     speechDelay = value
 end)
-menu.action(ambientSpeechMenu, "Stop Active Speech", {"stopspeeches"}, "Stops any active ambient speeches", function(a)
+_lang.menus.action(ambientSpeechMenu, "SPEECH_STOP", {"stopspeeches"}, function()
     for _, ped in ipairs(entities.get_all_peds_as_handles()) do
         AUDIO.STOP_CURRENT_PLAYING_AMBIENT_SPEECH(ped)
     end
@@ -584,7 +720,7 @@ function populate_favorites()
         local a
         a = menu.action(favoritesMenu, name, {}, "Plays " .. favorite[2] .. " from group " .. favorite[1], function(v)
             if PAD.IS_CONTROL_PRESSED(2, 209) then
-                menu.show_warning(a, 2, "Are you sure you want to remove this animation from your favorites", function()
+                menu.show_warning(a, 2, _lang.format("DELETE_FAVORITE_WARN"), function()
                     play_animation(favorite[1], favorite[2], false, nil, true)
                 end)
             else
@@ -609,23 +745,23 @@ function add_anim_to_recent(group, anim)
         menu.delete(recents[1][3])
         table.remove(recents, 1)
     end
-    local action = menu.action(recentsMenu, anim, {"animate" .. group .. " " .. anim}, "Plays the " .. anim .. " animation from group " .. group, function(v)
+    local action = menu.action(recentsMenu, anim, {"animate" .. group .. " " .. anim}, _lang.format("PLAY_ANIM_DESC", anim, group), function(v)
         play_animation(group, anim, true)
     end)
     table.insert(recents, { group, anim, action })
 end
 function download_animation_data()
     local loading = true
-    show_busyspinner("Downloading animation data")
+    show_busyspinner(_lang.format("ANIM_DATA_DOWNLOADING"))
     async_http.init("jackz.me", "/stand/resources/jackz_actions/animations.txt", function(result)
         local file = io.open(ANIMATIONS_DATA_FILE, "w")
         file:write(result:gsub("\r", ""))
         file:close()
-        util.log(SCRIPT .. ": Downloaded resource file successfully")
+        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_SUCCESS"))
         HUD.BUSYSPINNER_OFF()
         loading = false
     end, function()
-        util.toast(SCRIPT .. ": Failed to automatically download animations data file. Please download latest file manually.")
+        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_ERROR"))
         util.stop_script()
         loading = false
     end)
@@ -646,7 +782,7 @@ end
 function setup_category_animations(category)
     animMenuData[category].menus = {}
     for _, animation in ipairs(animMenuData[category].animations) do
-        local action = menu.action(animMenuData[category].list, animation, {"animate" .. category .. " " .. animation}, "Plays the " .. animation .. " animation from group " .. category, function(v)
+        local action = menu.action(animMenuData[category].list, animation, {"animate" .. category .. " " .. animation}, _lang.format("PLAY_ANIM_DESC", animation, category), function()
             play_animation(category, animation, false)
         end)
         table.insert(animMenuData[category].menus, action)
@@ -691,7 +827,7 @@ function setup_animation_list()
         else
             local version = line:sub(2)
             if version ~= ANIMATIONS_DATA_FILE_VERSION then
-                util.toast("Animation data out of date, updating...")
+                _lang.toast("ANIM_DATA_OUTDATED")
                 download_animation_data()
             end
             isHeaderRead = true
@@ -835,7 +971,7 @@ function save_favorites()
     file:close()
 end
 -----------------------
-util.toast("Hold LEFT SHIFT on an animation to add or remove it from your favorites.", 2)
+_lang.toast("HINT_SET_FAVORITES")
 util.toast(string.format("Ped Actions Script %s by Jackz.", VERSION), 2)
 
 util.on_stop(function(_)
@@ -844,7 +980,7 @@ util.on_stop(function(_)
     end
     ANIMATIONS = {}
     if animLoaded then
-        util.toast("WARN: Unloading animation browse list, prepare for lag.")
+        _lang.toast("BROWSE_UNLOAD_WARN")
         destroy_animations_data()
     end
     delete_anim_props()
