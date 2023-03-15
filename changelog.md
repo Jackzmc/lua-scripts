@@ -44,6 +44,7 @@ v3.10.0
 * Add "Drive On Water" feature
 * Add sorted cloud list
 * Added cloud rating system
+* (3.10.4) Updated translations lib to 1.4.0
 
 # actions (v1)
 
@@ -72,6 +73,10 @@ v1.10.0
 * (1.10.8) Auto download animations.txt
 * (1.10.9) Fix cloud bug
 
+v1.11.0
+
+* Added translations support
+
 # jackz chat (v1)
 
 V1.1.0
@@ -99,6 +104,7 @@ V1.2.0
 * (1.2.21) Fix some deprecated and weird time based bugs
 * (1.2.22) Actually fix it (fixes messages not clearing)
 * (1.2.23) Fix preprocessor bug
+* (1.2.27) Updated translations lib to 1.4.0
 
 # train control (v1)
 
