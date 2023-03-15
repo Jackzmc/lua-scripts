@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.3.3"
+local LIB_VERSION = "1.4.0"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -335,6 +335,17 @@ local menus = {
     --- Creates a menu.text_input() with translation prefix
     text_input = function(root, translationKey, commands, callback, defaultStr)
         return menu.text_input(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), callback, defaultStr or "")
+    end,
+    --- Creates a menu.list_select() with translation prefix
+    list_select = function(root, translationKey, commands, options, default, on_change)
+        return menu.list_select(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), options, default, on_change or no_op)
+    end,
+    --- Creates a menu.list_action() with translation prefix
+    list_action = function(root, translationKey, commands, options, on_item_click)
+        return menu.list_action(root, format(translationKey .. "_NAME"), commands, format(translationKey .. "_DESC"), options, on_item_click or no_op)
+    end,
+    readonly = function(root, translationKey, value)
+        return menu.readonly(root, format(translationKey .. "_NAME"), format(translationKey .. "_DESC", value))
     end
 }
 return {

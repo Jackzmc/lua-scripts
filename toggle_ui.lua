@@ -8,6 +8,4 @@ menu.toggle(menu.my_root(), "Toggle Radar", {"toggleradar"}, "", function(on)
     HUD.DISPLAY_RADAR(on)
 end, true)
 
-while true do
-	util.yield()
-end
+util.keep_running()

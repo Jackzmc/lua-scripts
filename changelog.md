@@ -118,48 +118,6 @@ V1.1.0
 
 # jackz vehicle builder (v1)
 
-V1.22.0
-
-* Added "Create Manual Base" to spawn a manual model name
-* Update updaters, internal changes
-* (1.22.1) Fixed visibility not being networked (Ty hexarobi)
-* (1.22.1) Fixed collision not turning off (Ty hexarobi)
-* (1.22.2) Add check for corrupted favorites.json file
-
-V1.23.0
-
-* Added spawning particle effects to a build
-* Add an 'Open Folder' option in saved builds
-* Fix some bugs
-* Add shortcut to clear build on main menu
-* Minor cleanup on some descriptions
-* Add command to spawn builds
-* (1.23.1) Fix error on older builds
-* (1.23.2) Possibly fix not spawning in builds
-
-V1.24.0
-
-* Internal change for vehicle search
-* Add sorting option (type and direction) for cloud lists
-* Organize builder entities by type
-* Add cloning non-networked entities
-* Add shortcuts to adding jackz_vehicles
-* Add abiity to attach entities directly to the world
-* Added ability to set animations on entities (see jackz_animator)
-* Fix some bugs
-* (1.24.1) Fix bug
-* (1.24.2) Fix download process
-* (1.24.3) Check for invalid builds on spawn
-* (1.24.4) Changed cloud spawning logic
-* (1.24.5) Fix wrong toast
-* (1.24.6) Fix uncaught error
-* (1.24.7) Fix more merge errors
-* (1.24.8) Add missing particles search
-* (1.24.9) Fix another error -_-
-* (1.24.10) Fix another git issue (cloud sorts lists)
-* (1.24.11) Fix search error
-* (1.24.12) Fix cloud sorts > spawn not working
-
 V1.25.0
 
 * Switched to new format 2 for jackz_animator (breaks old recordings)
