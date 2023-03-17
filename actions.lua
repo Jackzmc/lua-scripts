@@ -251,7 +251,7 @@ _lang.menus.toggle(specialAnimationsMenu, "CONTROLLABLE", {"animationcontrollabl
 local animationsMenu = _lang.menus.list(menu.my_root(), "ANIMATIONS", {})
 _lang.menus.toggle(animationsMenu, "CONTROLLABLE", {"animationcontrollable"}, onControllablePress, allowControl)
 
-
+if hasSpecialAnimations then
     for category, rows in pairsByKeys(SPECIAL_ANIMATIONS) do
         local catmenu = menu.list(specialAnimationsMenu, category, {})
         for key, data in pairsByKeys(rows) do
