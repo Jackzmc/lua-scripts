@@ -578,7 +578,7 @@ local activeSpeech = "GENERIC_HI"
 local ambientSpeechDuration = 1
 local speechDelay = 1000
 local repeatEnabled = false
-local ambientSpeechMenu = _lang.menus.list(menu.my_root(), "AMBIENT_SPEECH_NAME", {})
+local ambientSpeechMenu = _lang.menus.list(menu.my_root(), "AMBIENT_SPEECH", {})
 local speechMenu = _lang.menus.list(ambientSpeechMenu, "SPEECH_LINES", {"speechlines"})
 for _, pair in ipairs(SPEECHES) do
     local desc = pair[2]
