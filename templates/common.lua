@@ -98,19 +98,26 @@ menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of 
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then
         show_busyspinner("Uploading logs....")
-        async_http.init("hastebin.com", "/documents", function(body)
+        async_http.init("paste.jackz.me", "/paste?textOnly=1&expires=604800", function(body)
             HUD.BUSYSPINNER_OFF()
-            local url = "https://hastebin.com/" .. body:sub(9, -3)
-            util.toast("Uploaded: " .. url)
+            local lines = {}
+            for s in body:gmatch("[^\r\n]+") do
+                table.insert(lines, s)
+            end
+            local url = lines[3] or ("https://paste.jackz.me/" .. lines[1])
+            util.copy_to_clipboard(url, true)
+            util.toast("Uploaded: " .. url .. "\nCopied to clipboard", 2)
             menu.hyperlink(SCRIPT_META_LIST, "Open Uploaded Log", url)
+                :setTemporary()
         end, function()
             util.toast("Failed to submit logs, network error")
-            HUD.BUSYSPINNER_OFF() 
+            HUD.BUSYSPINNER_OFF()
         end)
         logs:seek("end", -3072)
         local content = logs:read("*a")
+        local standVersion = menu.get_version().full
         async_http.set_post("text/plain",
-            string.format("Script: %s\nSource: %s\nBranch: %s\nVersion: %s\nCommit: %s\n%s", SCRIPT_NAME, SCRIPT_SOURCE or "UNK", SCRIPT_BRANCH or "UNK", VERSION or "UNK", BRANCH_LAST_COMMIT or "DEV BUILD", content)
+            string.format("Script: %s\nSource: %s\nBranch: %s\nVersion: %s\nStand Version: %s\nCommit: %s\n\n%s", SCRIPT_NAME, SCRIPT_SOURCE or "UNK", SCRIPT_BRANCH or "UNK", VERSION or "UNK", standVersion, BRANCH_LAST_COMMIT or "DEV BUILD", content)
         )
         async_http.dispatch()
         logs:close()

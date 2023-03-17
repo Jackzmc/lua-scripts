@@ -44,6 +44,9 @@ v3.10.0
 * Add "Drive On Water" feature
 * Add sorted cloud list
 * Added cloud rating system
+* (3.10.1) Made chauffer ped not flee
+* (3.10.2) Update to 'Upload Logs' to use new provider
+* (3.10.3) Fix Cloud Vehicles > Browse By Users not working
 * (3.10.4) Updated translations lib to 1.4.0
 
 # actions (v1)
@@ -72,6 +75,13 @@ v1.10.0
 * (1.10.7) Allow moving during special animations
 * (1.10.8) Auto download animations.txt
 * (1.10.9) Fix cloud bug
+* (1.10.13) Remove encoding issue from resource file
+* (1.10.14) Make actions_data file optional
+* (1.10.15) Fix playing animations erroring
+* (1.10.16) Update error message to clarify
+* (1.10.17) Fix variable scope issue
+* (1.10.18) Fix add to favorites functionality missing
+* (1.10.19) Update to 'Upload Logs' to use new provider
 
 v1.11.0
 
@@ -105,6 +115,7 @@ V1.2.0
 * (1.2.21) Fix some deprecated and weird time based bugs
 * (1.2.22) Actually fix it (fixes messages not clearing)
 * (1.2.23) Fix preprocessor bug
+* (1.2.24) Update to 'Upload Logs' to use new provider
 * (1.2.27) Updated translations lib to 1.4.0
 
 # train control (v1)
@@ -122,17 +133,41 @@ V1.1.0
 * (1.1.3) Remove auto updated dupe files
 * (1.1.6) Fix errors
 * (1.1.7) Updated translations
+* (1.1.8) Update to 'Upload Logs' to use new provider
 
 # jackz vehicle builder (v1)
+
+V1.24.0
+
+* Internal change for vehicle search
+* Add sorting option (type and direction) for cloud lists
+* Organize builder entities by type
+* Add cloning non-networked entities
+* Add shortcuts to adding jackz_vehicles
+* Add abiity to attach entities directly to the world
+* Added ability to set animations on entities (see jackz_animator)
+* Fix some bugs
+* (1.24.1) Fix bug
+* (1.24.2) Fix download process
+* (1.24.3) Check for invalid builds on spawn
+* (1.24.4) Changed cloud spawning logic
+* (1.24.5) Fix wrong toast
+* (1.24.6) Fix uncaught error
+* (1.24.7) Fix more merge errors
+* (1.24.8) Add missing particles search
+* (1.24.9) Fix another error -_-
+* (1.24.10) Fix another git issue (cloud sorts lists)
+* (1.24.11) Fix search error
+* (1.24.12) Fix cloud sorts > spawn not working
 
 V1.25.0
 
 * Switched to new format 2 for jackz_animator (breaks old recordings)
-
-V1.26.0
-
-* Improved default names for some entities
-* (Manual only) Automatically restart script on update
+* (1.25.2) Load animator if builder is from repo
+* (1.25.4) Fix cloning failing
+* (1.25.5) Update to 'Upload Logs' to use new provider
+* (1.25.6) Fix assigning base changing rotation of base entity
+* (1.25.6) Stop using read_vector3 -> v3
 
 # jackz animator (v1)
 
@@ -142,3 +177,4 @@ V1.1.0
 * Fixed recording not ending
 * Fixed recording list not clearing previous entries
 * Changed filename format for new recordings
+* (1.1.1) Update to 'Upload Logs' to use new provider

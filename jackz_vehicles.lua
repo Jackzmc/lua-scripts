@@ -2,8 +2,8 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.10.4"
-local LANG_TARGET_VERSION = "1.4.0" -- Target version of translations.lua lib
+VERSION = "3.10.3"
+local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
 --#P:DEBUG_ONLY
@@ -1069,7 +1069,7 @@ menu.divider(menu.my_root(), "Vehicle Spawning")
 
 local cloudSortListMenus = {}
 local cloudRootList = i18n.menus.list(menu.my_root(), "CLOUD", {"jvcloud"})
-local cloudUsersMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_USERS", {"jvcloudusers"}, _load_cloud_user_vehs)
+local cloudUsersMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_USERS", {"jvcloudusers"}, function() _load_cloud_user_vehs() end)
 local cloudVehiclesMenu = i18n.menus.list(cloudRootList, "BROWSE_BY_VEHICLES", {"jvcloudvehicles"}, function() _load_cloud_vehicles() end, function() clear_menu_array(cloudSortListMenus) end)
 local sortId = { "rating", "name", "author", "author", "uploaded"}
 local cloudUserVehicleSaveDataCache = {}
@@ -1372,8 +1372,10 @@ function do_cloud_request(uri, onSuccessCallback)
 end
 function _load_cloud_user_vehs()
     if waitForFetch then
+        util.draw_debug_text("Waiting on fetch")
         util.yield()
     end
+    util.toast("Loading user vehicles")
     show_busyspinner("Loading cloud data...")
     waitForFetch = true
     for _, m in pairs(cloudUserMenus) do
@@ -1381,9 +1383,26 @@ function _load_cloud_user_vehs()
     end
     cloudUserMenus = {}
     do_cloud_request("/stand/cloud/vehicles?list", function(data)
-        for _, user in ipairs(data.users) do
-            cloudUserMenus[user] = menu.list(cloudUsersMenu, user, {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
-            menu.on_focus(cloudUserMenus[user], function() _load_user_vehicle_list(user) end)
+        Log.debugTable(data.users)
+        for user, vehicles in pairs(data.users) do
+            cloudUserMenus[user] = menu.list(cloudUsersMenu, user .. " (" .. #vehicles .. ")", {}, i18n.format("CLOUD_BROWSE_VEHICLES_DESC") .. "\n" .. user)
+            
+            for _, vehicle in ipairs(vehicles) do
+                local vehicleMenuList
+                vehicleMenuList = menu.list(
+                    cloudUserMenus[user],
+                    vehicle.name,
+                    {},
+                    _generate_cloud_info(vehicle),
+                    function() setup_cloud_vehicle_submenu(vehicleMenuList, user, vehicle.name) end
+                )
+                menu.on_focus(vehicleMenuList, function()
+                    if ENTITY.DOES_ENTITY_EXIST(previewVehicle) then
+                        entities.delete_by_handle(previewVehicle)
+                    end
+                end)
+                table.insert(cloudUserVehicleMenus, vehicleMenuList)
+            end
             cloudUserVehicleSaveDataCache[user] = {}
         end
     end)
@@ -2178,6 +2197,8 @@ for _, style in pairs(DRIVING_STYLES) do
             TASK.SET_DRIVE_TASK_DRIVING_STYLE(ped, style[1])
             PED.SET_DRIVER_ABILITY(ped, 1.0)
             PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
+            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
         end
         i18n.toast("AUTODRIVE_STYLE_INDV_SUCCESS", style[2])
     end)
@@ -2204,9 +2225,11 @@ menu.action(autodriveMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {"aiway
 
     local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
     get_waypoint_pos(function(pos)
-        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
         PED.SET_DRIVER_ABILITY(ped, 1.0)
         PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+        TASK.TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, pos.x, pos.y, pos.z, drive_speed, 1.0, vehicleModel, drive_style, 5.0, 1.0)
     end)
 end)
 
@@ -2229,7 +2252,8 @@ end)
 menu.action(autodriveMenu, i18n.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwander"}, i18n.format("AUTODRIVE_WANDER_HOVER_DESC"), function(v)
     local ped, vehicle = get_my_driver()
     is_driving = true
-
+    PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+    TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
     TASK.TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, drive_speed, drive_style)
     PED.SET_DRIVER_ABILITY(ped, 1.0)
     PED.SET_DRIVER_AGGRESSIVENESS(ped, 0.6)
@@ -2270,6 +2294,10 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
                 TASK.TASK_WARP_PED_INTO_VEHICLE(driver, vehicle, -1)
                 util.yield(100)
             end
+            TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+            PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+            VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
+            PED.SET_PED_FLEE_ATTRIBUTES(driver, 46, true)
         elseif PED.IS_PED_A_PLAYER(driver) then
             -- hijack if its a player
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
@@ -2472,7 +2500,7 @@ end)
 
 while true do
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    local my_vehicle = PED.GET_VEHICLE_PED_IS_IN(my_ped, false)
+    local my_vehicle = entities.get_user_vehicle_as_handle(false)
 
     -- if driveOnWaterEntity and my_vehicle then
     --     local pos = ENTITY.GET_ENTITY_COORDS(my_vehicle)
@@ -2503,7 +2531,7 @@ while true do
     end
     if smartAutodrive and my_vehicle > 0 then
         if smartAutoDriveData.paused then
-            if ENTITY.GET_ENTITY_SPEED(my_vehicle) <= 15 then
+            if ENTITY.GET_ENTITY_SPEED(my_vehicle) <= 20 then
                 smartAutoDriveData.paused = false
             end
         else
@@ -2523,7 +2551,7 @@ while true do
                     if now - smartAutoDriveData.lastSetTask > 5000 then
                         PED.SET_DRIVER_ABILITY(my_ped, 1.0)
                         PED.SET_DRIVER_AGGRESSIVENESS(my_ped, 0.6)
-                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(my_ped, my_vehicle, waypoint.x, waypoint.y, waypoint.z, 100, 5, model, 787004, 15.0, 1.0)
+                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(my_ped, my_vehicle, waypoint.x, waypoint.y, waypoint.z, 100, 5, model, 786748, 15.0, 1.0)
                         smartAutoDriveData.lastSetTask = now
                     end
                 elseif smartAutoDriveData.lastWaypoint then
