@@ -2,7 +2,7 @@
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
 VERSION = "1.2.26"
-local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
+local LANG_TARGET_VERSION = "1.4.0" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
 require('templates/log')
