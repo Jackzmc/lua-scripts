@@ -6,7 +6,7 @@ VERSION = "1.11.3"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
-local LANG_TARGET_VERSION = "1.4.2" -- Target version of translations.lua lib
+local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -44,7 +44,7 @@ if _lang == nil or _lang.menus.list_select == nil or _lang.VERSION ~= LANG_TARGE
     end
     updateTranslations = true
 end
-_lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master")  .. "/resources/Translations/")
 _lang.load_translation_file(SCRIPT)
 if updateTranslations then
     _lang.update_translation_file(SCRIPT)
