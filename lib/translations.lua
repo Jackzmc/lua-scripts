@@ -46,7 +46,7 @@ local LANGUAGE_NAMES = {
     ["zh-CN"] = "Chinese (Simplified)"
 }
 function findStandLanguage(standLang)
-    for id, iso in ipairs(GAME_LANGUAGE_IDS) do
+    for id, iso in pairs(GAME_LANGUAGE_IDS) do
         if id:lower() == standLang or iso:lower() == standLang then
             util.log(string.format("lib/translations.lua: Using stand language %s (%s)", standLang, iso))
             return iso
