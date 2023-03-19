@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.2"
+VERSION = "1.11.3"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -44,7 +44,7 @@ if _lang == nil or _lang.menus.list_select == nil or _lang.VERSION ~= LANG_TARGE
     end
     updateTranslations = true
 end
-_lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master") .. "/translations/")
 _lang.load_translation_file(SCRIPT)
 if updateTranslations then
     _lang.update_translation_file(SCRIPT)

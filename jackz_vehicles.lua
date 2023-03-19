@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.10.5"
+VERSION = "3.10.6"
 local LANG_TARGET_VERSION = "1.4.1" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -61,7 +61,7 @@ if i18n.VERSION ~= LANG_TARGET_VERSION then
         lang = require("translations")
     end
 end
-i18n.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master") .. "/translations/")
 i18n.load_translation_file(SCRIPT)
 
 -- CONSTANTS

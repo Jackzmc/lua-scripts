@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-VERSION = "1.2.28"
+VERSION = "1.2.29"
 local LANG_TARGET_VERSION = "1.4.1" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
@@ -30,7 +30,7 @@ if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VE
     util.toast("Outdated lib: 'translations'")
   end
 end
-_lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master") .. "/translations/")
 _lang.load_translation_file(SCRIPT)
 if wasUpdated then
   _lang.update_translation_file(SCRIPT)
