@@ -1,3 +1,4 @@
+# Translated by Zero
 REMOVE_FAVORITE: 已从收藏夹中删除%s
 STOP_ALL_ACTIONS_NAME: 停止所有动作
 ADD_FAVORITE: 添加了 %s 到收藏夹
