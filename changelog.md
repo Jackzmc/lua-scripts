@@ -48,6 +48,7 @@ v3.10.0
 * (3.10.2) Update to 'Upload Logs' to use new provider
 * (3.10.3) Fix Cloud Vehicles > Browse By Users not working
 * (3.10.4) Updated translations lib to 1.4.0
+* (3.10.6) Updated translations lib to 1.4.2
 
 # actions (v1)
 
@@ -75,6 +76,7 @@ v1.11.0
 * Added translations support
 * Added chinese (traditional) translation (Thanks Zero)
 * (1.11.1) Add log to translate lib
+* (1.11.3) Fix translation issues (sorry about that, please report bugs to me!)
 
 # jackz chat (v1)
 
@@ -105,6 +107,7 @@ V1.2.0
 * (1.2.23) Fix preprocessor bug
 * (1.2.24) Update to 'Upload Logs' to use new provider
 * (1.2.27) Updated translations lib to 1.4.0
+* (1.2.29) Updated translations lib to 1.4.2
 
 # train control (v1)
 
