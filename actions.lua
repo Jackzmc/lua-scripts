@@ -20,24 +20,35 @@ require('templates/common')
 
 util.require_natives(1627063482)
 
-local _lang = require("translations")
-if _lang.menus.list_select == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
+local _lang = try_require("translations")
+local updateTranslations = false
+if _lang == nil or _lang.menus.list_select == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
       util.toast("Outdated translations library, downloading update...")
       os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
+      local updating = true
       package.loaded["translations"] = nil
       _G["translations"] = nil
-      download_lib_update("translations.lua")
+      show_busyspinner("Updating translations library")
+      local function stop_update()
+        updating = false
+        HUD.BUSYSPINNER_OFF()
+      end
+      download_lib_update("translations.lua", stop_update, stop_update)
+      while updating do
+        util.yield(10)
+      end
       _lang = require("translations")
     else
-      util.toast("Outdated lib: 'translations'")
+      util.toast("Outdated lib: 'translations', please notify jackz to update the repo")
     end
-  end
-  _lang.set_autodownload_uri("jackz.me", "/stand/translations/")
-  _lang.load_translation_file(SCRIPT)
-  if wasUpdated then
+    updateTranslations = true
+end
+_lang.set_autodownload_uri("jackz.me", "/stand/translations/")
+_lang.load_translation_file(SCRIPT)
+if updateTranslations then
     _lang.update_translation_file(SCRIPT)
-  end
+end
   
 
 if SCRIPT_META_LIST then
