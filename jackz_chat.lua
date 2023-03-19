@@ -1,8 +1,8 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-VERSION = "1.2.28"
-local LANG_TARGET_VERSION = "1.4.1" -- Target version of translations.lua lib
+VERSION = "1.2.29"
+local LANG_TARGET_VERSION = "1.4.2" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
 require('templates/log')

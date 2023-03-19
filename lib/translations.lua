@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.4.1"
+local LIB_VERSION = "1.4.2"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -45,7 +45,6 @@ local LANGUAGE_NAMES = {
     ["es-MX"] = "Spanish (Mexican)",
     ["zh-CN"] = "Chinese (Simplified)"
 }
-local activeLang = findStandLanguage(lang.get_current())
 function findStandLanguage(standLang)
     for id, iso in ipairs(GAME_LANGUAGE_IDS) do
         if id:lower() == standLang or iso:lower() == standLang then
@@ -56,6 +55,8 @@ function findStandLanguage(standLang)
     util.log("lib/translations.lua: Stand Language '" .. lang.get_current() .. "' not found, defaulting to en-US")
     return GAME_LANGUAGE_IDS["en"]
 end
+local activeLang = findStandLanguage(lang.get_current())
+
 local HARDCODED_TRANSLATIONS = {
     ["en-US"] = {
         ["ERR_NO_TRANSLATION_FILE"] = "No language translation is available.",
@@ -218,8 +219,9 @@ function download_translation_file(domain, uri, saveAsName, serverFileName)
     if saveAsName == nil or uri == nil or domain == nil then
         error(string.format("null required parameter. d=%s u=%s s=%s", domain, uri, saveAsName), 2)
     end
+    uri = uri .. dlPart .. ".txt"
     util.log(string.format("lib/translations: Downloading \"%s\" from \"%s/%s\" as \"%s\"", serverFileName, domain, uri, saveAsName or "<saveAsName>"))
-    async_http.init(domain, (uri .. dlPart .. ".txt"), function(body, header_fields, status_code)
+    async_http.init(domain, uri, function(body, header_fields, status_code)
         if status_code ~= 200 then -- IS HTML
             autodownload.active = false
             util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Server responded with non-200 status code (%s)", domain, uri, saveAsName, serverFileName or saveAsName, status_code))
