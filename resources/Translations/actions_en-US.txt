@@ -1,3 +1,4 @@
+# This is required for my bad code to work
 REMOVE_FAVORITE: Removed %s\n%s from favorites
 ADD_FAVORITE: Added %s\n%s to favorites
 STOP_ALL_ACTIONS_NAME: Stop All Actions

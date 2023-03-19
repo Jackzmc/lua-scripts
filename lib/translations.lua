@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.4.2"
+local LIB_VERSION = "1.4.3"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -224,18 +224,18 @@ function download_translation_file(domain, uri, saveAsName, serverFileName)
     async_http.init(domain, uri, function(body, header_fields, status_code)
         if status_code ~= 200 then -- IS HTML
             autodownload.active = false
-            util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Server responded with non-200 status code (%s)", domain, uri, saveAsName, serverFileName or saveAsName, status_code))
+            util.log(string.format("lib/translations: Could not download translations file from %s/%s as %s: Server responded with non-200 status code (%s)", domain, uri, serverFileName or saveAsName, status_code))
             util.toast(get_internal_message("ERR_AUTODL_FAIL"))
             return
-        elseif body:sub(1, 1) ~= "#" then -- IS HTML
+        elseif body:sub(1, 1) == "<" then -- IS HTML
             autodownload.active = false
-            util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Server responded with invalid file", domain, uri, saveAsName, serverFileName or saveAsName))
+            util.log(string.format("lib/translations: Could not download translations file from %s/%s as %s: Server responded with invalid file", domain, uri, serverFileName or saveAsName))
             util.toast(get_internal_message("ERR_AUTODL_FAIL"))
             return
         end
         local file = io.open(TRANSLATIONS_FOLDER .. saveAsName .. ".txt", "w")
         if file == nil then
-            util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Could not open file", domain, uri, saveAsName, serverFileName or saveAsName))
+            util.log(string.format("lib/translations: Could not download translations file from %s/%s as %s: Could not open file", domain, uri, serverFileName or saveAsName))
             util.toast(get_internal_message("ERR_AUTODL_FAIL"))
             autodownload.active = false
             return
