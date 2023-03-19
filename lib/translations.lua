@@ -211,6 +211,7 @@ end
 -- serverFileName(optional): The filename to append to uri, incase you downloading from a crappy webhost
 function download_translation_file(domain, uri, saveAsName, serverFileName)
     local dlPart = serverFileName or saveAsName 
+    util.log(string.format("[translations] Downloading \"%s\" from \"%s/%s\"", saveAsName, domain, uri))
     async_http.init(domain, uri .. dlPart .. ".txt" , function(result)
         if result:sub(1, 1) ~= "#" then -- IS HTML
             autodownload.active = false

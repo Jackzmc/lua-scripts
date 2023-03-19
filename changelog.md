@@ -51,19 +51,6 @@ v3.10.0
 
 # actions (v1)
 
-v1.9.0
-
-* Added upload support, upload from recents or favorites
-* Fix small bugs with browsing, smoother now
-* Minor re-organizing of animation menus
-* (1.9.1) Fix outdated stand api usage, thanks aaronlink127 for catching
-* (1.9.2) Use updated natives
-* (1.9.3) Don't load translations as too lazy to set that up
-* (1.9.4) Remove auto updated dupe files
-* (1.9.6) "Fix" race error on cloud fetch
-* (1.9.7) Update cloud url
-* (1.9.8) Fix outdated code prompting lang meta menu
-
 v1.10.0
 
 * Added "Special Animations" with support of some curated animations that include props
@@ -87,6 +74,7 @@ v1.11.0
 
 * Added translations support
 * Added chinese (traditional) translation (Thanks Zero)
+* (1.11.1) Add log to translate lib
 
 # jackz chat (v1)
 

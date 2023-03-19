@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.0"
+VERSION = "1.11.1"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -21,7 +21,7 @@ require('templates/common')
 util.require_natives(1627063482)
 
 local _lang = require("translations")
-if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
+if _lang.menus.list_select == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
     if SCRIPT_SOURCE == "MANUAL" then
       util.toast("Outdated translations library, downloading update...")
       os.remove(filesystem.scripts_dir() .. "/lib/translations.lua")
