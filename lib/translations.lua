@@ -8,7 +8,7 @@
 -- If you wish to view example lua scripts for my libs:
 -- https://jackz.me/stand/get-lib-zip
 
-local LIB_VERSION = "1.4.0"
+local LIB_VERSION = "1.4.1"
 local translations = {}
 local translationAvailable = false
 local autodownload = {
@@ -45,12 +45,16 @@ local LANGUAGE_NAMES = {
     ["es-MX"] = "Spanish (Mexican)",
     ["zh-CN"] = "Chinese (Simplified)"
 }
-local activeLang = GAME_LANGUAGE_IDS["en"]
-if GAME_LANGUAGE_IDS[lang.get_current()] then
-    activeLang = GAME_LANGUAGE_IDS[lang.get_current()]
-    util.log("lib/translations.lua: Using stand language '" .. activeLang .. '"')
-else
+local activeLang = findStandLanguage(lang.get_current())
+function findStandLanguage(standLang)
+    for id, iso in ipairs(GAME_LANGUAGE_IDS) do
+        if id:lower() == standLang or iso:lower() == standLang then
+            util.log(string.format("lib/translations.lua: Using stand language %s (%s)", standLang, iso))
+            return iso
+        end
+    end
     util.log("lib/translations.lua: Stand Language '" .. lang.get_current() .. "' not found, defaulting to en-US")
+    return GAME_LANGUAGE_IDS["en"]
 end
 local HARDCODED_TRANSLATIONS = {
     ["en-US"] = {
@@ -210,10 +214,18 @@ end
 -- saveAsName: The name to save the file as on disk (and is added onto uri if serverFileName is nil)
 -- serverFileName(optional): The filename to append to uri, incase you downloading from a crappy webhost
 function download_translation_file(domain, uri, saveAsName, serverFileName)
-    local dlPart = serverFileName or saveAsName 
-    util.log(string.format("[translations] Downloading \"%s\" from \"%s/%s\"", saveAsName, domain, uri))
-    async_http.init(domain, uri .. dlPart .. ".txt" , function(result)
-        if result:sub(1, 1) ~= "#" then -- IS HTML
+    local dlPart = serverFileName or saveAsName
+    if saveAsName == nil or uri == nil or domain == nil then
+        error(string.format("null required parameter. d=%s u=%s s=%s", domain, uri, saveAsName), 2)
+    end
+    util.log(string.format("lib/translations: Downloading \"%s\" from \"%s/%s\" as \"%s\"", serverFileName, domain, uri, saveAsName or "<saveAsName>"))
+    async_http.init(domain, (uri .. dlPart .. ".txt"), function(body, header_fields, status_code)
+        if status_code ~= 200 then -- IS HTML
+            autodownload.active = false
+            util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Server responded with non-200 status code (%s)", domain, uri, saveAsName, serverFileName or saveAsName, status_code))
+            util.toast(get_internal_message("ERR_AUTODL_FAIL"))
+            return
+        elseif body:sub(1, 1) ~= "#" then -- IS HTML
             autodownload.active = false
             util.log(string.format("lib/translations: Could not download translations file from %s/%s/%s as %s: Server responded with invalid file", domain, uri, saveAsName, serverFileName or saveAsName))
             util.toast(get_internal_message("ERR_AUTODL_FAIL"))
@@ -226,7 +238,7 @@ function download_translation_file(domain, uri, saveAsName, serverFileName)
             autodownload.active = false
             return
         end
-        file:write(result:gsub("\r", "") .. "\n")
+        file:write(body:gsub("\r", "") .. "\n")
         file:flush() -- redudant, probably?
         file:close()
         parse_translations_from_file(saveAsName)

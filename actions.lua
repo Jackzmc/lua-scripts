@@ -2,11 +2,11 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.1"
+VERSION = "1.11.2"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
-local LANG_TARGET_VERSION = "1.4.0" -- Target version of translations.lua lib
+local LANG_TARGET_VERSION = "1.4.1" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
 require('templates/log')
