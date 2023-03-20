@@ -133,7 +133,7 @@ function try_require(name, isOptional)
     if status then
         return data
     else
-        if data then
+        if data and not isOptional then
             util.toast(name .. ": " .. data, TOAST_ALL)
         end
         if SCRIPT_SOURCE == "REPO" then
