@@ -92,6 +92,11 @@ end
 if _lang ~= nil then
     menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
+    menu.action(SCRIPT_META_LIST, "Update Translation File", {}, "This will download the latest translation file for your currently selected language", function()
+        show_busyspinner("Fetching translation file...")
+        _lang.update_translation_file(SCRIPT)
+        HUD.BUSYSPINNER_OFF()
+    end)
 end
 menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
 menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to hastebin.com.\nHastebin posts expire in upto 7 days.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()

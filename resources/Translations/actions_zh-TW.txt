@@ -1,7 +1,7 @@
-# Translated by Zero
+# actions - zh-TW - Thanks to Zero
 REMOVE_FAVORITE: 已从收藏夹中删除%s
-STOP_ALL_ACTIONS_NAME: 停止所有动作
 ADD_FAVORITE: 添加了 %s 到收藏夹
+STOP_ALL_ACTIONS_NAME: 停止所有动作
 STOP_ALL_ACTIONS_DESC: 停止当前的场景或动作
 CLEAR_ACTION_IMMEDIATELY_NAME: 立即清除操作
 CLEAR_ACTION_IMMEDIATELY_DESC: 如果启用了该功能，在激活新的动作或场景时，当前正在播放的动作或场景将立即停止，如果不启用该功能，则会平稳地过渡到下一个动作
@@ -9,33 +9,66 @@ ACTION_TARGETS_NAME: 生效目标
 ACTION_TARGETS_DESC: 生效该功能的实体 \n0 = 自己\n1 = NPC\n2 = 自己和NPC
 PLAYING_ANIM: 播放动作 %s
 SPECIAL_ANIMATIONS_NAME: 特殊动作
+SPECIAL_ANIMATIONS_DESC: 可以使用道具的特殊动作
+CONTROLLABLE_NAME: 可控制
 CONTROLLABLE_DESC: 动作是否应该由玩家控制？
-PLAY_THIS_ANIM: 播放此动作\\n动作 ID：%s
+ANIMATIONS_NAME: 动作
+ANIMATIONS_DESC: 您可以播放的动作列表
+PLAY_THIS_ANIM: 播放此动作\n动作 ID：%s
 REPO_UNSUPPORTED_NAME: 该脚本不再受到支持或维护
 REPO_UNSUPPORTED_DESC: 存储库版本缺少特殊动作所需的文件请使用 https://jackz.me/stand/get-latest-zip 手动安装来使用特殊动作，确保取消选中存储库版本
 DATA_ERROR_NAME: 错误
 DATA_ERROR_DESC: 无法读取文件资源 resources/jackz_actions/actions_data.lua因此该功能不可用
-CLOUD_FAVORITES_DESC: 查看其他用户保存的收藏夹，或存储您的收藏夹
-FAVORITES_DESC: 预览你喜欢的动作，按住SHIFT添加或删除
-UPLOAD_DESC: 添加您自己的云动作收藏集
-FROM_FAVORITES_DESC: 浏览您最喜欢的播放动作以上传它们并选择合适的上传
+CLOUD_FAVORITES_NAME: 云收藏夹
+FAVORITES_NAME: 收藏夹
+UPLOAD_NAME: 上传
+UPLOAD_DESC: 添加您自己的云动作收藏夹
+FROM_FAVORITES_NAME: 预览搜藏夹
+FROM_RECENT_NAME: 预览最近动作
+BROWSE_NAME: 预览
+CLOUD_ERROR: 获取云数据时出错代码:%s
+UPLOAD_SUCCESS: 上传成功%s/%s
+UPLOAD_CONFLICT: 动作已经上传
+BROWSE_DESC: 浏览所有上传的云动作收藏夹
 FROM_RECENT_DESC: 浏览您最近播放的动作以上传它们并选择合适的上传
+FROM_FAVORITES_DESC: 浏览您最喜欢的播放动作以上传它们并选择合适的上传
+FAVORITES_DESC: 预览你喜欢的动作，按住SHIFT添加或删除
+CLOUD_FAVORITES_DESC: 查看其他用户保存的收藏夹，或存储您的收藏夹
+UPLOAD_FAILED: 上传失败%s/%s: %s
+UPLOAD_FAVORITE_DESC: 将组 %s 中的 %s 上传到云收藏夹
+FETCHING_ANIM: 正在获取 %s 的动作
 RATELIMIT: 速度限制请在几秒后重试
+FETCHING_USERS: 获取用户数据
+CLOUD_USER_FAVORITES_ANIM_DESC: %s中由 %s收藏的所有操作
 RECENTS_NAME: 最近
-BROWSE_UNLOAD_WARN: 警告：正在卸载动作浏览列表
-SCENARIOS_DESC: 您可以使用的场景动作列表\n一些场景只在某些性别上出现
-BROWSE_ANIMS_DESC: 警告：退出时有概率导致崩溃，如果您的电脑不足以处理15000幅动作，请使用搜索功能
-CLOUD_USER_FAVORITES_DESC: %s 收藏的所有动作类别
-CLOUD_FETCHING_DICTS: 正在获取 %s 的数据字典
+RECENTS_DESC: 您最近播放的所有动作列表
+RAW_ANIMATIONS_DIVIDER: 原始动作
+SEARCH_NAME: 搜索
+SEARCH_DESC: 搜索动作
+SEARCH_ANIM_GROUPS_NAME: 搜索动作组
 SEARCH_ANIM_GROUPS_DESC: 在所有动作组中搜索您在命令框输入的文字
 ANIM_DATA_OUTDATED: 动作数据过时，正在更新....
+ANIM_DATA_DOWNLOADING: 下载动作数据
+ANIM_DATA_SUCCESS: 已成功下载资源文件
 ANIM_DATA_ERROR: 无法自动下载动作数据文件请手动下载最新文件
+PLAY_ANIM_DESC: 播放组 %s 中的 %s 动作
+BROWSE_ANIMS_NAME: 浏览动作
+BROWSE_ANIMS_DESC: 警告：退出时有概率导致崩溃，如果您的电脑不足以处理15000幅动作，请使用搜索功能
+BROWSE_UNLOAD_WARN: 警告：正在卸载动作浏览列表
+LOADING_MENUS: 加载菜单
+SCENARIOS_NAME: 场景
+SCENARIOS_DESC: 您可以使用的场景动作列表\n一些场景只在某些性别上出现
+SCENARIO_GROUP_DESC: 所有%s场景
+SCENARIO_PLAY_DESC: 播放%s场景
+AMBIENT_SPEECH_NAME: 环境语音
 AMBIENT_SPEECH_DESC: 允许您在自己身上或其他人物身上播放环境背景语音或语音内容
 SPEECH_LINES_NAME: 对话内容
 SPEECH_LINES_DESC: NPC可以说的话列表\n有些台词可能不适用于某些 NPC
 SPEECH_METHOD_NAME: 语音方法
 SPEECH_METHOD_DESC: 控制语音的播放方式
-SELF_MODEL_VOICE_NAME: 自我塑造声音
+SELF_MODEL_VOICE_NAME: 自我模型语音
+SELF_MODEL_VOICE_DESC: 播放自环境语音时使用什么模型/n仅当前您的模型为MP(Fe)Male时可用
+SELF_VOICE_DESC: 使用 %s 模型作为环境语音
 FEMALE_PEDS_DIVIDER: 女性NPC
 MALE_PEDS_DIVIDER: 男性NPC
 SPEECH_DURATION_NAME: 持续时间
@@ -44,18 +77,4 @@ SPEECH_INTERVAL_NAME: 间隔时间
 SPEECH_INTERVAL_DESC: 等待多少毫秒播放下一个语音？
 SPEECH_STOP_NAME: 停止活动声音
 SPEECH_STOP_DESC: 停止所有的活动对话声音
-HINT_SET_FAVORITES: 在动画上按住 LEFT SHIFT 可将其添加到您的收藏夹或从中删除
-BROWSE_DESC: 浏览所有上传的云动作收藏夹
-UPLOADING_ANIM: 上传动作
-UPLOAD_CONFLICT: 动作已经上传
-FETCHING_ANIM: 正在获取 %s 的动作
-RAW_ANIMATIONS_DIVIDER: 原始动作
-RECENTS_DESC: 您最近播放的所有动作列表
-SEARCH_DESC: 搜索动作
-SEARCH_ANIM_GROUPS_NAME: 搜索动作组
-ANIM_DATA_DOWNLOADING: 下载动作数据
-PLAY_ANIM_DESC: 播放组 %s 中的 %s 动作
-BROWSE_ANIMS_NAME: 浏览动作
-SPECIAL_ANIMATIONS_DESC: 可以使用道具的特殊动作
-ANIMATIONS_NAME: 动作
-ANIMATIONS_DESC: 您可以播放的动作列表
+DELETE_FAVORITE_WARN: 是否确实要从收藏夹中删除此动画？

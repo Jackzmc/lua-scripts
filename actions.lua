@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.3"
+VERSION = "1.11.4"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -55,7 +55,6 @@ if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "-- Credits --")
     menu.hyperlink(SCRIPT_META_LIST, "dpemotes", "https://github.com/andristum/dpemotes/", "For the special animations section, code was modified from repository")
     menu.divider(SCRIPT_META_LIST, "Zero - Chinese Translation")
-
 end
 
 -- Iterates in consistent order a Key/Value

@@ -77,6 +77,7 @@ v1.11.0
 * Added chinese (traditional) translation (Thanks Zero)
 * (1.11.1) Add log to translate lib
 * (1.11.3) Fix translation issues (sorry about that, please report bugs to me!)
+* (1.11.4) Updated chinese translation
 
 # jackz chat (v1)
 
