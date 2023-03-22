@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.7"
+VERSION = "1.25.8"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -933,7 +933,9 @@ local savedVehicleList = menu.list(menu.my_root(), "Saved Builds", {}, "Browse &
 )
 local folderLists = {}
 local xmlMenusHandles = {}
-menu.hyperlink(savedVehicleList, "Open Folder", "file://" .. SAVE_DIRECTORY, "Open the save directory in your file explorer")
+menu.action(savedVehicleList, "Open Folder", {}, "Open the save directory in your fire explorer", function()
+    util.open_folder(SAVE_DIRECTORY)
+end)
 menu.toggle(savedVehicleList, "Spawn In Vehicle", {}, "Force yourself to spawn in the base vehicle, if applicable", function(on)
     scriptSettings.spawnInVehicle = on
 end, scriptSettings.spawnInVehicle)

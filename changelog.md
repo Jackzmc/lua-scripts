@@ -160,6 +160,7 @@ V1.25.0
 * (1.25.6) Fix assigning base changing rotation of base entity
 * (1.25.6) Stop using read_vector3 -> v3
 * (1.25.7) Fix toasting non-errors
+* (1.25.8) Fix 'Open Folder' permission error
 
 # jackz animator (v1)
 
