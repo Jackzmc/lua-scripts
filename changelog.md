@@ -77,6 +77,7 @@ v1.11.0
 * Added chinese (traditional) translation (Thanks Zero)
 * (1.11.1) Add log to translate lib
 * (1.11.3) Fix translation issues (sorry about that, please report bugs to me!)
+* (1.11.4) Updated chinese translation
 
 # jackz chat (v1)
 
@@ -161,6 +162,7 @@ V1.25.0
 * (1.25.6) Stop using read_vector3 -> v3
 * (1.25.7) Fix toasting non-errors
 * (1.25.8) Fix 'Open Folder' permission error
+* (1.25.9) Fix small error on toast
 
 # jackz animator (v1)
 
