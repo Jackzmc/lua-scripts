@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.7"
+VERSION = "1.25.8"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -802,7 +802,8 @@ function _fetch_vehicle_data(tableref, user, vehicleName, onSuccess)
                         onSuccess(spawnResponse, data)
                     end
                 else
-                    util.toast("Cloud build is invalid, failed to spawn\n", spawnResponse)
+                    Log.warn("Invalid build: " .. spawnResponse)
+                    util.toast("Cloud build is invalid, failed to spawn\n" .. spawnResponse)
                 end
             elseif status_code == 503 then
                 util.toast("Rate limited, please wait")
