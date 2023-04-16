@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.4"
+VERSION = "1.11.5"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -440,7 +440,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
             }
             -- TODO: Move from on_focus to on click
             menu.on_focus(userMenu, function(_)
-                show_busyspinner(util.format("CLOUD_FETCHING_DICTS", user))
+                show_busyspinner(_lang.format("CLOUD_FETCHING_DICTS", user))
                 while cloud_loading do
                     util.yield()
                 end
