@@ -93,6 +93,13 @@ V1.2.0
 * (1.2.29) Updated translations lib to 1.4.2
 * (1.2.30) Add discord link
 
+V1.3.0
+
+* Added channel subscriptions (get messages from multiple channels)
+* Clarified wording on some menus, broken/missing translations
+* Show active channel in Send Message
+* Added "discord" channel that sends messages to new official discord
+
 # train control (v1)
 
 V1.1.0
