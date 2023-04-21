@@ -79,6 +79,7 @@ v1.11.0
 * (1.11.3) Fix translation issues (sorry about that, please report bugs to me!)
 * (1.11.4) Updated chinese translation
 * (1.11.5) Fix typo for cloud browse
+* (1.11.6) Fix is_anim_in_recent bug
 
 # jackz chat (v1)
 

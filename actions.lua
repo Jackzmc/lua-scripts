@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.5"
+VERSION = "1.11.6"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -116,7 +116,63 @@ local allowControl = true
 local affectType = 0
 local animLoaded = false
 local animAttachments = {}
+function is_anim_in_recent(group, anim)
+    for _, recent in ipairs(recents) do
+        if recent[1] == group and recent[2] == anim then
+            return true
+        end
+    end
+    return false
+end
 
+function add_anim_to_recent(group, anim)
+    if #recents >= 20 then
+        menu.delete(recents[1][3])
+        table.remove(recents, 1)
+    end
+    local action = menu.action(recentsMenu, anim, {"animate" .. group .. " " .. anim}, _lang.format("PLAY_ANIM_DESC", anim, group), function(v)
+        play_animation(group, anim, true)
+    end)
+    table.insert(recents, { group, anim, action })
+end
+function download_animation_data()
+    local loading = true
+    show_busyspinner(_lang.format("ANIM_DATA_DOWNLOADING"))
+    async_http.init("jackz.me", "/stand/resources/jackz_actions/animations.txt", function(result)
+        local file = io.open(ANIMATIONS_DATA_FILE, "w")
+        file:write(result:gsub("\r", ""))
+        file:close()
+        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_SUCCESS"))
+        HUD.BUSYSPINNER_OFF()
+        loading = false
+    end, function()
+        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_ERROR"))
+        util.stop_script()
+        loading = false
+    end)
+    async_http.dispatch()
+    while loading do
+        util.yield()
+    end
+    HUD.BUSYSPINNER_OFF()
+end
+function destroy_animations_data()
+    for category, data in pairs(animMenuData) do
+        pcall(menu.delete, data.list)
+    end
+    animMenuData = {}
+    animLoaded = false
+    menu.collect_garbage()
+end
+function setup_category_animations(category)
+    animMenuData[category].menus = {}
+    for _, animation in ipairs(animMenuData[category].animations) do
+        local action = menu.action(animMenuData[category].list, animation, {"animate" .. category .. " " .. animation}, _lang.format("PLAY_ANIM_DESC", animation, category), function()
+            play_animation(category, animation, false)
+        end)
+        table.insert(animMenuData[category].menus, action)
+    end
+end
 
 function play_animation(group, anim, doNotAddRecent, data, remove)
     local flags = animFlags -- Keep legacy animation flags
@@ -755,63 +811,7 @@ function populate_favorites()
     end
 end
 
-function is_anim_in_recent(group, anim)
-    for _, recent in ipairs(recents) do
-        if recent[1] == group and recent[2] == anim then
-            return true
-        end
-    end
-    return false
-end
 
-function add_anim_to_recent(group, anim)
-    if #recents >= 20 then
-        menu.delete(recents[1][3])
-        table.remove(recents, 1)
-    end
-    local action = menu.action(recentsMenu, anim, {"animate" .. group .. " " .. anim}, _lang.format("PLAY_ANIM_DESC", anim, group), function(v)
-        play_animation(group, anim, true)
-    end)
-    table.insert(recents, { group, anim, action })
-end
-function download_animation_data()
-    local loading = true
-    show_busyspinner(_lang.format("ANIM_DATA_DOWNLOADING"))
-    async_http.init("jackz.me", "/stand/resources/jackz_actions/animations.txt", function(result)
-        local file = io.open(ANIMATIONS_DATA_FILE, "w")
-        file:write(result:gsub("\r", ""))
-        file:close()
-        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_SUCCESS"))
-        HUD.BUSYSPINNER_OFF()
-        loading = false
-    end, function()
-        util.log(SCRIPT .. ": " .. _lang.format("ANIM_DATA_ERROR"))
-        util.stop_script()
-        loading = false
-    end)
-    async_http.dispatch()
-    while loading do
-        util.yield()
-    end
-    HUD.BUSYSPINNER_OFF()
-end
-function destroy_animations_data()
-    for category, data in pairs(animMenuData) do
-        pcall(menu.delete, data.list)
-    end
-    animMenuData = {}
-    animLoaded = false
-    menu.collect_garbage()
-end
-function setup_category_animations(category)
-    animMenuData[category].menus = {}
-    for _, animation in ipairs(animMenuData[category].animations) do
-        local action = menu.action(animMenuData[category].list, animation, {"animate" .. category .. " " .. animation}, _lang.format("PLAY_ANIM_DESC", animation, category), function()
-            play_animation(category, animation, false)
-        end)
-        table.insert(animMenuData[category].menus, action)
-    end
-end
 function setup_animation_list()
     if animLoaded then
         return
