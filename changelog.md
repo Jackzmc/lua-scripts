@@ -1,26 +1,4 @@
 # jackz vehicles (v3)
-  
-v3.7.0
-
-* Support subfolders in vehicle list
-* Rename "Current Vehicle Multiplers" to "Current Vehicle Settings"
-* Add Always Keep Upright to above list
-* (3.7.2) Possibly fix cloud user's vehicles list being empty
-* (3.7.3) Sorry, parser acted up again, fixed termination issue
-* (3.7.5) Added korean translations (Thanks IceDoomfist)
-* (3.7.6) Updated translations lib
-* (3.7.7) Minor fixes
-* (3.7.8) Possible fix for rare vehicle saving failure
-* (3.7.9) Fix bug with vehicle lib
-* (3.7.10) Update jackzvehiclelib
-* (3.7.11) Fix some lua bugs, updated translations
-* (3.7.12) Update LSC for new wheel types (Thanks hexarobi)
-
-v3.8.0
-
-* Fix nearby vehicle list not updating live
-* Sort nearby vehicle list by distance to player
-* Add a refresh interval for vehicle list
 
 v3.9.0
 
@@ -49,6 +27,7 @@ v3.10.0
 * (3.10.3) Fix Cloud Vehicles > Browse By Users not working
 * (3.10.4) Updated translations lib to 1.4.0
 * (3.10.6) Updated translations lib to 1.4.2
+* (3.10.7) Add discord link
 
 # actions (v1)
 
@@ -80,6 +59,7 @@ v1.11.0
 * (1.11.4) Updated chinese translation
 * (1.11.5) Fix typo for cloud browse
 * (1.11.6) Fix is_anim_in_recent bug
+* (1.11.7) Add discord link
 
 # jackz chat (v1)
 
@@ -111,6 +91,7 @@ V1.2.0
 * (1.2.24) Update to 'Upload Logs' to use new provider
 * (1.2.27) Updated translations lib to 1.4.0
 * (1.2.29) Updated translations lib to 1.4.2
+* (1.2.30) Add discord link
 
 # train control (v1)
 
@@ -128,6 +109,7 @@ V1.1.0
 * (1.1.6) Fix errors
 * (1.1.7) Updated translations
 * (1.1.8) Update to 'Upload Logs' to use new provider
+* (1.1.9) Add discord link
 
 # jackz vehicle builder (v1)
 
@@ -165,6 +147,7 @@ V1.25.0
 * (1.25.7) Fix toasting non-errors
 * (1.25.8) Fix 'Open Folder' permission error
 * (1.25.9) Fix small error on toast
+* (1.25.10) Add discord link
 
 # jackz animator (v1)
 
@@ -175,3 +158,4 @@ V1.1.0
 * Fixed recording list not clearing previous entries
 * Changed filename format for new recordings
 * (1.1.1) Update to 'Upload Logs' to use new provider
+* (1.1.2) Add discord link

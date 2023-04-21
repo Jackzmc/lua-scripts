@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.6"
+VERSION = "1.11.7"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
