@@ -87,7 +87,8 @@
         "i18n",
         "_lang",
         "SCRIPT_BRANCH",
-        "v3"
+        "v3",
+        "pluto_use"
     ],
     "Lua.diagnostics.disable": [
         "lowercase-global"

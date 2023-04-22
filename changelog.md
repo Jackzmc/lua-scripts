@@ -155,6 +155,7 @@ V1.25.0
 * (1.25.8) Fix 'Open Folder' permission error
 * (1.25.9) Fix small error on toast
 * (1.25.10) Add discord link
+* (1.25.11) Use built in json
 
 # jackz animator (v1)
 

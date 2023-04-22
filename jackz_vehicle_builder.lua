@@ -6,6 +6,7 @@ local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
 
+pluto_use parent = false
 --#P:DEBUG_ONLY
 require('templates/log')
 require('templates/common')
@@ -21,7 +22,7 @@ if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "hexarobi - Testing, Suggestions & Fixes")
 end
 
-local json = try_require("json")
+local json = require("json")
 local vehiclelib = try_require("jackzvehiclelib")
 if vehiclelib == true or not vehiclelib then
     if SCRIPT_SOURCE == "REPO" then
@@ -387,12 +388,12 @@ end
 
 load_favorites_list()
 
-function join_path(parent, child)
-    local sub = parent:sub(-1)
+function join_path(_parent, child)
+    local sub = _parent:sub(-1)
     if sub == "/" or sub == "\\" then
-        return parent .. child
+        return _parent .. child
     else
-        return parent .. "/" .. child
+        return _parent .. "/" .. child
     end
 end
 local PROPS_PATH = join_path(filesystem.resources_dir(), "objects.txt")
@@ -1711,7 +1712,7 @@ end
 local searchResults = {}
 -- [ "Spawn Props" Menu Logic ]
 -- Search: via table
-function create_prop_search_results(parent, query, max)
+function create_prop_search_results(_parent, query, max)
     clear_menu_table(searchResults)
 
     local results = {}
@@ -1728,12 +1729,12 @@ function create_prop_search_results(parent, query, max)
     table.sort(results, function(a, b) return a.distance > b.distance end)
     for i = 1, max do
         if results[i] then
-            table.insert(searchResults, add_prop_menu(parent, results[i].prop))
+            table.insert(searchResults, add_prop_menu(_parent, results[i].prop))
         end
     end
 end
 
-function create_ped_search_results(parent, query, max)
+function create_ped_search_results(_parent, query, max)
     clear_menu_table(searchResults)
 
     local results = {}
@@ -1750,7 +1751,7 @@ function create_ped_search_results(parent, query, max)
     table.sort(results, function(a, b) return a.distance > b.distance end)
     for i = 1, max do
         if results[i] then
-            table.insert(searchResults, add_ped_menu(parent, results[i].ped))
+            table.insert(searchResults, add_ped_menu(_parent, results[i].ped))
         end
     end
 end
@@ -1812,27 +1813,27 @@ function create_particles_search_results(searchList, query, max)
     end
 end
 
-function _load_prop_browse_menus(parent)
+function _load_prop_browse_menus(_parent)
     if builder.propSpawner.loadState == 0 then
         show_busyspinner("Loading browse menu...")
         for prop in io.lines(PROPS_PATH) do
-            table.insert(builder.propSpawner.menus, add_prop_menu(parent, prop))
+            table.insert(builder.propSpawner.menus, add_prop_menu(_parent, prop))
         end
         builder.propSpawner.loadState = 2
         HUD.BUSYSPINNER_OFF()
     end
 end
-function _load_ped_browse_menus(parent)
+function _load_ped_browse_menus(_parent)
     if builder.pedSpawner.loadState == 0 then
         show_busyspinner("Loading browse menu...")
         for prop in io.lines(PEDS_PATH) do
-            table.insert(builder.pedSpawner.menus, add_prop_menu(parent, prop))
+            table.insert(builder.pedSpawner.menus, add_prop_menu(_parent, prop))
         end
         builder.pedSpawner.loadState = 2
         HUD.BUSYSPINNER_OFF()
     end
 end
-function _load_vehicle_browse_menus(parent)
+function _load_vehicle_browse_menus(_parent)
     if builder.vehSpawner.loadState == 0 then
         show_busyspinner("Loading browse menu...")
         builder.vehSpawner.loadState = 1
@@ -1840,7 +1841,7 @@ function _load_vehicle_browse_menus(parent)
         for line in io.lines(VEHICLES_PATH) do
             local class = line:match("CLASS (%g+)")
             if class then
-                currentClass = menu.list(parent, class:gsub("_+", " "), {}, "")
+                currentClass = menu.list(_parent, class:gsub("_+", " "), {}, "")
                 table.insert(builder.vehSpawner.menus, currentClass)
             else
                 local id, name, hash, dlc = line:match("([^,]+),([^,]+),([^,]+),([^,]+)")
@@ -1852,7 +1853,7 @@ function _load_vehicle_browse_menus(parent)
         builder.vehSpawner.loadState = 2
     end
 end
-function _load_particles_browse_menus(parent)
+function _load_particles_browse_menus(_parent)
     if builder.particlesSpawner.loadState == 0 then
         show_busyspinner("Loading browse menu...")
         builder.vehSpawner.loadState = 1
@@ -1862,7 +1863,7 @@ function _load_particles_browse_menus(parent)
             local dict = line:match("^%[(%g+)%]")
             if dict then
                 currentDict = dict
-                currentDictMenu = menu.list(parent, dict, {}, "")
+                currentDictMenu = menu.list(_parent, dict, {}, "")
                 table.insert(builder.particlesSpawner.menus, currentDictMenu)
             elseif currentDict then
                 line = line:gsub("%s+", "")
@@ -1978,10 +1979,10 @@ function load_recents()
 end
 
 --[ PROP/VEHICLE MENU & PREVIEWS ]--
-function add_prop_menu(parent, propName, isFavoritesEntry)
+function add_prop_menu(_parent, propName, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
-    menuHandle = menu.action(parent, propName, {}, helper, function()
+    menuHandle = menu.action(_parent, propName, {}, helper, function()
         clear_build_preview()
         -- Increment recent usage
         if PAD.IS_CONTROL_PRESSED(2, 209) then
@@ -2037,10 +2038,10 @@ function add_prop_menu(parent, propName, isFavoritesEntry)
     return menuHandle
 end
 
-function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
+function add_ped_menu(_parent, pedName, displayName, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
-    menuHandle = menu.action(parent, displayName or pedName, {}, pedName .. "\n" .. helper, function()
+    menuHandle = menu.action(_parent, displayName or pedName, {}, pedName .. "\n" .. helper, function()
         clear_build_preview()
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
@@ -2112,10 +2113,10 @@ function add_ped_menu(parent, pedName, displayName, isFavoritesEntry)
     return menuHandle
 end
 
-function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
+function add_vehicle_menu(_parent, vehicleID, displayName, dlc, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
-    menuHandle = menu.action(parent, displayName, {}, (dlc and ("DLC: " .. dlc) or "") .. "\n" .. helper, function()
+    menuHandle = menu.action(_parent, displayName, {}, (dlc and ("DLC: " .. dlc) or "") .. "\n" .. helper, function()
         clear_build_preview()
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
@@ -2174,7 +2175,7 @@ function add_vehicle_menu(parent, vehicleID, displayName, dlc, isFavoritesEntry)
     end)
     return menuHandle
 end
-function add_particles_menu(parent, dict, name, isFavoritesEntry)
+function add_particles_menu(_parent, dict, name, isFavoritesEntry)
     local helper = isFavoritesEntry and ("Hold SHIFT when pressing to remove from favorites") or ("Hold SHIFT when pressing to add to favorites")
     local menuHandle
     local data = {
@@ -2182,7 +2183,7 @@ function add_particles_menu(parent, dict, name, isFavoritesEntry)
         pos = { x = 0, y = 0, z = 0},
         rot = { x = 0, y = 0, z = 0}
     }
-    menuHandle = menu.action(parent, name, {}, "Dictionary: " .. dict .. "\n" .. helper, function()
+    menuHandle = menu.action(_parent, name, {}, "Dictionary: " .. dict .. "\n" .. helper, function()
         clear_build_preview()
         if PAD.IS_CONTROL_PRESSED(2, 209) then
             if isFavoritesEntry then
@@ -2434,8 +2435,8 @@ function add_entity_to_list(list, handle, name, data)
     if not data.id then
         builder._index = builder._index + 1
     end
-    local parent = get_entity_by_id(data.parent) or builder.base.handle
-    attach_entity(parent, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
+    local _parent = get_entity_by_id(data.parent) or builder.base.handle
+    attach_entity(_parent, handle, builder.entities[handle].pos, builder.entities[handle].rot, builder.entities[handle].boneIndex)
     builder.entities[handle].list = menu.list(
         list, builder.entities[handle].name, {}, string.format("Edit entity #%d\nHash: %s\nModel Name: %s", handle, model, builder.entities[handle].name),
         function() create_entity_section(builder.entities[handle], handle) end,
@@ -2562,7 +2563,7 @@ function create_entity_section(tableref, handle, options)
     highlightedHandle = handle
     isInEntityMenu = true
 
-    local parent = get_entity_by_id(tableref.parent) or builder.base.handle
+    local _parent = get_entity_by_id(tableref.parent) or builder.base.handle
     
     --[ POSITION ]--
     clear_menu_table(tableref.listMenus)
@@ -2570,15 +2571,15 @@ function create_entity_section(tableref, handle, options)
         table.insert(tableref.listMenus, menu.divider(entityroot, "Position"))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Left / Right", {"pos" .. handle .. "x"}, "Set the X offset from the base entity", -1000000, 1000000, math.floor(pos.x * 100), POS_SENSITIVITY, function (x)
             pos.x = x / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Front / Back", {"pos" .. handle .. "y"}, "Set the Y offset from the base entity", -1000000, 1000000, math.floor(pos.y * 100), POS_SENSITIVITY, function (y)
             pos.y = y / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
         table.insert(tableref.listMenus, menu.slider_float(entityroot, "Up / Down", {"pos" .. handle .. "z"}, "Set the Z offset from the base entity", -1000000, 1000000, math.floor(pos.z * 100), POS_SENSITIVITY, function (z)
             pos.z = z / 100
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
 
@@ -2587,17 +2588,17 @@ function create_entity_section(tableref, handle, options)
     if not ENTITY.IS_ENTITY_A_PED(handle) then
         table.insert(tableref.listMenus, menu.slider(entityroot, "Pitch", {"rot" .. handle .. "x"}, "Set the X-axis rotation", -175, 180, math.floor(rot.x), ROT_SENSITIVITY, function (x)
             rot.x = x
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
 
         end))
         table.insert(tableref.listMenus, menu.slider(entityroot, "Roll", {"rot" .. handle .. "y"}, "Set the Y-axis rotation", -175, 180, math.floor(rot.y), ROT_SENSITIVITY, function (y)
             rot.y = y
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end))
     end
     table.insert(tableref.listMenus, menu.slider(entityroot, "Yaw", {"rot" .. handle .. "z"}, "Set the Z-axis rotation", -175, 180, math.floor(rot.z), ROT_SENSITIVITY, function (z)
         rot.z = z
-        attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+        attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
     end))
 
     --[ MISC ]--
@@ -2608,7 +2609,7 @@ function create_entity_section(tableref, handle, options)
         if options.type ~= "PARTICLE" then
             table.insert(tableref.listMenus, menu.slider(entityroot, "Attachment Position", {"bone"..handle}, "Changes the bone index the entity is attached to. 0 for automatic, default.\50 is typically vehicle roof, normal index end around 100.", 0, 500, tableref.boneIndex, 1, function(index)
                 tableref.boneIndex = index
-                attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+                attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
             end))
         end
         if options.type == "ENTITY" or options.type == "PARTICLE" then
@@ -2634,7 +2635,7 @@ function create_entity_section(tableref, handle, options)
     if handle ~= builder.base.handle and options.type ~= "PARTICLE" then
         table.insert(tableref.listMenus, menu.toggle(entityroot, "Collision", {"collision" .. handle}, "Toggles if this entity will have collision, default is enabled", function(value)
             tableref.collision = value
-            attach_entity(parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
+            attach_entity(_parent, handle, pos, rot, tableref.boneIndex, tableref.collision)
         end, tableref.collision))
     end
     if options.type == "ENTITY" then
@@ -3541,20 +3542,20 @@ function get_entity_by_id(id)
     return nil
 end
 
-function attach_entity(parent, handle, offset, rot, index, collision)
+function attach_entity(_parent, handle, offset, rot, index, collision)
     if offset == nil or rot == nil then
         Log.log("null offset or rot" .. debug.traceback(), "attach_entity")
         return
     end
-    if parent == handle then
-        util.toast("ROTATE" .. parent)
+    if _parent == handle then
+        util.toast("ROTATE" .. _parent)
         ENTITY.SET_ENTITY_ROTATION(handle, rot.x or 0, rot.y or 0, rot.z or 0)
     elseif GRAPHICS.DOES_PARTICLE_FX_LOOPED_EXIST(handle) then
         GRAPHICS.SET_PARTICLE_FX_LOOPED_OFFSETS(handle,
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0
         )
-    elseif parent == 0 then
+    elseif _parent == 0 then
         -- Attach to the world
         ENTITY.DETACH_ENTITY(handle, true, 0)
         local builderPos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
@@ -3566,7 +3567,7 @@ function attach_entity(parent, handle, offset, rot, index, collision)
         if collision == nil then
             collision = true
         end
-        ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, parent, index or 0,
+        ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, _parent, index or 0,
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
             false, false, collision, false, 2, true
@@ -3719,8 +3720,8 @@ while true do
         if editorActive and highlightedHandle ~= nil and builder.entities[highlightedHandle] then
             local pos
             if builder.entities[highlightedHandle] and builder.entities[highlightedHandle].particle then
-                local parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
-                pos = ENTITY.GET_ENTITY_COORDS(parent)
+                local _parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
+                pos = ENTITY.GET_ENTITY_COORDS(_parent)
                 pos.x = pos.x + builder.entities[highlightedHandle].pos.x
                 pos.y = pos.y + builder.entities[highlightedHandle].pos.y
                 pos.z = pos.z + builder.entities[highlightedHandle].pos.z
@@ -3824,8 +3825,8 @@ while true do
                 if update then
                     ENTITY.FREEZE_ENTITY_POSITION(builder.base.handle, true)
                     ENTITY.FREEZE_ENTITY_POSITION(my_ped, true)
-                    local parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
-                    attach_entity(parent, highlightedHandle, pos, rot, builder.entities[highlightedHandle].boneIndex)
+                    local _parent = get_entity_by_id(builder.entities[highlightedHandle].parent) or builder.base.handle
+                    attach_entity(_parent, highlightedHandle, pos, rot, builder.entities[highlightedHandle].boneIndex)
                 end
             end
         end
