@@ -6,7 +6,6 @@ local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
 
-pluto_use parent = false
 --#P:DEBUG_ONLY
 require('templates/log')
 require('templates/common')
