@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.7"
+VERSION = "1.11.8"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -125,6 +125,7 @@ function is_anim_in_recent(group, anim)
     return false
 end
 
+local recentsMenu
 function add_anim_to_recent(group, anim)
     if #recents >= 20 then
         menu.delete(recents[1][3])
@@ -533,7 +534,7 @@ menu.on_focus(cloudFavoritesBrowseMenu, function()
     end, cloudvehicle_fetch_error("FETCH_USERS"))
     async_http.dispatch()
 end)
-local recentsMenu = _lang.menus.list(animationsMenu, "RECENTS", {})
+recentsMenu = _lang.menus.list(animationsMenu, "RECENTS", {})
 _lang.menus.divider(animationsMenu, "RAW_ANIMATIONS")
 local searchMenu = _lang.menus.list(animationsMenu, "SEARCH", {})
 _lang.menus.action(searchMenu, "SEARCH_ANIM_GROUPS", {"searchanim"}, function()
