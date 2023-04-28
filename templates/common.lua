@@ -85,9 +85,9 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ---- VERSION
 ----------------------------------------------------------------
 SCRIPT_OLD_VERSION_PATH = filesystem.store_dir() .. "/old-" .. SCRIPT_FILENAME
-menu.divider(menu.my_root(), "Version")
+menu.divider(SCRIPT_META_LIST, "Version")
 --#P:MANUAL_ONLY
-SCRIPT_META_UPDATE_ACTION = menu.action(menu.my_root(), "Update", {}, "[invalid state]", function()
+SCRIPT_META_UPDATE_ACTION = menu.action(SCRIPT_META_LIST, "Update", {}, "[invalid state]", function()
     SCRIPT_META_UPDATE_ACTION:removeHandler()
     download_script_update(SCRIPT_BRANCH, function()
         util.toast(SCRIPT .. " was updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
@@ -96,7 +96,7 @@ SCRIPT_META_UPDATE_ACTION = menu.action(menu.my_root(), "Update", {}, "[invalid 
         util.toast(SCRIPT .. ": Failed to update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
     end)
 end)
-SCRIPT_META_REVERT_ACTION = menu.action(menu.my_root(), "Revert", {}, "[invalid state]", function()
+SCRIPT_META_REVERT_ACTION = menu.action(SCRIPT_META_LIST, "Revert", {}, "[invalid state]", function()
     SCRIPT_META_REVERT_ACTION:removeHandler()
     if filesystem.exists(SCRIPT_OLD_VERSION_PATH) then
         os.rename(SCRIPT_OLD_VERSION_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
@@ -128,7 +128,7 @@ menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LA
 ----------------------------------------------------------------
 ---- MISC
 ----------------------------------------------------------------
-menu.divider(menu.my_root(), "")
+menu.divider(SCRIPT_META_LIST, "")
 if _lang ~= nil then
     menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
