@@ -10,8 +10,8 @@ require('templates/common')
 --#P:END
 
 --#P:TEMPLATE("log")
---#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
+--#P:TEMPLATE("_SOURCE")
 
 
 util.require_natives(1627063482)

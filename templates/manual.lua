@@ -20,6 +20,10 @@ function check_for_update(branch)
     async_http.dispatch()
 end
 function check_for_old_version()
+    if SCRIPT_BACKUP_PATH == nil then
+        Log.warn("Missing SCRIPT_BACKUP_PATH")
+        return
+    end
     local file = io.open(SCRIPT_BACKUP_PATH, "r")
     if file then
         local chunks = {}
@@ -35,7 +39,7 @@ function check_for_old_version()
 end
 function download_script_update(branch, on_success, on_err)
     if not branch then branch = "release" end
-    local success, err = io.copyto(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_BACKUP_PATH)
+    local success, err = os.rename(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_BACKUP_PATH)
     if not success then
         Log.error("Could not backup script: ", err)
         util.toast("Could not download update: " .. (err or "nil"))
@@ -71,6 +75,7 @@ function download_script_update(branch, on_success, on_err)
     async_http.dispatch()
 end
 check_for_update(SCRIPT_BRANCH)
+check_for_old_version()
 
 function download_lib_update(lib, on_success, on_error)
     local lockPath = filesystem.scripts_dir() .. "/lib/" .. lib .. ".lock"
