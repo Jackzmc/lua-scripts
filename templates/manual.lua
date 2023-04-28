@@ -32,8 +32,8 @@ function check_for_old_version()
         for substring in io.lines(SCRIPT_BACKUP_PATH .. ".meta") do
             table.insert(chunks, substring)
         end
-        SCRIPT_META_REVERT_ACTION.menu_name = "Revert to v" .. chunks[1]
-        SCRIPT_META_REVERT_ACTION.help_text = "Revert to old v" .. chunks[1] .. "\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]
+        SCRIPT_META_REVERT_ACTION.menu_name = "Revert to " .. chunks[1]
+        SCRIPT_META_REVERT_ACTION.help_text = "Revert to older version (" .. chunks[1] .. ")\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]:sub(1, 11)
 
         SCRIPT_META_REVERT_ACTION.visible = true
       elseif backupExists then
