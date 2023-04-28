@@ -76,7 +76,6 @@ end
 ----------------------------------------------------------------
 SCRIPT_META_LIST = menu.list(menu.my_root(), "Script Meta")
 menu.divider(SCRIPT_META_LIST, SCRIPT_NAME .. " V" .. VERSION)
-menu.hyperlink(SCRIPT_META_LIST, "View full changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 menu.hyperlink(SCRIPT_META_LIST, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(SCRIPT_META_LIST, "Jackz's Discord", "https://discord.gg/NnJrkGppfb", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
@@ -86,6 +85,7 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ----------------------------------------------------------------
 SCRIPT_OLD_VERSION_PATH = filesystem.store_dir() .. "/old-" .. SCRIPT_FILENAME
 menu.divider(SCRIPT_META_LIST, "Version")
+menu.hyperlink(SCRIPT_META_LIST, "View Changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 --#P:MANUAL_ONLY
 SCRIPT_META_UPDATE_ACTION = menu.action(SCRIPT_META_LIST, "Update", {}, "[invalid state]", function()
     SCRIPT_META_UPDATE_ACTION:removeHandler()
