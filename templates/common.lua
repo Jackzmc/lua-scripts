@@ -111,7 +111,11 @@ SCRIPT_META_REVERT_ACTION.visible = false
 --#p:END
 if SCRIPT_SOURCE == "MANUAL" then
     menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
-        show_busyspinner("Downloading update...")
+        if SCRIPT_BRANCH_IDS[index] == nil then
+            util.toast("Error: Invalid channel")
+            return
+        end
+        show_busyspinner("Switching to " .. SCRIPT_BRANCH_IDS[index])
         download_script_update(SCRIPT_BRANCH_IDS[index], function()
             HUD.BUSYSPINNER_OFF()
             util.log(SCRIPT_NAME .. ": Released channel changed to " .. SCRIPT_BRANCH_IDS[index])
