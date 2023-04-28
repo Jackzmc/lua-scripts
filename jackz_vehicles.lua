@@ -1493,7 +1493,11 @@ function load_vehicles_in_dir(dir, parentMenu, menuSetupFn, xmlSupported)
         else
             local _, filename, ext = string.match(path, "(.-)([^\\/]-%.?([^%.\\/]*))$")
             if ext == "json" then
-                local file = io.open(path, "r")
+                local file, err = io.open(path, "r")
+                if not file then
+                    Log.warn("Cannot open file:", path, err)
+                    return
+                end
                 local saveData = json.decode(file:read("*a"))
                 file:close()
                 -- Apply any migrations to disk
@@ -1504,7 +1508,7 @@ function load_vehicles_in_dir(dir, parentMenu, menuSetupFn, xmlSupported)
                         file:write(data)
                         file:close()
                     else
-                        util.log("jackz_vehicles: Failed to save migration, json error for " .. path .. ": " .. data)
+                        Log.warn("Failed to save migration, json error for " .. path .. ": " .. data)
                     end
                 end
 
