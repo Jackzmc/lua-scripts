@@ -194,9 +194,9 @@ add_subscribe_entry("System", _lang.format("CHANNEL_SUB_SYSTEM"))
 local channelList = menu.list(menu.my_root(), _lang.format("CHANNELS_NAME"), {}, _lang.format("CHANNELS_DESC") .. "\n\n" .. _lang.format("CHANNELS_ACTIVE", "default"))
 function switchChannel(channel)
   sendChannel = channel
-  menu.set_help_text(channelList, _lang.format("CHANNELS_DESC") .. "\n\n" .. _lang.format("CHANNELS_ACTIVE", channel))
-  menu.set_menu_name(sendChatMenu, _lang.format("SEND_MSG_NAME", sendChannel))
-  menu.set_help_text(sendChatMenu, _lang.format("SEND_MSG_DESC") .. "\n\n" .. _lang.format("SEND_CHAT_AS", user, sendChannel))
+  channelList.menu_name = _lang.format("CHANNELS_DESC") .. "\n\n" .. _lang.format("CHANNELS_ACTIVE", channel)
+  sendChatMenu.menu_name = _lang.format("SEND_MSG_NAME", sendChannel)
+  sendChatMenu.menu_name = _lang.format("SEND_MSG_DESC") .. "\n\n" .. _lang.format("SEND_CHAT_AS", user, sendChannel)
   _lang.toast("CHANNELS_SWITCHED", channel)
 end
 

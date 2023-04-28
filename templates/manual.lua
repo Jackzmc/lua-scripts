@@ -27,10 +27,10 @@ function check_for_old_version()
     local file = io.open(SCRIPT_BACKUP_PATH, "r")
     if file then
         local chunks = {}
-        for substring in io.lines("SCRIPT_OLD_VERSION_PATH") do
+        for substring in io.lines(SCRIPT_BACKUP_PATH) do
             table.insert(chunks, substring)
         end
-        SCRIPT_META_REVERT_ACTION.set_menu_name("Revert to v" .. chunks[1])
+        SCRIPT_META_REVERT_ACTION.menu_name = "Revert to v" .. chunks[1]
         SCRIPT_META_REVERT_ACTION.help_text = "Revert to old v" .. chunks[1] .. "\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]
 
         file:close()
