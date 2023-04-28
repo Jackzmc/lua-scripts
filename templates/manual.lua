@@ -40,7 +40,7 @@ function download_script_update(branch, on_success, on_err)
         if on_err then on_err(0, "couldnt open file") end
         return
     end
-    vFile:write("V" .. SCRIPT_VERSION .. "\n" .. SCRIPT_BRANCH .. "\n" .. BRANCH_LAST_COMMIT)
+    vFile:write("V" .. VERSION .. "\n" .. SCRIPT_BRANCH .. "\n" .. BRANCH_LAST_COMMIT)
     vFile:close()
 
     async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. (branch or "master"), function(body, res_headers, status_code)
