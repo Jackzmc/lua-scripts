@@ -34,7 +34,11 @@ function check_for_old_version()
 end
 function download_script_update(branch, on_success, on_err)
     if not branch then branch = "release" end
-    os.rename(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_OLD_VERSION_PATH)
+    local success, err = io.copyto(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_OLD_VERSION_PATH)
+    if not success then
+        Log.error("Could not backup script: " .. err)
+        util.toast("Could not download update: " .. err)
+    end
     local vFile = io.open(SCRIPT_OLD_VERSION_PATH .. ".meta", "w")
     if not vFile then
         Log.error("script update failed: couldnt open file")
