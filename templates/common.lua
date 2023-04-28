@@ -115,7 +115,13 @@ SCRIPT_META_REVERT_ACTION.visible = false
 --#p:END
 menu.hyperlink(SCRIPT_META_LIST, "View Changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 if SCRIPT_SOURCE == "MANUAL" then
-    menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
+    local branchIndex = 1
+    for i, branch in ipairs(SCRIPT_BRANCH_IDS) do
+        if branch == SCRIPT_BRANCH then
+            branchIndex = i
+        end
+    end
+    menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, branchIndex, function(index, name)
         if SCRIPT_BRANCH_IDS[index] == nil then
             util.toast("Error: Invalid channel")
             return
