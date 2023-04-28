@@ -9,7 +9,7 @@ function check_for_update(branch)
             if chunks[1] == "OUTDATED" then
                 util.toast(SCRIPT_NAME .. ": An update is available (V" .. chunks[2] .. ")")
                 SCRIPT_META_UPDATE_ACTION.menu_name = "Update (V" .. chunks[2] .. ")"
-                SCRIPT_META_UPDATE_ACTION.help_text = "Update from v" .. SCRIPT_VERSION .. " to v" .. chunks[2]
+                SCRIPT_META_UPDATE_ACTION.help_text = "Update from v" .. VERSION .. " to v" .. chunks[2]
                 SCRIPT_META_UPDATE_ACTION.visible = true
             end
         else
