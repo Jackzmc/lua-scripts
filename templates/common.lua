@@ -84,16 +84,18 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ---- VERSION
 ----------------------------------------------------------------
 SCRIPT_OLD_VERSION_PATH = filesystem.appdata_dir() .. "/Cache/old-" .. SCRIPT_FILENAME
+SCRIPT_UPDATE_NEW_VERSION = "-error-"
 menu.divider(SCRIPT_META_LIST, "Version")
 --#P:MANUAL_ONLY
 SCRIPT_META_UPDATE_ACTION = menu.action(SCRIPT_META_LIST, "Update", {}, "[invalid state]", function()
+    util.toast("Updating")
     SCRIPT_META_UPDATE_ACTION:delete()
     SCRIPT_META_REVERT_ACTION:delete()
     download_script_update(SCRIPT_BRANCH, function()
-        util.toast(SCRIPT .. " was updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
+        util.toast(SCRIPT .. " was updated to V" .. SCRIPT_UPDATE_NEW_VERSION .. "\nScript is restarting to apply changes", TOAST_ALL)
         util.restart_script()
     end, function()
-        util.toast(SCRIPT .. ": Failed to update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+        util.toast(SCRIPT .. ": Failed to update to V" .. SCRIPT_UPDATE_NEW_VERSION .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
     end)
 end)
 SCRIPT_META_REVERT_ACTION = menu.action(SCRIPT_META_LIST, "Revert", {}, "[invalid state]", function()
