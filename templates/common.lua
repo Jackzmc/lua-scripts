@@ -103,6 +103,7 @@ SCRIPT_META_REVERT_ACTION = menu.action(SCRIPT_META_LIST, "Revert", {}, "[invali
     SCRIPT_META_REVERT_ACTION:delete()
     if filesystem.exists(SCRIPT_BACKUP_PATH) then
         os.rename(SCRIPT_BACKUP_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
+        os.remove(SCRIPT_BACKUP_PATH .. ".meta")
         util.toast(SCRIPT .. " was reverted to previous version\nScript is restarting to apply changes", TOAST_ALL)
         util.restart_script()
     else

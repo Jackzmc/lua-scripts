@@ -24,18 +24,25 @@ function check_for_old_version()
         Log.warn("Missing SCRIPT_BACKUP_PATH")
         return
     end
-    local file = io.open(SCRIPT_BACKUP_PATH, "r")
-    if file then
+    local backupExists = filesystem.exists(SCRIPT_BACKUP_PATH)
+    local metaExists = filesystem.exists(SCRIPT_BACKUP_PATH .. ".meta")
+
+    if backupExists and metaExists then
         local chunks = {}
-        for substring in io.lines(SCRIPT_BACKUP_PATH) do
+        for substring in io.lines(SCRIPT_BACKUP_PATH .. ".meta") do
             table.insert(chunks, substring)
         end
         SCRIPT_META_REVERT_ACTION.menu_name = "Revert to v" .. chunks[1]
         SCRIPT_META_REVERT_ACTION.help_text = "Revert to old v" .. chunks[1] .. "\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]
 
-        file:close()
-        SCRIPT_META_REVERT_ACTION.visible = false
-    end
+        SCRIPT_META_REVERT_ACTION.visible = true
+      elseif backupExists then
+        -- Remove the backup file if no meta file
+        os.remove(filesystem.exists(SCRIPT_BACKUP_PATH))
+      elseif metaExists then
+        -- Remove the meta file if no backup file
+        os.remove(filesystem.exists(SCRIPT_BACKUP_PATH .. ".meta"))
+      end
 end
 function download_script_update(branch, on_success, on_err)
     if not branch then branch = "release" end
