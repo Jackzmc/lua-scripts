@@ -7,9 +7,9 @@ function check_for_update(branch)
                 table.insert(chunks, substring)
             end
             if chunks[1] == "OUTDATED" then
-                util.toast(SCRIPT_NAME .. ": An update is available (V" .. chunks[2] .. ")")
-                SCRIPT_META_UPDATE_ACTION.menu_name = "Update (V" .. chunks[2] .. ")"
-                SCRIPT_META_UPDATE_ACTION.help_text = "Update from v" .. VERSION .. " to v" .. chunks[2]
+                util.toast(SCRIPT_NAME .. ": An update is available (V" .. chunks[3] .. ")")
+                SCRIPT_META_UPDATE_ACTION.menu_name = "Update (V" .. chunks[3] .. ")"
+                SCRIPT_META_UPDATE_ACTION.help_text = "Update from v" .. VERSION .. " to v" .. chunks[3] .. "\nCommit: " .. chunks[2]:sub(1, 11)
                 SCRIPT_META_UPDATE_ACTION.visible = true
             end
         else
