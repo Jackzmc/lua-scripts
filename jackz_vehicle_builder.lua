@@ -950,14 +950,19 @@ function _load_vehicles_from_dir(parentList, directory)
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if filesystem.is_dir(filepath) then
+            Log.debug("c1", filename, ext)
+
             local folderList = menu.list(parentList, filename, {}, "")
             menu.on_focus(folderList, function() clear_build_preview() end)
             _load_vehicles_from_dir(folderList, filepath)
             table.insert(folderLists, folderList)
+            Log.debug("c1:done")
         else
+            Log.debug("c2", filename, ext)
             if ext == "json" then
                 table.insert(queue, function() _setup_spawn_list_entry(parentList, filepath) end)
             elseif ext == "xml" then
+                Log.debug("c2:xml")
                 filename = filename:sub(1, -5)
                 local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
                 xmlMenusHandles[filename] = menu.action(xmlList, filename, {}, "Click to convert to a compatible format.", function()
@@ -970,6 +975,7 @@ function _load_vehicles_from_dir(parentList, directory)
                     convert_file(filename, filename, newPath)
                 end)
             end
+            Log.debug("c2:end", filename, ext)
         end
     end
     table.insert(folderLists, menu.divider(parentList, "Builds"))
@@ -1007,8 +1013,10 @@ function _format_vehicle_info(version, timestamp, author, rating)
     end
 end
 function _setup_spawn_list_entry(parentList, filepath)
+    Log.debug("_setup_spawn_list_entry", filepath)
     local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
     local status, data = pcall(get_build_data_from_file, filepath)
+    Log.debug("_setup_spawn_list_entry end", filepath)
     if status and data ~= nil then
         if not data.base or not data.version then
             Log.log("Skipping invalid build: " .. filepath)
@@ -1095,27 +1103,38 @@ function _render_cloud_build_overlay(pos, data)
 
 end
 function _load_saved_list()
+    Log.debug("a")
     clear_build_preview()
     clear_menu_table(optionParentMenus)
     clear_menu_table(xmlMenusHandles)
     clear_menu_table(folderLists)
-    _load_vehicles_from_dir(savedVehicleList, SAVE_DIRECTORY)
+    Log.debug("b")
+    if filesystem.exists(SAVE_DIRECTORY) then
+        _load_vehicles_from_dir(savedVehicleList, SAVE_DIRECTORY)
+    else
+        menu.divider(folderLists, "No builds")
+    end
 end
 function convert_file(path, name, newPath)
     local file = io.open(path, "r")
+    if not file then
+        Log.warn("convert_file: cannot open", path)
+        util.toast("Cannot open file " .. name)
+        HUD.BUSYSPINNER_OFF()
+        return
+    end 
     show_busyspinner("Converting " .. name)
     local res = vehiclelib.ConvertXML(file:read("*a"))
+    file:close()
     HUD.BUSYSPINNER_OFF()
     if res.error then
         util.toast("Could not convert: " .. res.error, TOAST_ALL)
         util.toast("Try the online converter: jackz.me/stand/vehicle-converter")
-        file:close()
     else
         util.toast("Successfully converted " .. res.data.type .. " build\nView it in your saved vehicle list")
         file = io.open(newPath, "w")
         res.data.vehicle.convertedFrom = res.data.type
         file:write(json.encode(res.data.vehicle))
-        file:close()
     end
 end
 function _destroy_saved_list()
@@ -2821,11 +2840,29 @@ function upload_build(name, data)
     async_http.dispatch()
 end
 function get_build_data_from_file(filepath)
-    local file = io.open(filepath, "r")
+    local file, err = io.open(filepath, "r")
+    Log.debug("get_build_data_from_file:end", filepath, file, err)
     if file then
-        local status, data = pcall(json.decode, file:read("*a"))
+        Log.debug("get_build_data_from_file read", filepath)
+        local size = file:seek("end")
+        if size == 0 then
+            Log.warn("Skipping file \"" .. filepath .. "\": file is empty (0 bytes)")
+            file:close()
+            return nil
+        end
+        Log.debug("s", size)
+        local content = file:read("*a")
+        Log.debug("c", content:len())
+        if content == "" then
+            Log.warn("Skipping file \"" .. filepath .. "\": file content is empty string (file size = " .. size .. "), cannot parse")
+            file:close()
+            return nil
+        end
+        local status, data = pcall(json.decode, content)
+        Log.debug("get_build_data_from_file read end", filepath)
+        file:close()
         if not status then
-            Log.log("Skipping file \"" .. filepath .. "\" due to json errors: " .. data)
+            Log.warn("Skipping file \"" .. filepath .. "\" due to json errors: " .. data)
             return nil
         elseif data.Format then
             Log.log("Ignoring jackz_vehicles vehicle\"" .. filepath .. "\": Use jackz_vehicles to spawn", "load_build_from_file")
@@ -2838,11 +2875,9 @@ function get_build_data_from_file(filepath)
                 data.base.visible = true
             end
         end
-        
-        file:close()
         return data
     else
-        error("Could not read file '" .. filepath .. "'")
+        return error("Could not read file '" .. filepath .. "':\n" .. err)
     end
 end
 
@@ -3767,7 +3802,7 @@ while true do
 
             highlight_object_at_pos(pos)
             show_marker_at_pos(pos, nil, 0)
-            local pos = builder.entities[highlightedHandle].pos
+            pos = builder.entities[highlightedHandle].pos
             local rot = builder.entities[highlightedHandle].rot
             if FREE_EDIT and (not isInEntityMenu or not menu.is_open()) then
                 local posSensitivity = POS_SENSITIVITY / 100
