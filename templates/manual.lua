@@ -20,7 +20,7 @@ function check_for_update(branch)
     async_http.dispatch()
 end
 function check_for_old_version()
-    local file = io.open(SCRIPT_OLD_VERSION_PATH, "r")
+    local file = io.open(SCRIPT_BACKUP_PATH, "r")
     if file then
         local chunks = {}
         for substring in io.lines("SCRIPT_OLD_VERSION_PATH") do
@@ -35,13 +35,13 @@ function check_for_old_version()
 end
 function download_script_update(branch, on_success, on_err)
     if not branch then branch = "release" end
-    local success, err = io.copyto(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_OLD_VERSION_PATH)
+    local success, err = io.copyto(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_BACKUP_PATH)
     if not success then
-        Log.error("Could not backup script: " .. err)
-        util.toast("Could not download update: " .. err)
+        Log.error("Could not backup script: ", err)
+        util.toast("Could not download update: " .. (err or "nil"))
         return
     end
-    local vFile = io.open(SCRIPT_OLD_VERSION_PATH .. ".meta", "w")
+    local vFile = io.open(SCRIPT_BACKUP_PATH .. ".meta", "w")
     if not vFile then
         Log.error("script update failed: couldnt open file")
         if on_err then on_err(0, "couldnt open file") end

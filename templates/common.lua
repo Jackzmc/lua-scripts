@@ -83,7 +83,7 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ----------------------------------------------------------------
 ---- VERSION
 ----------------------------------------------------------------
-SCRIPT_OLD_VERSION_PATH = filesystem.appdata_dir() .. "/Cache/old-" .. SCRIPT_FILENAME
+SCRIPT_BACKUP_PATH = filesystem.store_dir() .. "/old-" .. SCRIPT_FILENAME
 SCRIPT_UPDATE_NEW_VERSION = "-error-"
 menu.divider(SCRIPT_META_LIST, "Version")
 --#P:MANUAL_ONLY
@@ -101,8 +101,8 @@ end)
 SCRIPT_META_REVERT_ACTION = menu.action(SCRIPT_META_LIST, "Revert", {}, "[invalid state]", function()
     SCRIPT_META_UPDATE_ACTION:delete()
     SCRIPT_META_REVERT_ACTION:delete()
-    if filesystem.exists(SCRIPT_OLD_VERSION_PATH) then
-        os.rename(SCRIPT_OLD_VERSION_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
+    if filesystem.exists(SCRIPT_BACKUP_PATH) then
+        os.rename(SCRIPT_BACKUP_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
         util.toast(SCRIPT .. " was reverted to previous version\nScript is restarting to apply changes", TOAST_ALL)
         util.restart_script()
     else
