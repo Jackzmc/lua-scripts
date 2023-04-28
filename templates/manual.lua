@@ -33,6 +33,7 @@ function check_for_old_version()
     end
 end
 function download_script_update(branch, on_success, on_err)
+    if not branch then branch = "release" end
     os.rename(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_OLD_VERSION_PATH)
     local vFile = io.open(SCRIPT_OLD_VERSION_PATH .. ".meta", "w")
     if not vFile then
@@ -43,15 +44,16 @@ function download_script_update(branch, on_success, on_err)
     vFile:write("V" .. VERSION .. "\n" .. SCRIPT_BRANCH .. "\n" .. BRANCH_LAST_COMMIT)
     vFile:close()
 
-    async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. (branch or "master"), function(body, res_headers, status_code)
+    async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. branch, function(body, res_headers, status_code)
         if status_code == 200 then
             local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
             if file then
                 file:write(body:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
                 file:close()
-                Log.log("Updated ", SCRIPT_NAME, "to branch", branch or "master")
+                Log.log("Updated ", SCRIPT_NAME, "to branch", branch)
                 if on_success then on_success() end
             else
+                util.toast("Error updating script")
                 Log.error("script update failed: couldnt open file")
                 if on_err then on_err(0, "couldnt open file") end
             end

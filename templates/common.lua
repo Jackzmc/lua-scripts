@@ -83,7 +83,7 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ----------------------------------------------------------------
 ---- VERSION
 ----------------------------------------------------------------
-SCRIPT_OLD_VERSION_PATH = filesystem.store_dir() .. "/old-" .. SCRIPT_FILENAME
+SCRIPT_OLD_VERSION_PATH = filesystem.appdata_dir() .. "/Cache/old-" .. SCRIPT_FILENAME
 menu.divider(SCRIPT_META_LIST, "Version")
 menu.hyperlink(SCRIPT_META_LIST, "View Changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 --#P:MANUAL_ONLY
@@ -119,7 +119,8 @@ if SCRIPT_SOURCE == "MANUAL" then
         download_script_update(SCRIPT_BRANCH_IDS[index], function()
             HUD.BUSYSPINNER_OFF()
             util.log(SCRIPT_NAME .. ": Released channel changed to " .. SCRIPT_BRANCH_IDS[index])
-            util.toast("Release channel changed to " .. name .. " (" .. SCRIPT_BRANCH_IDS[index] .. ")\nReload to apply changes")
+            util.toast("Release channel changed to " .. name .. " (" .. SCRIPT_BRANCH_IDS[index] .. ")")
+            util.restart_script()
         end, function()
             util.toast("Failed to download latest version for release channel.")
         end)
