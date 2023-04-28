@@ -62,6 +62,7 @@ if SCRIPT_BRANCH and SCRIPT_BRANCH == "release" then
         util.log(SCRIPT_NAME .. ": Failed to access to version file")
     end
 end
+
 -- END Version Check
 ------------------------------------------------------------------
 function show_busyspinner(text)
@@ -70,12 +71,44 @@ function show_busyspinner(text)
     HUD.END_TEXT_COMMAND_BUSYSPINNER_ON(2)
 end
 
+----------------------------------------------------------------
+---- SCRIPT META - LIST
+----------------------------------------------------------------
 SCRIPT_META_LIST = menu.list(menu.my_root(), "Script Meta")
 menu.divider(SCRIPT_META_LIST, SCRIPT_NAME .. " V" .. VERSION)
 menu.hyperlink(SCRIPT_META_LIST, "View full changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 menu.hyperlink(SCRIPT_META_LIST, "Jackz's Guilded", "https://www.guilded.gg/i/k8bMDR7E?cid=918b2f61-989c-41c4-ba35-8fd0e289c35d&intent=chat", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(SCRIPT_META_LIST, "Jackz's Discord", "https://discord.gg/NnJrkGppfb", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
+
+----------------------------------------------------------------
+---- VERSION
+----------------------------------------------------------------
+SCRIPT_OLD_VERSION_PATH = filesystem.store_dir() .. "/old-" .. SCRIPT_FILENAME
+menu.divider(menu.my_root(), "Version")
+--#P:MANUAL_ONLY
+SCRIPT_META_UPDATE_ACTION = menu.action(menu.my_root(), "Update", {}, "[invalid state]", function()
+    SCRIPT_META_UPDATE_ACTION:removeHandler()
+    download_script_update(SCRIPT_BRANCH, function()
+        util.toast(SCRIPT .. " was updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
+        util.restart_script()
+    end, function()
+        util.toast(SCRIPT .. ": Failed to update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
+    end)
+end)
+SCRIPT_META_REVERT_ACTION = menu.action(menu.my_root(), "Revert", {}, "[invalid state]", function()
+    SCRIPT_META_REVERT_ACTION:removeHandler()
+    if filesystem.exists(SCRIPT_OLD_VERSION_PATH) then
+        os.rename(SCRIPT_OLD_VERSION_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
+        util.toast(SCRIPT .. " was reverted to previous version\nScript is restarting to apply changes", TOAST_ALL)
+        util.restart_script()
+    else
+        util.toast("There is no old verison to restore to")
+    end
+end)
+SCRIPT_META_UPDATE_ACTION.visible = false
+SCRIPT_META_REVERT_ACTION.visible = false
+--#p:END
 if SCRIPT_SOURCE == "MANUAL" then
     menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
         show_busyspinner("Downloading update...")
@@ -90,6 +123,12 @@ if SCRIPT_SOURCE == "MANUAL" then
 else
     menu.readonly(SCRIPT_META_LIST, "Release Channel", "Use the manual version from https://jackz.me/stand/get-latest-zip to change the release channel.")
 end
+menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
+
+----------------------------------------------------------------
+---- MISC
+----------------------------------------------------------------
+menu.divider(menu.my_root(), "")
 if _lang ~= nil then
     menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
@@ -99,7 +138,6 @@ if _lang ~= nil then
         HUD.BUSYSPINNER_OFF()
     end)
 end
-menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
 menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to paste.jackz.me.\nLog uploads are unlisted and will expire 7 days after uploaded.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then

@@ -7,12 +7,10 @@ function check_for_update(branch)
                 table.insert(chunks, substring)
             end
             if chunks[1] == "OUTDATED" then
-                download_script_update(branch, function()
-                    util.toast(SCRIPT .. " was automatically updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
-                    util.restart_script()
-                end, function()
-                    util.toast(SCRIPT .. ": Failed to automatically update to V" .. chunks[2] .. ".\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
-                end)
+                util.toast(SCRIPT_NAME .. ": An update is available (V" .. chunks[2] .. ")")
+                SCRIPT_META_UPDATE_ACTION.menu_name = "Update (V" .. chunks[2] .. ")"
+                SCRIPT_META_UPDATE_ACTION.help_text = "Update from v" .. SCRIPT_VERSION .. " to v" .. chunks[2]
+                SCRIPT_META_UPDATE_ACTION.visible = true
             end
         else
             util.toast(SCRIPT .. ": Could not auto update due to server error (HTTP " .. status_code .. ")\nPlease download latest update manually.\nhttps://jackz.me/stand/get-latest-zip", 2)
@@ -20,14 +18,43 @@ function check_for_update(branch)
     end)
     async_http.dispatch()
 end
+function check_for_old_version()
+    local file = io.open(SCRIPT_OLD_VERSION_PATH, "r")
+    if file then
+        local chunks = {}
+        for substring in io.lines("SCRIPT_OLD_VERSION_PATH") do
+            table.insert(chunks, substring)
+        end
+        SCRIPT_META_REVERT_ACTION.set_menu_name("Revert to v" .. chunks[1])
+        SCRIPT_META_REVERT_ACTION.help_text = "Revert to old v" .. chunks[1] .. "\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]
+
+        file:close()
+        SCRIPT_META_REVERT_ACTION.visible = false
+    end
+end
 function download_script_update(branch, on_success, on_err)
+    os.rename(filesystem.scripts_dir()  .. SCRIPT_RELPATH, SCRIPT_OLD_VERSION_PATH)
+    local vFile = io.open(SCRIPT_OLD_VERSION_PATH .. ".meta", "w")
+    if not vFile then
+        Log.error("script update failed: couldnt open file")
+        if on_err then on_err(0, "couldnt open file") end
+        return
+    end
+    vFile:write("V" .. SCRIPT_VERSION .. "\n" .. SCRIPT_BRANCH .. "\n" .. BRANCH_LAST_COMMIT)
+    vFile:close()
+
     async_http.init("jackz.me", "/stand/get-lua.php?script=" .. SCRIPT .. "&source=manual&branch=" .. (branch or "master"), function(body, res_headers, status_code)
         if status_code == 200 then
             local file = io.open(filesystem.scripts_dir()  .. SCRIPT_RELPATH, "w")
-            file:write(body:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
-            file:close()
-            Log.log("Updated ", SCRIPT_NAME, "to branch", branch or "master")
-            if on_success then on_success() end
+            if file then
+                file:write(body:gsub("\r", "") .. "\n") -- have to strip out \r for some reason, or it makes two lines. ty windows
+                file:close()
+                Log.log("Updated ", SCRIPT_NAME, "to branch", branch or "master")
+                if on_success then on_success() end
+            else
+                Log.error("script update failed: couldnt open file")
+                if on_err then on_err(0, "couldnt open file") end
+            end
         else
             Log.error("script update failed due to server error: " .. status_code .. "\n" .. body)
             if on_err then on_err(status_code, body) end
