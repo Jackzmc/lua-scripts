@@ -85,10 +85,10 @@ menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lu
 ----------------------------------------------------------------
 SCRIPT_OLD_VERSION_PATH = filesystem.appdata_dir() .. "/Cache/old-" .. SCRIPT_FILENAME
 menu.divider(SCRIPT_META_LIST, "Version")
-menu.hyperlink(SCRIPT_META_LIST, "View Changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 --#P:MANUAL_ONLY
 SCRIPT_META_UPDATE_ACTION = menu.action(SCRIPT_META_LIST, "Update", {}, "[invalid state]", function()
-    SCRIPT_META_UPDATE_ACTION:removeHandler()
+    SCRIPT_META_UPDATE_ACTION:delete()
+    SCRIPT_META_REVERT_ACTION:delete()
     download_script_update(SCRIPT_BRANCH, function()
         util.toast(SCRIPT .. " was updated to V" .. chunks[2] .. "\nScript is restarting to apply changes", TOAST_ALL)
         util.restart_script()
@@ -97,7 +97,8 @@ SCRIPT_META_UPDATE_ACTION = menu.action(SCRIPT_META_LIST, "Update", {}, "[invali
     end)
 end)
 SCRIPT_META_REVERT_ACTION = menu.action(SCRIPT_META_LIST, "Revert", {}, "[invalid state]", function()
-    SCRIPT_META_REVERT_ACTION:removeHandler()
+    SCRIPT_META_UPDATE_ACTION:delete()
+    SCRIPT_META_REVERT_ACTION:delete()
     if filesystem.exists(SCRIPT_OLD_VERSION_PATH) then
         os.rename(SCRIPT_OLD_VERSION_PATH, filesystem.scripts_dir()  .. SCRIPT_RELPATH)
         util.toast(SCRIPT .. " was reverted to previous version\nScript is restarting to apply changes", TOAST_ALL)
@@ -109,6 +110,7 @@ end)
 SCRIPT_META_UPDATE_ACTION.visible = false
 SCRIPT_META_REVERT_ACTION.visible = false
 --#p:END
+menu.hyperlink(SCRIPT_META_LIST, "View Changelog", "https://jackz.me/stand/changelog?html=1&reverse=1&script=" .. SCRIPT_NAME)
 if SCRIPT_SOURCE == "MANUAL" then
     menu.list_select(SCRIPT_META_LIST, "Release Channel", {SCRIPT_NAME.."channel"}, "Sets the release channel for updates for this script.\nChanging the channel from release may result in bugs.", SCRIPT_BRANCH_NAMES, 1, function(index, name)
         if SCRIPT_BRANCH_IDS[index] == nil then
