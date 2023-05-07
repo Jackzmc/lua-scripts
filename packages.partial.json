@@ -1,0 +1,63 @@
+{
+    "_note_": "This file is used to automatically generate the package repository for jackz.me. Do not use this directly",
+    "_url_": "https://jackz.me/stand/packages.php", 
+    "no_police_helis": {
+        "name": "No Police Helicopters",
+        "depends": [
+            "natives-1627063482.lua"
+        ]
+    },
+    "jackz_vehicles": {
+        "name": "Vehicle Options",
+        "depends": [
+            "natives-1627063482.lua",
+            "json.lua",
+            "translations.lua",
+            "jackzvehiclelib.lua"
+        ]
+    },
+    "actions": {
+        "name": "Actions",
+        "depends": [
+            "natives-1627063482.lua",
+            "translations.lua"
+        ],
+        "resources_version": "r2",
+        "resources": [
+            "jackz_actions/animations.txt",
+            "jackz_actions/actions_data.lua"
+        ]
+    },
+    "jackz_chat": {
+        "name": "Stand Chat",
+        "depends": [
+            "natives-1627063482.lua",
+            "translations.lua",
+            "json.lua"
+        ]
+    },
+    "train_control": {
+        "name": "Train Control",
+        "depends": [
+            "natives-1627063482.lua"
+        ]
+    },
+    "jackz_vehicle_builder": {
+        "name": "Jackz Vehicle Builder",
+        "depends": [
+            "natives-1627063482",
+            "json.lua",
+            "jackzvehiclelib.lua"
+        ],
+        "resources_version": "r2",
+        "resources": [
+            "objects.txt",
+            "peds.txt",
+            "vehicles.txt",
+            "particles.txt"
+		]
+    },
+    "lib/translations": {},
+    "lib/jackzvehiclelib": {},
+    "lib/jackzanimatorlib": {}
+}

@@ -44,12 +44,11 @@ if _lang == nil or _lang.menus.list_select == nil or _lang.VERSION ~= LANG_TARGE
     end
     updateTranslations = true
 end
-_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master")  .. "/resources/Translations/")
+_lang.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "release")  .. "/resources/Translations/")
 _lang.load_translation_file(SCRIPT)
 if updateTranslations then
     _lang.update_translation_file(SCRIPT)
 end
-  
 
 if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "-- Credits --")

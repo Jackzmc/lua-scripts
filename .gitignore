@@ -46,3 +46,5 @@
 !.gitignore
 !README.md
 *.sh
+
+!packages.partial.json
