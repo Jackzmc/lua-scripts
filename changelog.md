@@ -99,6 +99,7 @@ V1.3.0
 * Clarified wording on some menus, broken/missing translations
 * Show active channel in Send Message
 * Added "discord" channel that sends messages to new official discord
+* (1.3.1) Fix SEND_ERR translation
 
 # train control (v1)
 

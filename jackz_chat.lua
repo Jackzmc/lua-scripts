@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
@@ -200,7 +200,7 @@ function switchChannel(channel)
   _lang.toast("CHANNELS_SWITCHED", channel)
 end
 
-async_http.init("jackz.me", "/stand/chat2/info", function(body)
+async_http.init("jackz.me", "/stand/chat/info", function(body)
   if body:sub(1, 1) == "{" then
     local data = json.decode(body)
 
@@ -260,7 +260,7 @@ end)
 sendChatMenu = menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME", sendChannel), { "chat", "c" }, _lang.format("SEND_MSG_DESC") .. "\n\n" .. _lang.format("SEND_CHAT_AS", user, sendChannel), function(args, clickType)
   if args == "" then return end
   show_busyspinner("Sending messsage")
-  async_http.init("jackz.me", "/stand/chat2/channels/" .. sendChannel .. "?v=" .. VERSION, function(result, headers, status_code)
+  async_http.init("jackz.me", "/stand/chat/channels/" .. sendChannel .. "?v=" .. VERSION, function(result, headers, status_code)
     if status_code == 204 or result == "OK" or result == "Bad Request" then
       table.insert(messages, {
         u = user,
@@ -303,7 +303,7 @@ util.create_tick_handler(function(_)
     end
   end
   async_http.init("jackz.me", 
-    "/stand/chat2/channels/" .. sendChannel .. "/" .. lastTimestamp .. "?channels=" .. table.concat(subList, ","), 
+    "/stand/chat/channels/" .. sendChannel .. "/" .. lastTimestamp .. "?channels=" .. table.concat(subList, ","),
     function(body, res_headers, status_code)
     -- check if response is validish json (incase ratelimitted)
     -- Also ignore all errors, and 204 no content
@@ -319,6 +319,8 @@ util.create_tick_handler(function(_)
         end
       end
       lastTimestamp = data.t
+    else
+      -- Log.debug("fetch_error", status_code, body)
     end
     waiting = false
   end)
