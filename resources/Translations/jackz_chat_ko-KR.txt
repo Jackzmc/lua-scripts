@@ -26,6 +26,6 @@ SEND_MSG_NAME: 채팅 보내기
 SEND_MSG_DESC: 모든 온라인 Stand 유저에게 채팅 메시지를 보냅니다.\n\n참고로 인종 차별, 도배 및 모든 형태의 괴롭힘은 허용되지 않으며 채팅이 금지될 수도 있습니다.
 SEND_CHAT_AS: Chatting as "%s"
 SEND_MAINTENACE: 채팅 서버가 유지 보수 중이므로, 보낼 수 없습니다.
-SEND_ERROR: 채팅 서버에서 다음 오류를 반환했습니다:
+SEND_ERR: 채팅 서버에서 다음 오류를 반환했습니다: %s
 EXAMPLE_1: Example: Welcome to Stand Chat.
 EXAMPLE_2: Example: This is some example text. Have you tried jackz_vehicles? I heard it's a great script.

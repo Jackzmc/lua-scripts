@@ -26,7 +26,7 @@ SEND_MSG_NAME: Send Message (%s)
 SEND_MSG_DESC: Sends a chat message to all online stand users in the channel.\n\nNote: Racism, spamming, or any form of harassment is not tolerated and will result in your account being banned from chatting. Don't be a dick.
 SEND_CHAT_AS: Chatting as "%s" to channel "%s"
 SEND_MAINTENACE: Chat server is in maintenance mode, cannot send.
-SEND_ERR: Chat server returned error: 
+SEND_ERR: Chat server returned error: %s
 SEND_RATELIMITED: Ratelimited: You are sending messages too fast
 EXAMPLE_1: Example: Welcome to Stand Chat! You are using version %s.
 EXAMPLE_2: Example: This is some example text. Have you tried jackz_vehicles? I heard it's a great script.

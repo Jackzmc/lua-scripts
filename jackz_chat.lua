@@ -200,7 +200,7 @@ function switchChannel(channel)
   _lang.toast("CHANNELS_SWITCHED", channel)
 end
 
-async_http.init("jackz.me", "/stand/chat/info", function(body)
+async_http.init("jackz.me", "/stand/chat2/info", function(body)
   if body:sub(1, 1) == "{" then
     local data = json.decode(body)
 
@@ -260,7 +260,7 @@ end)
 sendChatMenu = menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME", sendChannel), { "chat", "c" }, _lang.format("SEND_MSG_DESC") .. "\n\n" .. _lang.format("SEND_CHAT_AS", user, sendChannel), function(args, clickType)
   if args == "" then return end
   show_busyspinner("Sending messsage")
-  async_http.init("jackz.me", "/stand/chat/channels/" .. sendChannel .. "?v=" .. VERSION, function(result, headers, status_code)
+  async_http.init("jackz.me", "/stand/chat2/channels/" .. sendChannel .. "?v=" .. VERSION, function(result, headers, status_code)
     if status_code == 204 or result == "OK" or result == "Bad Request" then
       table.insert(messages, {
         u = user,
@@ -273,11 +273,17 @@ sendChatMenu = menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME", sen
     elseif result == "RATELIMITED" then
       _lang.toast("SEND_RATELIMITED")
     else
-      _lang.toast("SEND_ERR" .. result)
+      _lang.toast("SEND_ERR", result)
     end
     HUD.BUSYSPINNER_OFF()
   end, function() HUD.BUSYSPINNER_OFF() end)
   async_http.set_post("application/json", json.encode({
+    user = user,
+    content = args,
+    hash = keyhash,
+    rid = players.get_rockstar_id(players.user())
+  }))
+  Log.log("value", json.encode({
     user = user,
     content = args,
     hash = keyhash,
@@ -297,7 +303,7 @@ util.create_tick_handler(function(_)
     end
   end
   async_http.init("jackz.me", 
-    "/stand/chat/channels/" .. sendChannel .. "/" .. lastTimestamp .. "?channels=" .. table.concat(subList, ","), 
+    "/stand/chat2/channels/" .. sendChannel .. "/" .. lastTimestamp .. "?channels=" .. table.concat(subList, ","), 
     function(body, res_headers, status_code)
     -- check if response is validish json (incase ratelimitted)
     -- Also ignore all errors, and 204 no content
