@@ -32,10 +32,18 @@ function check_for_old_version()
         for substring in io.lines(SCRIPT_BACKUP_PATH .. ".meta") do
             table.insert(chunks, substring)
         end
-        SCRIPT_META_REVERT_ACTION.menu_name = "Revert to " .. chunks[1]
-        SCRIPT_META_REVERT_ACTION.help_text = "Revert to older version (" .. chunks[1] .. ")\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]:sub(1, 11)
+        if #chunks <= 1 then
+            Log.warn("old script & meta exist, but version is invalid. deleting and dropping")
+            os.remove(filesystem.exists(SCRIPT_BACKUP_PATH))
+            os.remove(filesystem.exists(SCRIPT_BACKUP_PATH .. ".meta"))
+        else if not SCRIPT_META_REVERT_ACTION then
+            Log.warn("SCRIPT_META_REVERT_ACTION is missing!!")
+        else
+            SCRIPT_META_REVERT_ACTION.menu_name = "Revert to " .. chunks[1]
+            SCRIPT_META_REVERT_ACTION.help_text = "Revert to older version (" .. chunks[1] .. ")\nBranch: " .. chunks[2] .. "\nCommit: " .. chunks[3]:sub(1, 11)
 
-        SCRIPT_META_REVERT_ACTION.visible = true
+            SCRIPT_META_REVERT_ACTION.visible = true
+        end
       elseif backupExists then
         -- Remove the backup file if no meta file
         os.remove(filesystem.exists(SCRIPT_BACKUP_PATH))
