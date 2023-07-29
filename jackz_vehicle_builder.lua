@@ -12,8 +12,8 @@ require('templates/common')
 --#P:END
 
 --#P:TEMPLATE("log")
---#P:TEMPLATE("_SOURCE")
 --#P:TEMPLATE("common")
+--#P:TEMPLATE("_SOURCE")
 
 util.require_natives(1660775568)
 if SCRIPT_META_LIST then
