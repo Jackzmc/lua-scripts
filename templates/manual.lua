@@ -6,7 +6,7 @@ function check_for_update(branch)
             for substring in string.gmatch(body, "%S+") do
                 table.insert(chunks, substring)
             end
-            if chunks[1] == "OUTDATED" then
+            if chunks[1] == "OUTDATED" and #chunks >= 3 then
                 SCRIPT_UPDATE_NEW_VERSION = chunks[3]
                 util.toast(SCRIPT_NAME .. ": An update is available (V" .. chunks[3] .. ")\nHead to \"Script Meta > Update\" to update")
                 SCRIPT_META_UPDATE_ACTION.menu_name = "Update (V" .. chunks[3] .. ")"
