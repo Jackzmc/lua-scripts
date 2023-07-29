@@ -158,6 +158,7 @@ V1.25.0
 * (1.25.9) Fix small error on toast
 * (1.25.10) Add discord link
 * (1.25.11) Use built in json
+* (1.25.12) Fix saved builds not appearing (Sorry this took so long)
 
 # jackz animator (v1)
 

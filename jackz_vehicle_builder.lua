@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.10"
+VERSION = "1.25.12"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -950,19 +950,19 @@ function _load_vehicles_from_dir(parentList, directory)
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
         if filesystem.is_dir(filepath) then
-            Log.debug("c1", filename, ext)
+            -- Log.debug("c1", filename, ext)
 
             local folderList = menu.list(parentList, filename, {}, "")
             menu.on_focus(folderList, function() clear_build_preview() end)
             _load_vehicles_from_dir(folderList, filepath)
             table.insert(folderLists, folderList)
-            Log.debug("c1:done")
+            -- Log.debug("c1:done")
         else
-            Log.debug("c2", filename, ext)
+            -- Log.debug("c2", filename, ext)
             if ext == "json" then
                 table.insert(queue, function() _setup_spawn_list_entry(parentList, filepath) end)
             elseif ext == "xml" then
-                Log.debug("c2:xml")
+                -- Log.debug("c2:xml")
                 filename = filename:sub(1, -5)
                 local newPath = SAVE_DIRECTORY .. "/" .. filename .. ".json"
                 xmlMenusHandles[filename] = menu.action(xmlList, filename, {}, "Click to convert to a compatible format.", function()
@@ -975,7 +975,7 @@ function _load_vehicles_from_dir(parentList, directory)
                     convert_file(filename, filename, newPath)
                 end)
             end
-            Log.debug("c2:end", filename, ext)
+            -- Log.debug("c2:end", filename, ext)
         end
     end
     table.insert(folderLists, menu.divider(parentList, "Builds"))
@@ -1013,10 +1013,8 @@ function _format_vehicle_info(version, timestamp, author, rating)
     end
 end
 function _setup_spawn_list_entry(parentList, filepath)
-    Log.debug("_setup_spawn_list_entry", filepath)
     local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
     local status, data = pcall(get_build_data_from_file, filepath)
-    Log.debug("_setup_spawn_list_entry end", filepath)
     if status and data ~= nil then
         if not data.base or not data.version then
             Log.log("Skipping invalid build: " .. filepath)
@@ -1103,12 +1101,10 @@ function _render_cloud_build_overlay(pos, data)
 
 end
 function _load_saved_list()
-    Log.debug("a")
     clear_build_preview()
     clear_menu_table(optionParentMenus)
     clear_menu_table(xmlMenusHandles)
     clear_menu_table(folderLists)
-    Log.debug("b")
     if filesystem.exists(SAVE_DIRECTORY) then
         _load_vehicles_from_dir(savedVehicleList, SAVE_DIRECTORY)
     else
@@ -2840,26 +2836,23 @@ function upload_build(name, data)
     async_http.dispatch()
 end
 function get_build_data_from_file(filepath)
+    Log.debug(filepath)
     local file, err = io.open(filepath, "r")
-    Log.debug("get_build_data_from_file:end", filepath, file, err)
     if file then
-        Log.debug("get_build_data_from_file read", filepath)
         local size = file:seek("end")
         if size == 0 then
             Log.warn("Skipping file \"" .. filepath .. "\": file is empty (0 bytes)")
             file:close()
             return nil
         end
-        Log.debug("s", size)
-        local content = file:read("*a")
-        Log.debug("c", content:len())
+        file:seek("set", 0)
+        local content = file:read("a")
         if content == "" then
             Log.warn("Skipping file \"" .. filepath .. "\": file content is empty string (file size = " .. size .. "), cannot parse")
             file:close()
             return nil
         end
         local status, data = pcall(json.decode, content)
-        Log.debug("get_build_data_from_file read end", filepath)
         file:close()
         if not status then
             Log.warn("Skipping file \"" .. filepath .. "\" due to json errors: " .. data)
