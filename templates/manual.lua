@@ -36,7 +36,7 @@ function check_for_old_version()
             Log.warn("old script & meta exist, but version is invalid. deleting and dropping")
             os.remove(filesystem.exists(SCRIPT_BACKUP_PATH))
             os.remove(filesystem.exists(SCRIPT_BACKUP_PATH .. ".meta"))
-        else if not SCRIPT_META_REVERT_ACTION then
+        elseif not SCRIPT_META_REVERT_ACTION then
             Log.warn("SCRIPT_META_REVERT_ACTION is missing!!")
         else
             SCRIPT_META_REVERT_ACTION.menu_name = "Revert to " .. chunks[1]
