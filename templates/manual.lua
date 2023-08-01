@@ -84,8 +84,10 @@ function download_script_update(branch, on_success, on_err)
     end, on_err)
     async_http.dispatch()
 end
-check_for_update(SCRIPT_BRANCH)
-check_for_old_version()
+pcall(function()
+    check_for_update(SCRIPT_BRANCH)
+    check_for_old_version()
+end)
 
 function download_lib_update(lib, on_success, on_error)
     local lockPath = filesystem.scripts_dir() .. "/lib/" .. lib .. ".lock"
