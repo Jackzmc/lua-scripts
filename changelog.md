@@ -161,6 +161,13 @@ V1.25.0
 * (1.25.12) Fix saved builds not appearing (Sorry this took so long)
 * (1.25.13) Fix Clone Entity error
 
+V1.26.0
+
+* Add Utilities > Delete Current Vehicle
+* Minor wording improvements
+* Add some more error checks
+* Improved entity count accuracy
+
 # jackz animator (v1)
 
 V1.1.0

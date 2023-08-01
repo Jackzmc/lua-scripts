@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.25.13"
+VERSION = "1.26.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -509,6 +509,15 @@ end
     UTILS
 ]]--
 local utilsMenu = menu.list(menu.my_root(), "Utilities", {"jvbutils"}, "Some utilities such as clearing entities")
+menu.action(utilsMenu, "Delete Current Vehicle", {"jvbdelcur"}, "Deletes your current vehicle and everything attached to it", function()
+    local currentVehicle = entities.get_user_vehicle_as_handle()
+    if currentVehicle ~= 0 then
+        remove_all_attachments(currentVehicle)
+        entities.delete(currentVehicle)
+    else
+        util.toast("No current vehicle")
+    end
+end)
 menu.action(utilsMenu, "Delete Preview", {"jvbstoppreview"}, "Removes currently active preview.", function()
     if preview.entity == 0 then
         util.toast("No preview is active")
@@ -1073,26 +1082,46 @@ function _setup_spawn_list_entry(parentList, filepath)
         Log.log(string.format("Skipping build \"%s\" due to error: (%s)", filepath, (data or "<EMPTY FILE>")))
     end
 end
+function _get_build_stats(data)
+    local numVehicles = data.vehicles and #data.vehicles or 0
+    local numObjects = data.objects and #data.objects or 0
+    local numPeds = data.peds and #data.peds or 0
+
+    Log.debug(data.base.handle)
+    if ENTITY.IS_ENTITY_A_VEHICLE(data.base.handle) then
+        numVehicles = numVehicles + 1
+    elseif ENTITY.IS_ENTITY_A_PED(data.base.handle) then
+        numPeds = numPeds + 1
+    else
+        numObjects = numObjects + 1
+    end
+
+    return numVehicles, numObjects, numPeds
+end
 function _render_saved_build_overlay(pos, data)
     local hudPos = get_screen_coords(pos)
     directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.105, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
     local authorText = data.author and ("Created by " .. data.author) or "Unknown creator"
 
+    local numVehicles, numObjects, numPeds = _get_build_stats(data)
+
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, data.name or data.filename, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.03, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.06, data.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("%d vehicles, %d objects, %d peds", data.vehicles and #data.vehicles or 0, data.objects and #data.objects or 0, data.peds and #data.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.075, string.format("%d vehicles, %d objects, %d peds", numVehicles, numObjects, numPeds), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
 end
 function _render_cloud_build_overlay(pos, data)
     local hudPos = get_screen_coords(pos)
     directx.draw_rect(hudPos.x, hudPos.y, 0.25, 0.12, { r = 0.0, g = 0.0, b = 0.0, a = 0.3})
     local authorText = data.vehicle.author and ("Created by " .. data.vehicle.author) or "Unknown creator"
 
+    local numVehicles, numObjects, numPeds = _get_build_stats(data)
+
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.01, data.vehicle.name, ALIGN_TOP_LEFT, 0.6, { r = 1.0, g = 1.0, b = 1.0, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.025, authorText, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.042, "Uploaded by " .. data.uploader, ALIGN_TOP_LEFT, 0.5, { r = 0.9, g = 0.9, b = 0.9, a = 1.0})
     directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.065, data.vehicle.version, ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
-    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.08, string.format("%d vehicles, %d objects, %d peds", data.vehicle.vehicles and #data.vehicle.vehicles or 0, data.vehicle.objects and #data.vehicle.objects or 0, data.vehicle.peds and #data.vehicle.peds or 0), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
+    directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.08, string.format("%d vehicles, %d objects, %d peds", numVehicles, numObjects, numPeds), ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
     if data.rating == "0.0" then
         directx.draw_text(hudPos.x + 0.01, hudPos.y + 0.095, "No ratings", ALIGN_TOP_LEFT, 0.45, { r = 0.9, g = 0.9, b = 0.9, a = 0.8})
     else
@@ -1260,14 +1289,14 @@ function setup_builder_menus(name)
                 return
             end
             if not builder.author then
-                menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a build without an author set. An author is not required, but the author will be tied to the build itself.", function()
+                menu.show_warning(uploadMenu, CLICK_MENU, "You are uploading a build without an author set. An author is not required, but the author will allow edits to your build to still be credited to you.", function()
                     upload_build(name, data)
                 end)
             else
                 upload_build(name, data)
             end
         end, name or "")
-        menu.text_input(buildList, "Author", {"buildauthor"}, "Set the author of the build, none is set by default. This is used to distinquish between build uploaders and the original creator", function(input)
+        menu.text_input(buildList, "Author", {"buildauthor"}, "Set the author of the build, none is set by default. This is used to distinquish between build uploaders and the original creator. Please don't remove the original author's credit.", function(input)
             builder.author = input
             util.toast("Set the builds's author to: " .. input)
         end, builder.author or "")
@@ -2836,7 +2865,6 @@ function upload_build(name, data)
     async_http.dispatch()
 end
 function get_build_data_from_file(filepath)
-    Log.debug(filepath)
     local file, err = io.open(filepath, "r")
     if file then
         local size = file:seek("end")
@@ -3064,8 +3092,13 @@ function spawn_entity(data, type, isPreview, pos, heading)
     else
         return error("Invalid entity type \"" .. type .. "\"", 2)
     end
-    Log.debug(string.format("spawned %s handle %d model %s", type, handle, data.model or "nil"))
-    _setup_network(handle)
+    if handle == 0 then
+        Log.warn(string.format("failed to spawn entity of type %s model %s", type, data.model or "nil"))
+        util.toast(string.format("Could not spawn entity with model %s, type %s", data.model or "(no model)"), type)
+    else
+        Log.debug(string.format("spawned %s handle %d model %s", type, handle or "<failed>", data.model or "nil"))
+        _setup_network(handle)
+    end
     return handle
 end
 
@@ -3634,14 +3667,12 @@ function compute_builder_stats()
     local objects = 0
     local vehicles = 0
     for handle, data in pairs(builder.entities) do
-        if handle ~= builder.base.handle then
-            if data.type == "PED" then
-                peds = peds + 1
-            elseif data.type == "VEHICLE" then
-                vehicles = vehicles + 1
-            else
-                objects = objects + 1
-            end
+        if data.type == "PED" then
+            peds = peds + 1
+        elseif data.type == "VEHICLE" then
+            vehicles = vehicles + 1
+        else
+            objects = objects + 1
         end
     end
     return vehicles, objects, peds

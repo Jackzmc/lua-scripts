@@ -137,7 +137,7 @@ if SCRIPT_SOURCE == "MANUAL" then
         end)
     end)
 else
-    menu.readonly(SCRIPT_META_LIST, "Release Channel", "Use the manual version from https://jackz.me/stand/get-latest-zip to change the release channel.")
+    menu.readonly(SCRIPT_META_LIST, "Release Channel", "Not supported on repo version. Use the manual version from https://jackz.me/stand/get-latest-zip to change the release channel.")
 end
 menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LAST_COMMIT:sub(1,10) or "Dev Build")
 
@@ -154,7 +154,7 @@ if _lang ~= nil then
         HUD.BUSYSPINNER_OFF()
     end)
 end
-menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to paste.jackz.me.\nLog uploads are unlisted and will expire 7 days after uploaded.\n\nUploaded log can be accessed from \"Open Uploaded Log\" button below once pressed", function()
+menu.action(SCRIPT_META_LIST, "Upload Logs", {}, "Uploads the last ~20 lines of your stand log (%appdata%\\Stand\\Log.txt) to paste.jackz.me.\nLog uploads are unlisted and will expire 7 days after uploaded.\n\nThe uploaded log can be accessed from \"Open Uploaded Log\" button below once pressed, and is copied to your clipboard.", function()
     local logs = io.open(filesystem.stand_dir() .. "Log.txt", "r")
     if logs then
         show_busyspinner("Uploading logs....")
