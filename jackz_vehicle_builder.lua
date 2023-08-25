@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.26.0"
+VERSION = "1.26.1"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -1087,13 +1087,14 @@ function _get_build_stats(data)
     local numObjects = data.objects and #data.objects or 0
     local numPeds = data.peds and #data.peds or 0
 
-    Log.debug(data.base.handle)
-    if ENTITY.IS_ENTITY_A_VEHICLE(data.base.handle) then
-        numVehicles = numVehicles + 1
-    elseif ENTITY.IS_ENTITY_A_PED(data.base.handle) then
-        numPeds = numPeds + 1
-    else
-        numObjects = numObjects + 1
+    if data.base.handle then
+        if ENTITY.IS_ENTITY_A_VEHICLE(data.base.handle) then
+            numVehicles = numVehicles + 1
+        elseif ENTITY.IS_ENTITY_A_PED(data.base.handle) then
+            numPeds = numPeds + 1
+        else
+            numObjects = numObjects + 1
+        end
     end
 
     return numVehicles, numObjects, numPeds
@@ -3615,7 +3616,7 @@ function attach_entity(_parent, handle, offset, rot, index, collision)
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0
         )
-    elseif _parent == 0 then
+    elseif not _parent then
         -- Attach to the world
         ENTITY.DETACH_ENTITY(handle, true, 0)
         local builderPos = ENTITY.GET_ENTITY_COORDS(builder.base.handle)
@@ -3626,6 +3627,10 @@ function attach_entity(_parent, handle, offset, rot, index, collision)
     else
         if collision == nil then
             collision = true
+        end
+        if not handle then
+            Log.error("handle is nil. parent=" .. _parent .. "handle=".. handle)
+            return
         end
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, _parent, index or 0,
             offset.x or 0, offset.y or 0, offset.z or 0,

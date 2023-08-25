@@ -167,6 +167,7 @@ V1.26.0
 * Minor wording improvements
 * Add some more error checks
 * Improved entity count accuracy
+* (1.26.1) Add some checks to prevent errors
 
 # jackz animator (v1)
 
