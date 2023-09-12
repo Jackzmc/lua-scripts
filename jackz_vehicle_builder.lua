@@ -3635,7 +3635,7 @@ function attach_entity(_parent, handle, offset, rot, index, collision)
         ENTITY.ATTACH_ENTITY_TO_ENTITY(handle, _parent, index or 0,
             offset.x or 0, offset.y or 0, offset.z or 0,
             rot.x or 0, rot.y or 0, rot.z or 0,
-            false, false, collision, false, 2, true
+            false, false, collision, false, 2, true, 0
         )
     end
 

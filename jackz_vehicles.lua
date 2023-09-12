@@ -2483,7 +2483,7 @@ menu.toggle_loop(menu.my_root(), "Drive on Water", {}, "Allow your vehicle to dr
             end
             local heading = ENTITY.GET_ENTITY_HEADING(my_vehicle)
             local height = memory.read_float(fHeight) - 1.25
-            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, height)
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(driveOnWaterEntity, pos.x, pos.y, height - 0.5)
             ENTITY.SET_ENTITY_HEADING(driveOnWaterEntity, heading)
             driveOnWaterNoWaterTicks = 0
         elseif driveOnWaterEntity then

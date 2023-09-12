@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "actions"
-VERSION = "1.11.8"
+VERSION = "1.11.9"
 local ANIMATIONS_DATA_FILE = filesystem.resources_dir() .. "/jackz_actions/animations.txt"
 local ANIMATIONS_DATA_FILE_VERSION = "1.0"
 local SPECIAL_ANIMATIONS_DATA_FILE_VERSION = "1.1.0" -- target version of actions_data
@@ -206,7 +206,7 @@ function play_animation(group, anim, doNotAddRecent, data, remove)
             end
         end
     end
-    if PAD.IS_CONTROL_PRESSED(2, 209) then
+    if PAD.IS_CONTROL_PRESSED(2, 209) or util.is_key_down(0xA0) then
         table.insert(favorites, { group, anim })
         populate_favorites()
         save_favorites()
@@ -799,7 +799,7 @@ function populate_favorites()
         end
         local a
         a = menu.action(favoritesMenu, name, {}, "Plays " .. favorite[2] .. " from group " .. favorite[1], function(v)
-            if PAD.IS_CONTROL_PRESSED(2, 209) then
+            if PAD.IS_CONTROL_PRESSED(2, 209) or util.is_key_down(0xA0) then
                 menu.show_warning(a, 2, _lang.format("DELETE_FAVORITE_WARN"), function()
                     play_animation(favorite[1], favorite[2], false, nil, true)
                 end)

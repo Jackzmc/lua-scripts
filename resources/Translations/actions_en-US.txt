@@ -24,7 +24,7 @@ DATA_ERROR_DESC: Could not read file resources/jackz_actions/actions_data.lua, s
 CLOUD_FAVORITES_NAME: Cloud Favorites
 CLOUD_FAVORITES_DESC: View categorized saved favorites from other users, or store your own.
 FAVORITES_NAME: Favorites
-FAVORITES_DESC: List of all your favorited animations. Hold SHIFT to add or remove from favorites.
+FAVORITES_DESC: List of all your favorited animations. Hold left shift when clicking to add or remove from favorites.
 UPLOAD_NAME: Upload
 UPLOAD_DESC: Add your own cloud animation favorites.
 FROM_FAVORITES_NAME: From Favorites
@@ -83,4 +83,4 @@ SPEECH_INTERVAL_DESC: How many milliseconds per repeat of line?
 SPEECH_STOP_NAME: Stop Active Speech
 SPEECH_STOP_DESC: Stops any active ambient speeches
 DELETE_FAVORITE_WARN: Are you sure you want to remove this animation from your favorites?
-HINT_SET_FAVORITES: Hold LEFT SHIFT on an animation to add or remove it from your favorites.
+HINT_SET_FAVORITES: Hold left shift when clicking on an animation to add or remove it from your favorites.

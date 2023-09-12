@@ -61,6 +61,7 @@ v1.11.0
 * (1.11.6) Fix is_anim_in_recent bug
 * (1.11.7) Add discord link
 * (1.11.8) Fix error (thanks hexarobi)
+* (1.11.9) Check for left shift alternative
 
 # jackz chat (v1)
 
