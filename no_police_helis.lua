@@ -2,7 +2,8 @@
 -- Removes all active police helicopters and their peds
 -- Created By Jackz
 
-require("natives-1627063482")
+util.require_natives(1660775568)
+
 
 local mode = 1
 
@@ -21,7 +22,7 @@ local seats = VEHICLE.GET_VEHICLE_MODEL_NUMBER_OF_SEATS(heliHash)
 
 while true do
     if mode ~= 1 then
-        local pvehicles = entities.get_all_vehicles_as_pointers()
+        local pVehicles = entities.get_all_vehicles_as_pointers()
         -- Loop all vehicles, and then get its passengers
         for _, pVehicle in ipairs(pVehicles) do
             local model = entities.get_model_hash(pVehicle)
