@@ -74,7 +74,7 @@ local editorActive = false
 local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread
-local hud_coords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
+local hudCoords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
 function new_builder()
@@ -84,16 +84,18 @@ function new_builder()
         _index = 1, -- Starting entity index
         name = nil,
         author = nil,
-        base = {
-            handle = nil,
-            data = nil
-        },
+
         entities = {}, -- KV<Handle, Table>
         entitiesMenuList = nil,
         vehiclesList = nil,
         objectsList = nil,
         pedsList = nil,
         particlesList = nil,
+
+        base = {
+            handle = nil,
+            data = nil
+        },
         propSpawner = {
             root = nil,
             menus = {},
@@ -142,6 +144,7 @@ function new_builder()
                 list = nil
             }
         },
+
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
         spawnLocation = nil,
@@ -351,7 +354,6 @@ local BLIP_ICONS = {
     { 735, "Buggy" },
     { 724, "Limo" },
     { 748, "Gokart" }
-
 }
 
 local FAVORITES = {
@@ -630,7 +632,6 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
                     return
                 end
                 for _, vehicle in ipairs(builds) do
-                    
                     local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
                     cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
                         list = nil,
@@ -3723,10 +3724,10 @@ draw_background()
 ]]--
 
 function get_screen_coords(worldPos)
-    GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(worldPos.x, worldPos.y, worldPos.z, hud_coords.x, hud_coords.y, hud_coords.z)
+    GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(worldPos.x, worldPos.y, worldPos.z, hudCoords.x, hudCoords.y, hudCoords.z)
     local hudPos = {}
-    for k in pairs(hud_coords) do
-        hudPos[k] = memory.read_float(hud_coords[k])
+    for k in pairs(hudCoords) do
+        hudPos[k] = memory.read_float(hudCoords[k])
     end
     return hudPos
 end
