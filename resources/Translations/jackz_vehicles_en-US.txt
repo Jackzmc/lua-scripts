@@ -287,3 +287,7 @@ NEARBY_VEHICLES_LIST_DESC: Provides a list of all nearby vehicles
 VEHLIST_SEATS_NAME: Seats
 VEHLIST_SEATS_DESC: 
 VEHLIST_SEAT_OCCUPIED: Vehicle seat is occupied by a player
+AUTODRIVE_DRIVE_TO_ME_NAME: Drive To Current Position
+AUTODRIVE_DRIVE_TO_ME_DESC: Drives to your position at the time this is pressed
+AUTODRIVE_WANDER_NAME: Wander
+AUTODRIVE_WANDER_DESC: Drive around randomly like NPC drivers

@@ -1,7 +1,7 @@
 -- Chat Commands Extended - 1.0
 -- Created By Jackz
 
-require("natives-1627063482")
+util.require_natives(1660775568)
 
 function string.starts(String,Start)
     return string.sub(String,1,string.len(Start))==Start

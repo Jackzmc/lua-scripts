@@ -29,6 +29,12 @@ v3.10.0
 * (3.10.6) Updated translations lib to 1.4.2
 * (3.10.7) Add discord link
 
+v3.11.0
+
+* Code cleanup
+* Add Autodrive > Chauffeur > Drive to Current Position
+* Made Chauffeur > Spawn Driver spawns driver in personal vehicle
+
 # actions (v1)
 
 v1.10.0

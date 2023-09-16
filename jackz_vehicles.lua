@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.10.7"
+VERSION = "3.11.0"
 local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -134,24 +134,28 @@ function get_player_vehicle_in_control(pid, opts)
     end
 
     if vehicle > 0 then
-        if NETWORK.NETWORK_HAS_CONTROL_OF_ENTITY(vehicle) then
-            return vehicle
-        end
-        -- Attempts 20 times to times, with 12ms per attempt
-        local loops = 20
-        while loops > 0 do
-            if NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle) then
-                break
-            end
-            -- wait for control
-            loops = loops - 1
-            util.yield(12)
-        end
+        get_control_of_vehicle(vehicle)
     end
     if not wasSpectating then
         NETWORK.NETWORK_SET_IN_SPECTATOR_MODE(false, targetPed)
     end
     return vehicle
+end
+function get_control_of_vehicle(vehicle)
+    if NETWORK.NETWORK_HAS_CONTROL_OF_ENTITY(vehicle) then
+        return true
+    end
+    -- Attempts 20 times to times, with 12ms per attempt
+    local loops = 20
+    while loops > 0 do
+        if NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle) then
+            return true
+        end
+        -- wait for control
+        loops = loops - 1
+        util.yield(12)
+    end
+    return false
 end
 -- Helper functions
 function control_vehicle(pid, callback, opts)
@@ -2301,6 +2305,14 @@ menu.toggle(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_NAM
 end, autodriveOnlyWhenOntop)
 menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"), {}, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_DESC"), function(_)
     local vehicle = get_player_vehicle_in_control(players.user())
+    -- If player not in vehicle, spawn in their active personal vehicle
+    if vehicle <= 0 then
+        vehicle = entities.get_user_personal_vehicle_as_handle()
+        if vehicle then
+            i18n.toast("Using personal vehicle")
+            get_control_of_vehicle(vehicle)
+        end
+    end
     local my_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     if vehicle > 0 then
         if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
@@ -2310,17 +2322,18 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
         local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
         if driver == 0 then
             -- teleport them in if free spot
-            util.toast("New driver spawned, ready")
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -5.0, 0.0, 0.6)
             driver = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
             for _ = 1, 5 do
                 TASK.TASK_WARP_PED_INTO_VEHICLE(driver, vehicle, -1)
                 util.yield(100)
             end
+            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(driver, true, true)
             TASK.TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
             PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
             VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, true, true)
             PED.SET_PED_FLEE_ATTRIBUTES(driver, 46, true)
+            util.toast("New driver spawned, ready")
         elseif PED.IS_PED_A_PLAYER(driver) then
             -- hijack if its a player
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
@@ -2411,10 +2424,26 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "",
         end)
     else
         autodriveDriver = 0
-        i18n.toast("AUTODRIVE_RIVER_NONE")
+        i18n.toast("AUTODRIVE_DRIVER_NONE")
     end
 end)
-menu.action(chauffeurMenu, "Wander", {}, "", function(_)
+i18n.action(chauffeurMenu, "AUTODRIVE_DRIVE_TO_ME", {}, function()
+    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
+        local myPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        local myPos = ENTITY.GET_ENTITY_COORDS(myPed, 1)
+        local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
+        if vehicle == 0 then
+            i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
+        else
+            local model = ENTITY.GET_ENTITY_MODEL(vehicle)
+            TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, myPos.x, myPos.y, myPos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
+        end
+    else
+        autodriveDriver = 0
+        i18n.toast("AUTODRIVE_DRIVER_NONE")
+    end
+end)
+i18n.action(chauffeurMenu, "AUTODRIVE_WANDER", {}, function()
     if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
         local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
         if vehicle == 0 then
@@ -2424,10 +2453,9 @@ menu.action(chauffeurMenu, "Wander", {}, "", function(_)
         end
     else
         autodriveDriver = 0
-        i18n.toast("AUTODRIVE_RIVER_NONE")
+        i18n.toast("AUTODRIVE_DRIVER_NONE")
     end
 end)
-
 ----------------------------
 -- Root Menu Continue
 ----------------------------
