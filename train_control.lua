@@ -1,7 +1,7 @@
 -- Train Control
 -- Created By Jackz
 local SCRIPT = "train_control"
-VERSION = "1.1.9"
+VERSION = "1.2.0"
 
 --#P:DEBUG_ONLY
 require('templates/log')
@@ -19,6 +19,9 @@ util.require_natives(1627063482)
 local TRAIN_MODELS = {
     util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcar2"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
 }
+local TRAIN_MODELS_U = {
+    util.ujoaat("metrotrain"), util.ujoaat("freight"), util.ujoaat("freightcar"), util.ujoaat("freightcar2"), util.ujoaat("freightcont1"), util.ujoaat("freightcont2"), util.ujoaat("freightgrain"), util.ujoaat("tankercar")
+}
 local last_train = 0
 local last_metro_f = 0
 local last_metro_b = 0
@@ -34,6 +37,35 @@ for _, model in ipairs(TRAIN_MODELS) do
     end
 end
 HUD.BUSYSPINNER_OFF()
+
+
+function iterate_all_trains(callback)
+    local pVehicles = entities.get_all_vehicles_as_pointers()
+    for _, pVehicle in pairs(pVehicles) do
+        local model = entities.get_model_hash(pVehicle)
+        if VEHICLE.IS_THIS_MODEL_A_TRAIN(model) then
+            local vehicle = entities.pointer_to_handle(pVehicle)
+            local result = callback(vehicle, model)
+            if result == true then
+                return
+            end
+        end
+    end
+end
+
+function iterate_all_locomotives(callback)
+    local pVehicles = entities.get_all_vehicles_as_pointers()
+    for _, pVehicle in pairs(pVehicles) do
+        local model = entities.get_model_hash(pVehicle)
+        if model == TRAIN_MODELS[1] or model == TRAIN_MODELS[2] then
+            local vehicle = entities.pointer_to_handle(pVehicle)
+            local result = callback(vehicle, model)
+            if result == true then
+                break
+            end
+        end
+    end
+end
 
 local spawnedMenu = menu.list(menu.my_root(), "Spawned Train Management", {}, "")
 local function spawn_train(variation, pos, direction) 
@@ -163,33 +195,19 @@ menu.slider(menu.my_root(), "Global Train Speed", {"settrainspeed", "trainspeed"
 end)
 
 menu.action(menu.my_root(), "Delete All Trains", {"delalltrains"}, "Deletes all trains in the game", function(v)
-    local vehicles = entities.get_all_vehicles_as_handles()
     local count = 0
-    for _, vehicle in pairs(vehicles) do
-        local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
-        for _, model in ipairs(TRAIN_MODELS) do
-            -- Check if the vehicle is a train
-            if model == vehicleModel then
-                count = count + 1
-                entities.delete(vehicle)
-                break
-            end
-        end
-    end
+    iterate_all_trains(function(train)
+        count = count + 1
+        util.draw_debug_text(train)
+        entities.delete(train)
+    end)
     util.toast("Deleted " .. count .. " trains")
 end)
 
 menu.toggle(menu.my_root(), "Derail Trains", {"setderailed"}, "Makes all trains render as derailed", function(on)
-    local vehicles = entities.get_all_vehicles_as_handles()
-    for _, vehicle in pairs(vehicles) do 
-        local vehicleModel = ENTITY.GET_ENTITY_MODEL(vehicle)
-        for _, model in ipairs(TRAIN_MODELS) do
-            -- Check if the vehicle is a train
-            if model == vehicleModel then
-                VEHICLE.SET_RENDER_TRAIN_AS_DERAILED(vehicle, on)
-            end
-        end
-    end
+    iterate_all_locomotives(function(train)
+        VEHICLE.SET_RENDER_TRAIN_AS_DERAILED(train, on)
+    end)
 end, false)
 
 util.on_stop(function(_)
@@ -225,26 +243,22 @@ while true do
             elseif speed >= 80.0 or speed <= -80.0 then
                 increment = -increment
             end
-            local vehicles = entities.get_all_vehicles_as_handles()
-            for k, vehicle in pairs(vehicles) do
-                VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, speed)
-                VEHICLE.SET_TRAIN_SPEED(vehicle, speed)
-            end
+            iterate_all_locomotives(function(train)
+                VEHICLE.SET_TRAIN_CRUISE_SPEED(train, speed)
+                VEHICLE.SET_TRAIN_SPEED(train, speed)
+            end)
             tick = 0
         end
     elseif globalTrainSpeedControlEnabled then
-        for _, vehicle in pairs(entities.get_all_vehicles_as_handles()) do
-            local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-            if model == TRAIN_MODELS[1] or model == TRAIN_MODELS[2] then --Only need to set speed for engine
-                local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(vehicle)
-                NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
-                NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
-                NETWORK.NETWORK_REQUEST_CONTROL_OF_NETWORK_ID(netid)
-                
-                VEHICLE.SET_TRAIN_CRUISE_SPEED(vehicle, globalTrainSpeed)
-                VEHICLE.SET_TRAIN_SPEED(vehicle, globalTrainSpeed)
-            end
-        end
+        iterate_all_locomotives(function(train)
+            local netid = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(train)
+            NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netid, true)
+            NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(train)
+            NETWORK.NETWORK_REQUEST_CONTROL_OF_NETWORK_ID(netid)
+            
+            VEHICLE.SET_TRAIN_CRUISE_SPEED(train, globalTrainSpeed)
+            VEHICLE.SET_TRAIN_SPEED(train, globalTrainSpeed)
+        end)
     end
     util.yield()
 end

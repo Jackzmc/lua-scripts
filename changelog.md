@@ -127,6 +127,10 @@ V1.1.0
 * (1.1.8) Update to 'Upload Logs' to use new provider
 * (1.1.9) Add discord link
 
+V1.2.0
+
+* Code cleanup, don't allocate handles needlessly
+
 # jackz vehicle builder (v1)
 
 V1.24.0
