@@ -5,7 +5,7 @@
 util.require_natives(1660775568)
 
 
-local mode = 1
+local mode = 2
 
 menu.my_root():list_select("Mode", {}, "Delete Helicopters: Delete all helicopters\nUnarmed Helicopters: Removes weapons from helicopter passengers, no shooting", {
     [1] = {"Disabled"},
