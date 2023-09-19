@@ -1822,13 +1822,14 @@ menu.action(nearbyMenu, i18n.format("NEARBY_TOW_ALL_NAME"), {}, i18n.format("NEA
             TASK.TASK_VEHICLE_DRIVE_WANDER(driver, tow, 30.0, 786603)
             table.insert(spawnedTows, tow)
             table.insert(spawnedTows, driver)
+            util.yield()
         end
     end
 end)
 menu.action(nearbyMenu, i18n.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
     for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
         local model = entities.get_model_hash(pVehicle)
-        if model ~= TOW_TRUCK_MODEL_1 and model ~= TOW_TRUCK_MODEL_2 then
+        if model == TOW_TRUCK_MODEL_1 or model == TOW_TRUCK_MODEL_2 then
             local vehicle = entities.pointer_to_handle(pVehicle)
             local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
             if driver > 0 and not PED.IS_PED_A_PLAYER(driver) then
@@ -1897,22 +1898,29 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, i18n
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
 
     local cargobobs = {}
-    for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-        local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-        if VEHICLE.IS_THIS_MODEL_A_CAR(model) and not ENTITY.IS_ENTITY_ATTACHED_TO_ANY_VEHICLE(vehicle) then
-            local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
-            if driver == 0 or not PED.IS_PED_A_PLAYER(driver) then
-                local pos2 = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
-                local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
-                if dist <= 10000.0 then
-                    local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, true)
-                    VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargobob, false)
-                    VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
-                    ENTITY.SET_ENTITY_COLLISION(cargobob, false, false)
-                    ENTITY.SET_ENTITY_INVINCIBLE(cargobob, true)
-                    table.insert(cargobobs, cargobob)
-                    TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, 450.718 , 5566.614, 806.183, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
-                    util.yield(100)
+    -- TODO: confirm as_pointers
+    local pVehicles = entities.get_all_vehicles_as_pointers()
+    for _, pVehicle in ipairs(pVehicles) do
+        local model = entities.get_model_hash(pVehicle)
+        if VEHICLE.IS_THIS_MODEL_A_CAR(model) then
+            local vehicle = entities.pointer_to_handle(pVehicle)
+            if not ENTITY.IS_ENTITY_ATTACHED_TO_ANY_VEHICLE(vehicle) then
+                local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
+                if driver == 0 or not PED.IS_PED_A_PLAYER(driver) then
+                    local pos2 = ENTITY.GET_ENTITY_COORDS(vehicle, 1)
+                    if INTERIOR.IS_COLLISION_MARKED_OUTSIDE(pos2.x, pos2.y, pos2.z) then
+                        local dist = SYSTEM.VDIST2(pos.x, pos.y, pos.z, pos2.x, pos2.y, pos2.z)
+                        if dist <= 10000.0 then
+                            local cargobob, driver = spawn_cargobob_for_vehicle(vehicle, true)
+                            VEHICLE.SET_CARGOBOB_FORCE_DONT_DETACH_VEHICLE(cargobob, false)
+                            VEHICLE._DISABLE_VEHICLE_WORLD_COLLISION(cargobob)
+                            ENTITY.SET_ENTITY_COLLISION(cargobob, false, false)
+                            ENTITY.SET_ENTITY_INVINCIBLE(cargobob, true)
+                            table.insert(cargobobs, cargobob)
+                            TASK.TASK_VEHICLE_DRIVE_TO_COORD(driver, cargobob, 450.718 , 5566.614, 806.183, 100.0, 1.0, CARGOBOB_MODEL, 786603, 5.0, 1.0)
+                            util.yield(100)
+                        end
+                    end
                 end
             end
         end
