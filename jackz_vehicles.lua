@@ -1481,6 +1481,7 @@ end, function(args)
     file:close()
     i18n.toast("FILE_SAVED", args .. ".json")
 end, "jvsave name")
+i18n.menus.divider(menu.my_root(), "VEHICLE_SETTINGS")
 i18n.menus.toggle(menu.my_root(), "SPAWN_IN_VEHICLE", {}, function(on)
     spawnInVehicle = on
 end, spawnInVehicle)
