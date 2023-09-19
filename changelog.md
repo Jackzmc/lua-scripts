@@ -34,6 +34,8 @@ v3.11.0
 * Code cleanup
 * Add Autodrive > Chauffeur > Drive to Current Position
 * Made Chauffeur > Spawn Driver spawns driver in personal vehicle
+* Fix "Delete All Nearby Tows" from doing the opposite
+* Made Autodrive -> Drive Actions control chauffeur if not in a vehicle
 
 # actions (v1)
 

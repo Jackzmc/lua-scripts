@@ -257,7 +257,7 @@ AUTODRIVE_SPEED_NAME: Driving Speed
 AUTODRIVE_SMART_NAME: Smart Autodrive
 AUTODRIVE_SMART_DESC: Will automatically drive to your current waypoint, and will pause when you press any movement controls.
 AUTODRIVE_ACTIONS_DIVIDER: Drive Actions
-AUTODRIVE_DRIVE_WAYPOINT_NAME: Drive to Waypoint
+AUTODRIVE_DRIVE_WAYPOINT_NAME: Drive To Waypoint
 AUTODRIVE_DRIVE_TO_PLAYER_NAME: Drive To Player
 AUTODRIVE_DRIVE_TO_PLAYER_INDV_DESC: Drive to the selected player
 AUTODRIVE_WANDER_HOVER_NAME: Wander / Hover

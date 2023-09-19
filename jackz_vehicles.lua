@@ -1826,19 +1826,6 @@ menu.action(nearbyMenu, i18n.format("NEARBY_TOW_ALL_NAME"), {}, i18n.format("NEA
         end
     end
 end)
-menu.action(nearbyMenu, i18n.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
-    for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
-        local model = entities.get_model_hash(pVehicle)
-        if model == TOW_TRUCK_MODEL_1 or model == TOW_TRUCK_MODEL_2 then
-            local vehicle = entities.pointer_to_handle(pVehicle)
-            local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
-            if driver > 0 and not PED.IS_PED_A_PLAYER(driver) then
-                entities.delete(driver)
-            end
-            entities.delete(vehicle)
-        end
-    end
-end)
 menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_NAME"), {}, i18n.format("NEARBY_CARGOBOB_ALL_DESC"), function(_)
     local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
     local pos = ENTITY.GET_ENTITY_COORDS(ped, 1)
@@ -1953,6 +1940,19 @@ menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_ALL_MAGNET_NAME"), {}, i18n
         return false
     end)
 end)
+menu.action(nearbyMenu, i18n.format("NEARBY_TOW_CLEAR_NAME"), {}, "", function(_)
+    for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
+        local model = entities.get_model_hash(pVehicle)
+        if model == TOW_TRUCK_MODEL_1 or model == TOW_TRUCK_MODEL_2 then
+            local vehicle = entities.pointer_to_handle(pVehicle)
+            local driver = VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1)
+            if driver > 0 and not PED.IS_PED_A_PLAYER(driver) then
+                entities.delete(driver)
+            end
+            entities.delete(vehicle)
+        end
+    end
+end)
 menu.action(nearbyMenu, i18n.format("NEARBY_CARGOBOB_CLEAR_NAME"), {}, "", function(sdfa)
     for _, pVehicle in ipairs(entities.get_all_vehicles_as_pointers()) do
         local model = entities.get_model_hash(pVehicle)
@@ -2031,18 +2031,8 @@ menu.action(nearbyMenu, i18n.format("NEARBY_EXPLODE_RANDOM_NAME"), {}, i18n.form
 end)
 menu.action(nearbyMenu, i18n.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, i18n.format("NEARBY_HIJACK_ALL_DESC"), function(_)
     for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-        local hasControl = false
-        local loops = 5
+        get_control_of_vehicle(vehicle)
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle, false, true)
-        while not hasControl do
-            hasControl = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
-            loops = loops - 1
-            -- wait for control
-            util.yield(15)
-            if loops <= 0 then
-                break
-            end
-        end
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(vehicle, -2.0, 0.0, 0.1)
         ENTITY.SET_ENTITY_VELOCITY(vehicle, 0, 0, 0)
         local ped = PED.CREATE_RANDOM_PED(pos.x, pos.y, pos.z)
@@ -2059,17 +2049,7 @@ menu.action(nearbyMenu, i18n.format("NEARBY_HIJACK_ALL_NAME"), {"hijackall"}, i1
 end)
 menu.action(nearbyMenu, i18n.format("NEARBY_HONK_NAME"), {"honkall"}, i18n.format("NEARBY_HONK_DESC"), function(_)
     for _, vehicle in ipairs(entities.get_all_vehicles_as_handles()) do
-        local hasControl = false
-        local loops = 5
-        while not hasControl do
-            hasControl = NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(vehicle)
-            loops = loops - 1
-            -- wait for control
-            util.yield(15)
-            if loops <= 0 then
-                break
-            end
-        end
+        get_control_of_vehicle(vehicle)
         VEHICLE.SET_VEHICLE_ALARM(vehicle, true)
         VEHICLE.START_VEHICLE_ALARM(vehicle)
         VEHICLE.START_VEHICLE_HORN(vehicle, 50000, 0)
@@ -2186,6 +2166,10 @@ end, false)
 local autodriveSpeed = 50.0
 local autodriveStyle = 0
 local isAutoDriving = false
+-- Chauffeur
+local autodriveDriver = 0
+local autodriveVehicle = 0
+local autodriveOnlyWhenOntop = false
 
 local DRIVING_STYLES = { -- flags, style name, style description 
     { 786603,       i18n.format("AUTODRIVE_STYLE_NORMAL") },
@@ -2204,7 +2188,7 @@ local DRIVING_STYLES = { -- flags, style name, style description
     { 7791,         "Untested. Meh", "Meh. Just used in rockstar scripts. unknown."}
 }
 
--- Grabs the driver, first checks attachments (tow, cargo, etc) then driver seat
+-- Grabs the driver, first checks attachments (tow, cargo, etc) then driver seat, then chaueffeur
 function get_my_driver()
     local vehicle = entities.get_user_vehicle_as_handle()
     local entity = ENTITY.GET_ENTITY_ATTACHED_TO(vehicle)
@@ -2214,8 +2198,13 @@ function get_my_driver()
             return driver, entity
         end
     end
-
-    return VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1), vehicle
+    if vehicle ~= 0 then
+        -- Get current vehicle driver
+        return VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1), vehicle
+    else
+        -- Get chaueffer driver, vehicle
+        return autodriveDriver, autodriveVehicle
+    end
 end
 local chauffeurMenu = menu.list(autodriveMenu, i18n.format("AUTODRIVE_CHAUFFEUR_NAME"), {"chauffeur"}, i18n.format("AUTODRIVE_CHAUFFEUR_DESC"))
 local styleMenu = menu.list(autodriveMenu, i18n.format("AUTODRIVE_STYLE_NAME"), {}, i18n.format("AUTODRIVE_STYLE_DESC"))
@@ -2295,19 +2284,17 @@ menu.action(autodriveMenu, i18n.format("AUTODRIVE_WANDER_HOVER_NAME"), {"aiwande
 end)
 
 menu.action(autodriveMenu, i18n.format("AUTODRIVE_STOP_NAME"), {"aistop"}, "", function(v)
-    local ped = get_my_driver()
+    local ped, vehicle = get_my_driver()
     isAutoDriving = false
 
     TASK.CLEAR_PED_TASKS(ped)
+    TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 100000)
 end)
 
 --------------------------------
 -- AUTODRIVE SECTION: Chauffeur
 ---------------------------------
 
-local autodriveDriver = 0
-local autodriveVehicle = 0
-local autodriveOnlyWhenOntop = false
 menu.toggle(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_NAME"), {}, i18n.format("AUTODRIVE_CHAUFFEUR_STOP_WHEN_FALLEN_DESC"), function(on)
     autodriveOnlyWhenOntop = on
 end, autodriveOnlyWhenOntop)
@@ -2412,52 +2399,6 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_STOP_NAME"), {}, "Makes the dr
             i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
         else
             TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 100000)
-        end
-    else
-        autodriveDriver = 0
-        i18n.toast("AUTODRIVE_DRIVER_NONE")
-    end
-end)
-menu.divider(chauffeurMenu, "Destinations")
-menu.action(chauffeurMenu, i18n.format("AUTODRIVE_DRIVE_WAYPOINT_NAME"), {}, "", function(_)
-    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
-        get_waypoint_pos(function(waypoint_pos)
-            local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
-            if vehicle == 0 then
-                i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
-            else
-                local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-                TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, waypoint_pos.x, waypoint_pos.y, waypoint_pos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
-            end
-        end)
-    else
-        autodriveDriver = 0
-        i18n.toast("AUTODRIVE_DRIVER_NONE")
-    end
-end)
-i18n.action(chauffeurMenu, "AUTODRIVE_DRIVE_TO_ME", {}, function()
-    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
-        local myPed = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-        local myPos = ENTITY.GET_ENTITY_COORDS(myPed, 1)
-        local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
-        if vehicle == 0 then
-            i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
-        else
-            local model = ENTITY.GET_ENTITY_MODEL(vehicle)
-            TASK.TASK_VEHICLE_DRIVE_TO_COORD(autodriveDriver, vehicle, myPos.x, myPos.y, myPos.z, 35.0, 1.0, model, 6, 5.0, 1.0)
-        end
-    else
-        autodriveDriver = 0
-        i18n.toast("AUTODRIVE_DRIVER_NONE")
-    end
-end)
-i18n.action(chauffeurMenu, "AUTODRIVE_WANDER", {}, function()
-    if autodriveDriver > 0 and ENTITY.DOES_ENTITY_EXIST(autodriveDriver) then
-        local vehicle = PED.GET_VEHICLE_PED_IS_IN(autodriveDriver, true)
-        if vehicle == 0 then
-            i18n.toast("AUTODRIVE_DRIVER_UNAVAILABLE")
-        else
-            TASK.TASK_VEHICLE_DRIVE_WANDER(autodriveDriver, vehicle, 40.0, 6)
         end
     else
         autodriveDriver = 0
