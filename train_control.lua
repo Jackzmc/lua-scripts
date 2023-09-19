@@ -19,9 +19,6 @@ util.require_natives(1627063482)
 local TRAIN_MODELS = {
     util.joaat("metrotrain"), util.joaat("freight"), util.joaat("freightcar"), util.joaat("freightcar2"), util.joaat("freightcont1"), util.joaat("freightcont2"), util.joaat("freightgrain"), util.joaat("tankercar")
 }
-local TRAIN_MODELS_U = {
-    util.ujoaat("metrotrain"), util.ujoaat("freight"), util.ujoaat("freightcar"), util.ujoaat("freightcar2"), util.ujoaat("freightcont1"), util.ujoaat("freightcont2"), util.ujoaat("freightgrain"), util.ujoaat("tankercar")
-}
 local last_train = 0
 local last_metro_f = 0
 local last_metro_b = 0
