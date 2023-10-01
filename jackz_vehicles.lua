@@ -1296,10 +1296,7 @@ end)
 local cloudUploadMenu = menu.list(cloudUsersMenu, i18n.format("CLOUD_UPLOAD"), {"uploadcloud"}, i18n.format("CLOUD_UPLOAD_DESC"))
 local cloudUploadMenus = {}
 menu.on_focus(cloudUploadMenu, function()
-    for _, m in ipairs(cloudUploadMenus) do
-        menu.delete(m)
-    end
-    cloudUploadMenus = {}
+    clear_menu_array(cloudUploadMenus)
     load_vehicles_in_dir(VEHICLE_DIR, cloudUploadMenu, function(parent, name, saveData)
         local manuf = saveData.Manufacturer and saveData.Manufacturer .. " " or ""
         local desc = i18n.format("VEHICLE_SAVE_DATA", manuf, saveData.Name, saveData.Type, saveData.Format, vehiclelib.FORMAT_VERSION)
@@ -1339,27 +1336,28 @@ function rate_vehicle(user, vehicleName, rating)
         string.format("/stand/cloud/vehicles.php?scname=%s&vehicle=%s&hashkey=%s&rater=%s&rating=%d",
             user, vehicleName, menu.get_activation_key_hash(), SOCIALCLUB._SC_GET_NICKNAME(), rating
         ),
-    function(body, res_header, status_code)
-        if status_code == 200 then
-            if body:sub(1, 1) == "{" then
-                local data = json.decode(body)
-                if data.success then
-                    util.toast("Rating submitted")
+        function(body, res_header, status_code)
+            if status_code == 200 then
+                if body:sub(1, 1) == "{" then
+                    local data = json.decode(body)
+                    if data.success then
+                        util.toast("Rating submitted")
+                    else
+                        Log.log(body)
+                        util.toast("Failed to submit rating, see logs for info")
+                    end
                 else
-                    Log.log(body)
-                    util.toast("Failed to submit rating, see logs for info")
+                    util.toast("Failed to submit rating, server sent invalid response")
                 end
             else
-                util.toast("Failed to submit rating, server sent invalid response")
+                Log.error("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
+                util.toast("Server returned error " .. status_code)
             end
-        else
-            Log.error("bad server response : " .. status_code .. "\n" .. body, "_fetch_cloud_users")
-            util.toast("Server returned error " .. status_code)
+        end, 
+        function()
+            util.toast("Failed to submit rating due to an unknown error")
         end
-
-    end, function()
-        util.toast("Failed to submit rating due to an unknown error")
-    end)
+    )
     async_http.set_post("application/json", "")
     async_http.dispatch()
     return true
@@ -1401,10 +1399,7 @@ function _load_cloud_user_vehs()
     util.toast("Loading user vehicles")
     show_busyspinner("Loading cloud data...")
     waitForFetch = true
-    for _, m in pairs(cloudUserMenus) do
-        pcall(menu.delete, m)
-    end
-    cloudUserMenus = {}
+    clear_menu_array(cloudUserMenus)
     do_cloud_request("/stand/cloud/vehicles?list", function(data)
         Log.debugTable(data.users)
         for user, vehicles in pairs(data.users) do
@@ -1432,10 +1427,7 @@ function _load_cloud_user_vehs()
 end
 
 function _load_user_vehicle_list(creator)
-    for _, m in ipairs(cloudUserVehicleMenus) do
-        pcall(menu.delete, m)
-    end
-    cloudUserVehicleMenus = {}
+    clear_menu_array(cloudUserVehicleMenus)
     do_cloud_request("/stand/cloud/vehicles?scname=" .. creator, function(data)
         if cloudUserMenus[creator] == nil then return end -- Discard request
         menu.set_menu_name(cloudUserMenus[creator], creator .. " (" .. #data.vehicles .. ")")

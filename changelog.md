@@ -181,6 +181,10 @@ V1.26.0
 * Add some more error checks
 * Improved entity count accuracy
 
+V1.27.0
+
+* Added Object Tint option for props
+
 # jackz animator (v1)
 
 V1.1.0
