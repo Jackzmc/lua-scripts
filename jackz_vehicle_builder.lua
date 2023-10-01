@@ -2720,7 +2720,7 @@ function create_entity_section(tableref, handle, options)
 
         menu.slider(entityroot, "Object Tint", {}, "Change the tint of the object.\nPacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
             tableref.tint = tint
-            OBJECT.SET_OBJECT_TINT_INDEX(handle, tint)
+            OBJECT._SET_OBJECT_TEXTURE_VARIATION(handle, tint)
         end)
     elseif options.type == "PARTICLE" then
         table.insert(tableref.listMenus, menu.colour(entityroot, "Color", {"jv" .. handle .. "color"}, "Changes the color and transparency of a particle effect.\nNot all particles are supported", 1, 1, 1, 1, true, function(color)
@@ -3261,7 +3261,7 @@ function spawn_object(data, isPreview, pos)
         end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
         if data.tint then
-            OBJECT.SET_OBJECT_TINT_INDEX(object, data.tint)
+            OBJECT._SET_OBJECT_TEXTURE_VARIATION(object, data.tint)
         end
         _setup_network(object)
         return object
