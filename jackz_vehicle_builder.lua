@@ -2718,7 +2718,7 @@ function create_entity_section(tableref, handle, options)
             clone_entity(handle, tableref.name, 3)
         end)
 
-        menu.slider(tableref.listMenus, "Object Tint", {}, "Change the tint of the object.\nPacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
+        menu.slider(entityroot, "Object Tint", {}, "Change the tint of the object.\nPacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
             tableref.tint = tint
             OBJECT.SET_OBJECT_TINT_INDEX(handle, tint)
         end)
