@@ -2946,7 +2946,8 @@ function _serialize_entity(handle, data)
         visible = data.visible,
         boneIndex = data.boneIndex,
         parent = data.parent,
-        collision = data.collision or true
+        collision = data.collision or true,
+        tint = data.tint
     }
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         if data.godmode == nil then data.godmode = true end
