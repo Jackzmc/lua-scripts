@@ -6,13 +6,19 @@ util.require_natives(1660775568)
 
 
 local mode = 2
+local hasStarted = false
 
 menu.my_root():list_select("Mode", {}, "Delete Helicopters: Delete all helicopters\nUnarmed Helicopters: Removes weapons from helicopter passengers, no shooting", {
-    [1] = {"Disabled"},
-    [2] = {"Delete Helicopters"},
-    [3] = {"Unarmed Helicopters"},
+    {1, "Disabled"},
+    {2, "Delete Helicopters"},
+    {3, "Unarmed Helicopters"},
 }, mode, function(value, menu_name, prev_value, click_type)
     mode = value
+    -- Don't .toast on first load if SCRIPT_SILENT_START
+    if SCRIPT_SILENT_START and hasStarted == false then
+        hasStarted = true
+        return
+    end
     util.toast("Changed mode to " .. menu_name)
 end)
 
