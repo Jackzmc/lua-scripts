@@ -1106,7 +1106,7 @@ local cloudSettings = {
     maxPages = 2
 }
 menu.divider(cloudRootList, "")
-menu.list_select(cloudRootList, "Sort by", {}, "Change the sorting criteria", { { "Rating" }, { "Build Name" }, { "Author Name" }, { "Upload Date" }, { "Uploader Name "} }, 1, function(index)
+menu.list_select(cloudRootList, "Sort by", {}, "Change the sorting criteria", { { 1, "Rating" }, { 2, "Build Name" }, { 3, "Author Name" }, { 4, "Upload Date" }, { 5, "Uploader Name "} }, 1, function(index)
     cloudSettings.sort.type = sortId[index]
 end)
 menu.toggle(cloudRootList, "Sort Ascending", {}, "Should the list be sorted from lowest to biggest (A-Z, 0->9)", function(value)

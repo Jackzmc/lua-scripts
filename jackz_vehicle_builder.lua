@@ -2718,7 +2718,7 @@ function create_entity_section(tableref, handle, options)
             clone_entity(handle, tableref.name, 3)
         end)
 
-        menu.slider(entityroot, "Object Tint", {}, "Change the tint of the object.\nPacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
+        menu.slider(entityroot, "Object Tint", {}, "Change the tint of the object.\n Pacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
             tableref.tint = tint
             OBJECT._SET_OBJECT_TEXTURE_VARIATION(handle, tint)
         end)
@@ -2734,10 +2734,6 @@ function create_entity_section(tableref, handle, options)
         end))
     end
     if handle ~= builder.base.handle then
-        -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
-        --     set_builder_base(handle, true)
-        --     util.toast("Set entity as build's new base")
-        -- end)
         local deleteMenu
         deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
@@ -3040,7 +3036,6 @@ function builder_to_json(is_autosave)
     if ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
         serialized.base.savedata = vehiclelib.Serialize(builder.base.handle)
     end
-    
     
     local status, result = pcall(json.encode, serialized)
     if not status then
