@@ -70,6 +70,7 @@ v1.11.0
 * (1.11.7) Add discord link
 * (1.11.8) Fix error (thanks hexarobi)
 * (1.11.9) Check for left shift alternative
+* (1.11.10) Fix clear action immediately typo (Thanks mfed)
 
 # jackz chat (v1)
 
