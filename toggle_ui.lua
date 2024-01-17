@@ -1,7 +1,7 @@
 -- Test - 1.0
 -- Created By Jackz
 
-require("natives-1627063482")
+util.require_natives(1660775568)
 
 local radarEnabled = true
 menu.toggle(menu.my_root(), "Toggle Radar", {"toggleradar"}, "", function(on)

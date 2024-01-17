@@ -29,6 +29,14 @@ v3.10.0
 * (3.10.6) Updated translations lib to 1.4.2
 * (3.10.7) Add discord link
 
+v3.11.0
+
+* Code cleanup
+* Add Autodrive > Chauffeur > Drive to Current Position
+* Made Chauffeur > Spawn Driver spawns driver in personal vehicle
+* Fix "Delete All Nearby Tows" from doing the opposite
+* Made Autodrive -> Drive Actions control chauffeur if not in a vehicle
+
 # actions (v1)
 
 v1.10.0
@@ -62,6 +70,7 @@ v1.11.0
 * (1.11.7) Add discord link
 * (1.11.8) Fix error (thanks hexarobi)
 * (1.11.9) Check for left shift alternative
+* (1.11.10) Fix clear action immediately typo (Thanks mfed)
 
 # jackz chat (v1)
 
@@ -121,6 +130,10 @@ V1.1.0
 * (1.1.8) Update to 'Upload Logs' to use new provider
 * (1.1.9) Add discord link
 
+V1.2.0
+
+* Code cleanup, don't allocate handles needlessly
+
 # jackz vehicle builder (v1)
 
 V1.24.0
@@ -169,6 +182,10 @@ V1.26.0
 * Add some more error checks
 * Improved entity count accuracy
 * (1.26.1) Add some checks to prevent errors
+
+V1.27.0
+
+* Added Object Tint option for props
 
 # jackz animator (v1)
 

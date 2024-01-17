@@ -1,7 +1,7 @@
 -- Jackz Vehicle Builder
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicle_builder"
-VERSION = "1.26.1"
+VERSION = "1.27.0"
 local LANG_TARGET_VERSION = "1.3.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 local ANIMATOR_LIB_TARGET = "1.1.0"
@@ -74,7 +74,7 @@ local editorActive = false
 local scriptEnding = false
 local pedAnimCache = {} -- Used to reset spawned peds with animdata
 local pedAnimThread
-local hud_coords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
+local hudCoords = { x = memory.alloc(8), y = memory.alloc(8), z = memory.alloc(8) }
 
 -- Returns a new builder instance
 function new_builder()
@@ -84,16 +84,18 @@ function new_builder()
         _index = 1, -- Starting entity index
         name = nil,
         author = nil,
-        base = {
-            handle = nil,
-            data = nil
-        },
+
         entities = {}, -- KV<Handle, Table>
         entitiesMenuList = nil,
         vehiclesList = nil,
         objectsList = nil,
         pedsList = nil,
         particlesList = nil,
+
+        base = {
+            handle = nil,
+            data = nil
+        },
         propSpawner = {
             root = nil,
             menus = {},
@@ -142,6 +144,7 @@ function new_builder()
                 list = nil
             }
         },
+
         ent_spawner_active = false,
         blip_icon = 225, -- Saved as blipIcon
         spawnLocation = nil,
@@ -351,7 +354,6 @@ local BLIP_ICONS = {
     { 735, "Buggy" },
     { 724, "Limo" },
     { 748, "Gokart" }
-
 }
 
 local FAVORITES = {
@@ -630,7 +632,6 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
                     return
                 end
                 for _, vehicle in ipairs(builds) do
-                    
                     local description = _format_vehicle_info(vehicle.format, vehicle.uploaded, vehicle.uploader, vehicle.rating)
                     cloudSearchResults[vehicle.uploader .. "/" .. vehicle.name] = {
                         list = nil,
@@ -2717,6 +2718,11 @@ function create_entity_section(tableref, handle, options)
         menu.action(cloneList, "Mirror (Z, Up/Down)", {}, "Clones the entity, mirrored on the y-axis", function()
             clone_entity(handle, tableref.name, 3)
         end)
+
+        menu.slider(entityroot, "Object Tint", {}, "Change the tint of the object.\n Pacific = 0\n Azure = 1\n Nautical = 2\n Continental = 3\n Battleship = 4\n Intrepid = 5\n Uniform = 6\n Classico = 7\n Mediterranean = 8\n Command = 9\n Mariner = 10\n Ruby = 11\n Vintage = 12\n Pristine = 13\n Merchant = 14\n Voyager = 15.\nCan't be disabled once set", 1, 15, 1, 1, function(tint)
+            tableref.tint = tint
+            OBJECT._SET_OBJECT_TEXTURE_VARIATION(handle, tint)
+        end)
     elseif options.type == "PARTICLE" then
         table.insert(tableref.listMenus, menu.colour(entityroot, "Color", {"jv" .. handle .. "color"}, "Changes the color and transparency of a particle effect.\nNot all particles are supported", 1, 1, 1, 1, true, function(color)
             tableref.color = { r = color.r * 255, g = color.g * 255, b = color.b * 255, a = color.a * 255}
@@ -2729,10 +2735,6 @@ function create_entity_section(tableref, handle, options)
         end))
     end
     if handle ~= builder.base.handle then
-        -- menu.action(entityroot, "Assign as base entity", {} , "Makes this entity the new base entity", function()
-        --     set_builder_base(handle, true)
-        --     util.toast("Set entity as build's new base")
-        -- end)
         local deleteMenu
         deleteMenu = menu.action(entityroot, "Delete", {}, "Delete the entity", function()
             menu.show_warning(deleteMenu, CLICK_COMMAND, "Are you sure you want to delete this entity? This will also delete it from the world.", function() 
@@ -2941,7 +2943,8 @@ function _serialize_entity(handle, data)
         visible = data.visible,
         boneIndex = data.boneIndex,
         parent = data.parent,
-        collision = data.collision or true
+        collision = data.collision or true,
+        tint = data.tint
     }
     if ENTITY.IS_ENTITY_A_VEHICLE(handle) then
         if data.godmode == nil then data.godmode = true end
@@ -3034,7 +3037,6 @@ function builder_to_json(is_autosave)
     if ENTITY.IS_ENTITY_A_VEHICLE(builder.base.handle) then
         serialized.base.savedata = vehiclelib.Serialize(builder.base.handle)
     end
-    
     
     local status, result = pcall(json.encode, serialized)
     if not status then
@@ -3254,6 +3256,9 @@ function spawn_object(data, isPreview, pos)
             data.visible = true
         end
         ENTITY.SET_ENTITY_VISIBLE(object, data.visible, 0)
+        if data.tint then
+            OBJECT._SET_OBJECT_TEXTURE_VARIATION(object, data.tint)
+        end
         _setup_network(object)
         return object
     end
@@ -3728,10 +3733,10 @@ draw_background()
 ]]--
 
 function get_screen_coords(worldPos)
-    GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(worldPos.x, worldPos.y, worldPos.z, hud_coords.x, hud_coords.y, hud_coords.z)
+    GRAPHICS.GET_SCREEN_COORD_FROM_WORLD_COORD(worldPos.x, worldPos.y, worldPos.z, hudCoords.x, hudCoords.y, hudCoords.z)
     local hudPos = {}
-    for k in pairs(hud_coords) do
-        hudPos[k] = memory.read_float(hud_coords[k])
+    for k in pairs(hudCoords) do
+        hudPos[k] = memory.read_float(hudCoords[k])
     end
     return hudPos
 end
