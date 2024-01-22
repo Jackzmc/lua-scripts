@@ -1,7 +1,7 @@
 -- Stand Chat
 -- Created By Jackz
 local SCRIPT = "jackz_chat"
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 
 --#P:DEBUG_ONLY
@@ -293,7 +293,7 @@ sendChatMenu = menu.text_input(menu.my_root(), _lang.format("SEND_MSG_NAME", sen
   sendChatMenu:applyDefaultState()
 end)
 
-
+local warned_no_internet = false
 util.create_tick_handler(function(_)
   waiting = true
   local subList = {}
@@ -323,6 +323,11 @@ util.create_tick_handler(function(_)
       -- Log.debug("fetch_error", status_code, body)
     end
     waiting = false
+  end, function() 
+    if not warned_no_internet then
+      warned_no_internet = true
+      util.toast("jackz_chat: Could not receive messages - please make sure script has internet access enabled.")
+    end
   end)
   if devToken then -- don't even try, you arent finding the token
     async_http.add_header("x-dev-token", devToken)
