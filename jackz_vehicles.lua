@@ -34,9 +34,9 @@ if SCRIPT_META_LIST then
     menu.divider(SCRIPT_META_LIST, "Icedoomfist - Translator")
 end
 
-local json = require("json")
-local i18n = require("translations")
-local vehiclelib = require("jackzvehiclelib")
+local json = try_require("json")
+local i18n = try_require("translations")
+local vehiclelib = try_require("jackzvehiclelib")
 
 if vehiclelib == nil then
     util.toast("["..SCRIPT.."] " .. "CRITICAL: Library 'jackzvehiclelib' was not loaded, cannot continue. Exiting.", TOAST_ALL)
@@ -66,7 +66,7 @@ if i18n.VERSION ~= LANG_TARGET_VERSION then
         package.loaded["translations"] = nil
         _G["translations"] = nil
         download_lib_update("translations.lua")
-        lang = require("translations")
+        i18n = require("translations")
     end
 end
 i18n.set_autodownload_uri("jackz.me", "/stand/git/" .. (SCRIPT_BRANCH or "master")  .. "/resources/Translations/")
