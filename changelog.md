@@ -37,6 +37,7 @@ v3.11.0
 * Fix "Delete All Nearby Tows" from doing the opposite
 * Made Autodrive -> Drive Actions control chauffeur if not in a vehicle
 * (3.11.1) Made Chauffeur & Smart Auto drive use current driving style
+* (3.11.2) More driving style fixes
 
 # actions (v1)
 

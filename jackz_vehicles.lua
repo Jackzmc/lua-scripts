@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.11.1"
+VERSION = "3.11.2"
 local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -2205,7 +2205,7 @@ for _, style in pairs(DRIVING_STYLES) do
         desc = desc .. "\n" .. style[3]
     end
     menu.action(styleMenu, style[2], { }, desc, function()
-        driving_mode = style[1]
+        autodriveStyle = style[1]
         if isAutoDriving then
             local ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             TASK.SET_DRIVE_TASK_DRIVING_STYLE(ped, style[1])
@@ -2366,6 +2366,7 @@ menu.action(chauffeurMenu, i18n.format("AUTODRIVE_CHAUFFEUR_SPAWN_DRIVER_NAME"),
         if vehicle > 0 then
             autodriveDriver = driver
             autodriveVehicle = vehicle
+            TASK.SET_DRIVE_TASK_DRIVING_STYLE(driver, autodriveStyle)
             TASK.TASK_VEHICLE_TEMP_ACTION(autodriveDriver, vehicle, 1, 10000)
         elseif ENTITY.DOES_ENTITY_EXIST(driver) then
             entities.delete(driver)
