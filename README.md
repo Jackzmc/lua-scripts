@@ -2,7 +2,7 @@
 
 This is the source code for my lua scripts.
 
-These scripts are **not intended to be run as is**, but be preprocessed via my website. 
+**NOTE: These scripts are __not intended to be run as is__, but be served & processed via my website.** 
 What you see here is the dev versions I run that do not have autoupdates and are not intended for end users. You will not get help using the raw source.
 The base scripts (non pre-processed) do not include auto-updates, version changelogs, the Script Meta menu, or automatic downloading of missing files.
 
