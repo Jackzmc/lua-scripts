@@ -17,7 +17,7 @@ require('templates/common')
 util.require_natives(1627063482)
 
 local json = require("json")
-local _lang = require("translations")
+local _lang = try_require("translations")
 if _lang.menus == nil or _lang.VERSION == nil or _lang.VERSION ~= LANG_TARGET_VERSION then
   if SCRIPT_SOURCE == "MANUAL" then
     util.toast("Outdated translations library, downloading update...")
