@@ -2,7 +2,7 @@
 -- Created By Jackz
 -- SOURCE CODE: https://github.com/Jackzmc/lua-scripts
 local SCRIPT = "jackz_vehicles"
-VERSION = "3.11.0"
+VERSION = "3.11.1"
 local LANG_TARGET_VERSION = "1.4.3" -- Target version of translations.lua lib
 local VEHICLELIB_TARGET_VERSION = "1.3.1"
 
@@ -2529,7 +2529,7 @@ while true do
                     if now - smartAutoDriveData.lastSetTask > 5000 then
                         PED.SET_DRIVER_ABILITY(myPed, 1.0)
                         PED.SET_DRIVER_AGGRESSIVENESS(myPed, 0.6)
-                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(myPed, myVehicle, waypoint.x, waypoint.y, waypoint.z, 100, 5, model, 786748, 15.0, 1.0)
+                        TASK.TASK_VEHICLE_DRIVE_TO_COORD(myPed, myVehicle, waypoint.x, waypoint.y, waypoint.z, 100, 5, model, autodriveStyle, 15.0, 1.0)
                         smartAutoDriveData.lastSetTask = now
                     end
                 elseif smartAutoDriveData.lastWaypoint then

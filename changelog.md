@@ -36,6 +36,7 @@ v3.11.0
 * Made Chauffeur > Spawn Driver spawns driver in personal vehicle
 * Fix "Delete All Nearby Tows" from doing the opposite
 * Made Autodrive -> Drive Actions control chauffeur if not in a vehicle
+* (3.11.1) Made Chauffeur & Smart Auto drive use current driving style
 
 # actions (v1)
 
