@@ -626,7 +626,13 @@ menu.text_input(cloudSearchList, "Search", {"cbuildsearch"}, "Enter a search que
         HUD.BUSYSPINNER_OFF()
         if status_code == 200 then
             if body[1] == "{" then
-                local builds = json.decode(body).builds
+                local obj = json.decode(body)
+                if obj.error or not obj.builds then
+                    util.toast("Server returned an error. See logs for details")
+                    Log.error("server responded with error", body)
+                    return true
+                end
+                local builds = obj.builds
                 if #builds == 0 then
                     util.toast("No builds found")
                     return
@@ -704,6 +710,11 @@ function _fetch_cloud_sorts()
             if status_code == 200 and body:sub(1, 1) == "{" then
                 HUD.BUSYSPINNER_OFF()
                 local data = json.decode(body)
+                if data.error or not data.builds then
+                    util.toast("Server returned an error. See logs for details")
+                    Log.error("server responded with error", body)
+                    return true
+                end
                 cloudSettings.maxPages = data.pages or 1
                 menu.set_max_value(paginatorMenu, cloudSettings.maxPages)
                 -- FIXME: Causes stand exceptions when viewing next page?
@@ -739,7 +750,13 @@ function _fetch_cloud_users()
         if status_code == 200 then
             HUD.BUSYSPINNER_OFF()
             if body[1] == "{" then
-                cloudData = json.decode(body).users
+                local obj = json.decode(body)
+                if obj.error or not obj.users then
+                    util.toast("Server returned an error. See logs for details")
+                    Log.error("server responded with error", body)
+                    return true
+                end
+                cloudData = obj.users
                 for user, vehicles in pairsByKeys(cloudData) do
                     local userList = menu.list(cloudUsersList, string.format("%s (%d)", user, #vehicles), {}, string.format("%d builds", #vehicles), function()
                         _load_cloud_vehicles(user)
@@ -897,6 +914,11 @@ function rate_build(user, vehicleName, rating)
         if status_code == 200 then
             if body:sub(1, 1) == "{" then
                 local data = json.decode(body)
+                if data.error then
+                    util.toast("Server returned an error. See logs for details")
+                    Log.error("server responded with error", body)
+                    return true
+                end
                 if data.success then
                     util.toast("Rating submitted")
                 else
