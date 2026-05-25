@@ -76,7 +76,6 @@ end
 ----------------------------------------------------------------
 SCRIPT_META_LIST = menu.list(menu.my_root(), "Script Meta")
 menu.divider(SCRIPT_META_LIST, SCRIPT_NAME .. " V" .. VERSION)
-menu.hyperlink(SCRIPT_META_LIST, "Jackz's Discord", "https://discord.gg/NnJrkGppfb", "Get help, submit suggestions, report bugs, or be with other users of my scripts")
 menu.hyperlink(SCRIPT_META_LIST, "Github Source", "https://github.com/Jackzmc/lua-scripts", "View all my lua scripts on github")
 
 ----------------------------------------------------------------
@@ -145,7 +144,7 @@ menu.readonly(SCRIPT_META_LIST, "Build Commit", BRANCH_LAST_COMMIT and BRANCH_LA
 ----------------------------------------------------------------
 menu.divider(SCRIPT_META_LIST, "")
 if _lang ~= nil then
-    menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
+    -- menu.hyperlink(SCRIPT_META_LIST, "Help Translate", "https://jackz.me/stand/translate/?script=" .. SCRIPT, "If you wish to help translate, this script has default translations fed via google translate, but you can edit them here:\nOnce you make changes, top right includes a save button to get a -CHANGES.json file, send that my way.")
     _lang.add_language_selector_to_menu(SCRIPT_META_LIST)
     menu.action(SCRIPT_META_LIST, "Update Translation File", {}, "This will download the latest translation file for your currently selected language", function()
         show_busyspinner("Fetching translation file...")
